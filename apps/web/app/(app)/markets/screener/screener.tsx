@@ -27,6 +27,7 @@ import type { components } from "@/lib/api";
 import {
   FACTOR_KEYS,
   WEIGHT_FIELD_PREFIX,
+  makeDefaultWeights,
   recordToWeights,
 } from "@/lib/screener/parse-weights";
 import type { FactorKey, FactorWeights } from "@/lib/screener/parse-weights";
@@ -71,16 +72,11 @@ const factorConfigs: readonly FactorConfig[] = [
 const EM_DASH = "—";
 
 function defaultWeightsFromConfig(): FactorWeights {
-  return {
-    quality: 0,
-    valuation: 0,
-    momentum: 0,
-    volatility: 0,
-    sentiment: 0,
-    ...Object.fromEntries(
-      factorConfigs.map((config) => [config.key, config.initialWeight]),
-    ),
-  };
+  const weights = makeDefaultWeights();
+  for (const config of factorConfigs) {
+    weights[config.key] = config.initialWeight;
+  }
+  return weights;
 }
 
 function formatScore(value: number): string {
@@ -172,19 +168,14 @@ function PromotePanel(props: PromotePanelProps): ReactElement {
   );
 }
 
-interface SubmitButtonProps {
-  isDisabled: boolean;
-}
-
-function SubmitButton(props: SubmitButtonProps): ReactElement {
-  const { isDisabled } = props;
+function SubmitButton(): ReactElement {
   const { pending } = useFormStatus();
   return (
     <Button
       type="submit"
       variant="primary"
       className="w-full"
-      disabled={isDisabled || pending}
+      disabled={pending}
     >
       {pending ? "Running…" : "Run screener"}
     </Button>
@@ -230,13 +221,14 @@ export function Screener(props: ScreenerProps): ReactElement {
 
   useEffect(() => {
     if (!selectedTicker) {
+      closeRail();
       return;
     }
     setRail({
       title: `${selectedTicker} preview`,
       body: <PromotePanel ticker={selectedTicker} />,
     });
-  }, [selectedTicker, setRail]);
+  }, [selectedTicker, setRail, closeRail]);
 
   useEffect(() => {
     return () => {
@@ -338,7 +330,7 @@ export function Screener(props: ScreenerProps): ReactElement {
             </div>
           </div>
 
-          <SubmitButton isDisabled={false} />
+          <SubmitButton />
         </form>
       </aside>
 

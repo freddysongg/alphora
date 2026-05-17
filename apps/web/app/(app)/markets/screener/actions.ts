@@ -10,10 +10,10 @@ type ScreenerUniverse = components["schemas"]["ScreenerUniverseEnum"];
 
 const SCREENER_LIMIT = 50;
 const UNIVERSE_FIELD = "universe";
+const WATCHLIST_UNIVERSE = "watchlist";
 const ALLOWED_UNIVERSES: readonly ScreenerUniverse[] = [
   "sp500",
   "nasdaq100",
-  "watchlist",
 ] as const;
 
 export interface RunScreenerActionState {
@@ -48,20 +48,19 @@ export async function runScreener(
 ): Promise<RunScreenerActionState> {
   const rawUniverse = formData.get(UNIVERSE_FIELD);
   if (typeof rawUniverse !== "string" || !isAllowedUniverse(rawUniverse)) {
+    if (rawUniverse === WATCHLIST_UNIVERSE) {
+      return {
+        status: "error",
+        message: "Watchlist universe not yet supported.",
+        fields: {
+          universe: ["Pick a watchlist from the Watchlists page first."],
+        },
+      };
+    }
     return {
       status: "error",
       message: "Select a universe before running the screener.",
       fields: { universe: ["Invalid universe."] },
-    };
-  }
-  if (rawUniverse === "watchlist") {
-    return {
-      status: "error",
-      message:
-        "Watchlist screening requires a watchlist selector — coming soon.",
-      fields: {
-        universe: ["Pick a watchlist from the Watchlists page first."],
-      },
     };
   }
 
