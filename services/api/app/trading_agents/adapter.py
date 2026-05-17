@@ -13,6 +13,7 @@ from app.trading_agents.types import (
     RunConfig,
     RunResult,
 )
+from app.trading_agents.vendor_hooks import VendorProvenanceHook
 
 
 class TradingAgentsGraphProtocol(Protocol):
@@ -57,7 +58,8 @@ class TradingAgentsAdapter:
         graph = graph_cls(**ta_config)
         collector = ProvenanceCollector()
         start = time.monotonic()
-        final_state, decision = graph.propagate(config.ticker, config.trade_date.isoformat())
+        with VendorProvenanceHook(collector, config.ticker):
+            final_state, decision = graph.propagate(config.ticker, config.trade_date.isoformat())
         wall_ms = int((time.monotonic() - start) * 1000)
         return self._build_result(final_state, decision, config, collector, wall_ms)
 
