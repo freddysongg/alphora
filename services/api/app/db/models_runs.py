@@ -14,6 +14,12 @@ class RunStatus(StrEnum):
     succeeded = "succeeded"
     failed = "failed"
     cancelled = "cancelled"
+    paused = "paused"
+
+
+class Strategy(StrEnum):
+    tradingagents = "tradingagents"
+    funnel_research = "funnel_research"
 
 
 class FinalRating(StrEnum):
@@ -50,6 +56,12 @@ class ResearchRun(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     ticker: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
     trade_date: Mapped[date] = mapped_column(Date, nullable=False)
+    strategy: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default=Strategy.tradingagents.value,
+        server_default=Strategy.tradingagents.value,
+    )
     status: Mapped[RunStatus] = mapped_column(
         Enum(RunStatus, name="run_status", values_callable=enum_values),
         nullable=False,

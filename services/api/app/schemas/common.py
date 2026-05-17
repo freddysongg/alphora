@@ -9,6 +9,12 @@ class RunStatusEnum(StrEnum):
     succeeded = "succeeded"
     failed = "failed"
     cancelled = "cancelled"
+    paused = "paused"
+
+
+class StrategyEnum(StrEnum):
+    tradingagents = "tradingagents"
+    funnel_research = "funnel_research"
 
 
 class FinalRatingEnum(StrEnum):

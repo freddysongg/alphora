@@ -10,6 +10,7 @@ from app.schemas.common import (
     ProvenanceStatusEnum,
     RunEventLevelEnum,
     RunStatusEnum,
+    StrategyEnum,
 )
 
 _DEFAULT_ANALYSTS: list[AnalystKindEnum] = [
@@ -28,6 +29,7 @@ class ResearchRunCreate(BaseModel):
     ticker: str = Field(min_length=1, max_length=16)
     trade_date: date
     config: dict[str, object] = Field(default_factory=dict)
+    strategy: StrategyEnum = StrategyEnum.tradingagents
 
 
 class CreateResearchRunsRequest(BaseModel):
@@ -39,6 +41,7 @@ class CreateResearchRunsRequest(BaseModel):
     llm_provider: LlmProviderEnum
     llm_model: str = Field(min_length=1, max_length=128)
     debate_depth: int = Field(default=3, ge=1, le=8)
+    strategy: StrategyEnum = StrategyEnum.tradingagents
 
     @field_validator("tickers")
     @classmethod
@@ -66,6 +69,7 @@ class ResearchRunSummary(BaseModel):
 
     id: uuid.UUID
     ticker: str
+    strategy: StrategyEnum
     status: RunStatusEnum
     final_rating: FinalRatingEnum | None
     created_at: datetime
@@ -90,6 +94,7 @@ class ResearchRunPublic(BaseModel):
     id: uuid.UUID
     ticker: str
     trade_date: date
+    strategy: StrategyEnum
     status: RunStatusEnum
     config: dict[str, object]
     final_rating: FinalRatingEnum | None
@@ -145,6 +150,7 @@ class ResearchRunDetail(BaseModel):
     id: uuid.UUID
     ticker: str
     trade_date: date
+    strategy: StrategyEnum
     status: RunStatusEnum
     config: dict[str, object]
     final_rating: FinalRatingEnum | None

@@ -57,12 +57,14 @@ async def create_research_runs(
     queue: QueueDep,
 ) -> list[ResearchRunSummary]:
     config = _build_run_config(payload)
+    strategy = payload.strategy.value
     created: list[ResearchRun] = []
     for ticker in payload.tickers:
         run = ResearchRun(
             id=uuid.uuid4(),
             ticker=ticker,
             trade_date=payload.trade_date,
+            strategy=strategy,
             status=RunStatus.queued,
             config=config,
         )
@@ -167,6 +169,7 @@ async def get_research_run(run_id: uuid.UUID, session: SessionDep) -> ResearchRu
             "id": run.id,
             "ticker": run.ticker,
             "trade_date": run.trade_date,
+            "strategy": run.strategy,
             "status": run.status,
             "config": run.config,
             "final_rating": run.final_rating,
