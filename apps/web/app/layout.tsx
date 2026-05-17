@@ -21,7 +21,10 @@ export const metadata: Metadata = {
   title: "Alphora",
   description: "Research desk for US equities",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/alphora.png", type: "image/png" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
     apple: "/apple-touch-icon.png",
   },
 };
