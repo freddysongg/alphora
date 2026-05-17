@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class TokenUsage(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     input_tokens: int = Field(default=0, ge=0)
     output_tokens: int = Field(default=0, ge=0)
@@ -15,7 +15,7 @@ class TokenUsage(BaseModel):
 
 
 class BudgetThresholds(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     soft_run_usd: Decimal = Decimal("5.00")
     hard_run_usd: Decimal = Decimal("20.00")
@@ -30,18 +30,25 @@ class BudgetAction(StrEnum):
     kill = "kill"
 
 
+class BudgetThresholdName(StrEnum):
+    daily = "daily"
+    catastrophic_run = "catastrophic_run"
+    hard_run = "hard_run"
+    soft_run = "soft_run"
+
+
 class BudgetDecision(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     action: BudgetAction
     reason: str | None
     run_cost_usd: Decimal
     daily_cost_usd: Decimal
-    threshold_crossed: str | None
+    threshold_crossed: BudgetThresholdName | None
 
 
 class BudgetSnapshot(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     run_id: UUID | None
     run_cost_usd: Decimal

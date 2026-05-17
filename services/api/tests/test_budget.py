@@ -1,8 +1,9 @@
 from decimal import Decimal
 
 import pytest
+from pydantic import ValidationError
 
-from app.schemas.budget import BudgetAction, TokenUsage
+from app.schemas.budget import BudgetAction, BudgetThresholdName, BudgetThresholds, TokenUsage
 from app.services.budget import BudgetGuard, compute_cost
 from app.services.model_pricing import UnknownModelError
 
@@ -60,46 +61,52 @@ def test_evaluate_warn_at_soft_threshold() -> None:
     guard = BudgetGuard()
     decision = guard.evaluate(run_cost_usd=Decimal("5.00"), daily_cost_usd=Decimal("5.00"))
     assert decision.action is BudgetAction.warn
-    assert decision.threshold_crossed == "soft_run"
+    assert decision.threshold_crossed is BudgetThresholdName.soft_run
 
 
 def test_evaluate_pause_at_hard_threshold() -> None:
     guard = BudgetGuard()
     decision = guard.evaluate(run_cost_usd=Decimal("20.00"), daily_cost_usd=Decimal("20.00"))
     assert decision.action is BudgetAction.pause
-    assert decision.threshold_crossed == "hard_run"
+    assert decision.threshold_crossed is BudgetThresholdName.hard_run
 
 
 def test_evaluate_kill_at_catastrophic_run_threshold() -> None:
     guard = BudgetGuard()
     decision = guard.evaluate(run_cost_usd=Decimal("100.00"), daily_cost_usd=Decimal("100.00"))
     assert decision.action is BudgetAction.kill
-    assert decision.threshold_crossed == "catastrophic_run"
+    assert decision.threshold_crossed is BudgetThresholdName.catastrophic_run
 
 
 def test_evaluate_kill_at_daily_threshold() -> None:
     guard = BudgetGuard()
     decision = guard.evaluate(run_cost_usd=Decimal("1.00"), daily_cost_usd=Decimal("500.00"))
     assert decision.action is BudgetAction.kill
-    assert decision.threshold_crossed == "daily"
+    assert decision.threshold_crossed is BudgetThresholdName.daily
 
 
 def test_evaluate_priority_daily_beats_run_thresholds() -> None:
     guard = BudgetGuard()
     decision = guard.evaluate(run_cost_usd=Decimal("50.00"), daily_cost_usd=Decimal("500.00"))
     assert decision.action is BudgetAction.kill
-    assert decision.threshold_crossed == "daily"
+    assert decision.threshold_crossed is BudgetThresholdName.daily
 
 
 def test_evaluate_priority_catastrophic_beats_pause() -> None:
     guard = BudgetGuard()
     decision = guard.evaluate(run_cost_usd=Decimal("100.00"), daily_cost_usd=Decimal("10.00"))
     assert decision.action is BudgetAction.kill
-    assert decision.threshold_crossed == "catastrophic_run"
+    assert decision.threshold_crossed is BudgetThresholdName.catastrophic_run
 
 
 def test_evaluate_priority_pause_beats_warn() -> None:
     guard = BudgetGuard()
     decision = guard.evaluate(run_cost_usd=Decimal("20.00"), daily_cost_usd=Decimal("10.00"))
     assert decision.action is BudgetAction.pause
-    assert decision.threshold_crossed == "hard_run"
+    assert decision.threshold_crossed is BudgetThresholdName.hard_run
+
+
+def test_budget_thresholds_is_immutable() -> None:
+    t = BudgetThresholds()
+    with pytest.raises(ValidationError):
+        t.soft_run_usd = Decimal("999")

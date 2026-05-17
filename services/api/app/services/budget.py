@@ -1,14 +1,16 @@
 from decimal import ROUND_HALF_UP, Decimal
 
-from app.schemas.budget import BudgetAction, BudgetDecision, BudgetThresholds, TokenUsage
+from app.schemas.budget import (
+    BudgetAction,
+    BudgetDecision,
+    BudgetThresholdName,
+    BudgetThresholds,
+    TokenUsage,
+)
 from app.services.model_pricing import get_pricing
 
 _TOKENS_PER_MTOK: Decimal = Decimal(1_000_000)
 _COST_QUANTUM: Decimal = Decimal("0.000001")
-_THRESHOLD_DAILY: str = "daily"
-_THRESHOLD_CATASTROPHIC: str = "catastrophic_run"
-_THRESHOLD_HARD: str = "hard_run"
-_THRESHOLD_SOFT: str = "soft_run"
 _DEFAULT_THRESHOLDS: BudgetThresholds = BudgetThresholds()
 
 
@@ -40,7 +42,7 @@ class BudgetGuard:
                 ),
                 run_cost_usd=run_cost_usd,
                 daily_cost_usd=daily_cost_usd,
-                threshold_crossed=_THRESHOLD_DAILY,
+                threshold_crossed=BudgetThresholdName.daily,
             )
         if run_cost_usd >= self._thresholds.catastrophic_run_usd:
             return BudgetDecision(
@@ -51,7 +53,7 @@ class BudgetGuard:
                 ),
                 run_cost_usd=run_cost_usd,
                 daily_cost_usd=daily_cost_usd,
-                threshold_crossed=_THRESHOLD_CATASTROPHIC,
+                threshold_crossed=BudgetThresholdName.catastrophic_run,
             )
         if run_cost_usd >= self._thresholds.hard_run_usd:
             return BudgetDecision(
@@ -62,7 +64,7 @@ class BudgetGuard:
                 ),
                 run_cost_usd=run_cost_usd,
                 daily_cost_usd=daily_cost_usd,
-                threshold_crossed=_THRESHOLD_HARD,
+                threshold_crossed=BudgetThresholdName.hard_run,
             )
         if run_cost_usd >= self._thresholds.soft_run_usd:
             return BudgetDecision(
@@ -73,7 +75,7 @@ class BudgetGuard:
                 ),
                 run_cost_usd=run_cost_usd,
                 daily_cost_usd=daily_cost_usd,
-                threshold_crossed=_THRESHOLD_SOFT,
+                threshold_crossed=BudgetThresholdName.soft_run,
             )
         return BudgetDecision(
             action=BudgetAction.allow,
