@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import select
 
 from app.db import models
 from app.db.base import Base
@@ -198,7 +198,6 @@ async def test_llm_call_log_persists_and_round_trips() -> None:
 @pytest.mark.usefixtures("initialized_schema")
 async def test_llm_call_log_run_id_set_null_on_run_delete() -> None:
     async with session_factory() as session:
-        await session.execute(text("PRAGMA foreign_keys = ON"))
         run = ResearchRun(
             ticker="AAPL",
             trade_date=date(2026, 5, 16),
@@ -249,3 +248,27 @@ def test_llm_call_status_values() -> None:
     assert {member.value for member in LlmCallStatus} == {
         member.value for member in LlmCallStatusEnum
     }
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_llm_call_log_defaults_apply_when_omitted() -> None:
+    async with session_factory() as session:
+        log = LlmCallLog(
+            model="gpt-5",
+            prompt_hash="a" * 64,
+            input_hash="b" * 64,
+            latency_ms=42,
+            status=LlmCallStatus.success,
+        )
+        session.add(log)
+        await session.flush()
+        assert log.created_at is not None
+        assert log.created_at.tzinfo is not None
+        await session.commit()
+        await session.refresh(log)
+        assert log.input_tokens == 0
+        assert log.output_tokens == 0
+        assert log.cached_input_tokens == 0
+        assert log.reasoning_tokens == 0
+        assert log.cost_usd == Decimal("0")
+        assert log.created_at is not None

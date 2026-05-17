@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from enum import StrEnum
 
-from sqlalchemy import JSON, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, Uuid
+from sqlalchemy import JSON, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, enum_values
@@ -48,6 +48,7 @@ class LlmCallLog(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
+        server_default=func.now(),
         default=lambda: datetime.now(UTC),
     )
 

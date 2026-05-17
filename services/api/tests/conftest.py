@@ -3,10 +3,28 @@ from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 import pytest
+from sqlalchemy import event
 
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["ENVIRONMENT"] = "test"
 os.environ["LOG_JSON"] = "false"
+
+
+def _enable_sqlite_foreign_keys() -> None:
+    from app.db.session import engine
+
+    sync_engine = engine.sync_engine
+    if sync_engine.dialect.name != "sqlite":
+        return
+
+    @event.listens_for(sync_engine, "connect")
+    def _on_connect(dbapi_connection: Any, _: Any) -> None:
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys = ON")
+        cursor.close()
+
+
+_enable_sqlite_foreign_keys()
 
 
 @pytest.fixture(scope="session", autouse=True)
