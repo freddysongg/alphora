@@ -2,12 +2,15 @@
 
 import type { ReactElement } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+
 import { DataTable, StatusDot } from "@/components/ui";
-import {
-  getOrderStatusDot,
-  sampleOrders,
-} from "@/lib/fixtures/portfolio";
-import type { OrderRow, OrderSide, OrderType } from "@/lib/fixtures/portfolio";
+import type { components } from "@/lib/api";
+import { formatDateTime } from "@/lib/format/date-time";
+import { orderStatusToStatusKind } from "@/lib/paper/order-status";
+
+type PaperOrderPublic = components["schemas"]["PaperOrderPublic"];
+type OrderSide = components["schemas"]["OrderSideEnum"];
+type OrderType = components["schemas"]["OrderTypeEnum"];
 
 const sideLabels: Record<OrderSide, string> = {
   buy: "BUY",
@@ -18,12 +21,14 @@ const typeLabels: Record<OrderType, string> = {
   market: "MARKET",
 };
 
-const columns: ColumnDef<OrderRow, unknown>[] = [
+const columns: ColumnDef<PaperOrderPublic, unknown>[] = [
   {
-    accessorKey: "ts",
+    accessorKey: "submitted_at",
     header: "Time",
     cell: ({ getValue }) => (
-      <span className="font-mono text-fg-muted">{String(getValue<string>())}</span>
+      <span className="font-mono text-fg-muted">
+        {formatDateTime(getValue<string>())}
+      </span>
     ),
   },
   {
@@ -41,13 +46,13 @@ const columns: ColumnDef<OrderRow, unknown>[] = [
     ),
   },
   {
-    accessorKey: "qty",
+    accessorKey: "quantity",
     header: "Qty",
     meta: { numeric: true },
     cell: ({ getValue }) => <span>{getValue<number>().toLocaleString()}</span>,
   },
   {
-    accessorKey: "type",
+    accessorKey: "order_type",
     header: "Type",
     cell: ({ getValue }) => (
       <span className="text-fg-muted">{typeLabels[getValue<OrderType>()]}</span>
@@ -56,16 +61,24 @@ const columns: ColumnDef<OrderRow, unknown>[] = [
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => <StatusDot status={getOrderStatusDot(row.original.status)} />,
+    cell: ({ row }) => (
+      <StatusDot status={orderStatusToStatusKind(row.original.status)} />
+    ),
   },
 ];
 
-export function OrdersTable(): ReactElement {
+export interface OrdersTableProps {
+  rows: readonly PaperOrderPublic[];
+}
+
+export function OrdersTable(props: OrdersTableProps): ReactElement {
+  const { rows } = props;
   return (
-    <DataTable<OrderRow>
-      data={[...sampleOrders]}
+    <DataTable<PaperOrderPublic>
+      data={[...rows]}
       columns={columns}
       getRowId={(row) => row.id}
+      emptyState="No orders yet."
     />
   );
 }
