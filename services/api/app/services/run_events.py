@@ -41,11 +41,12 @@ def emit_stage_event(
     stage_index: int,
     total_stages: int,
     message: str | None = None,
+    level: RunEventLevel = RunEventLevel.info,
 ) -> RunEvent:
     return emit_run_event(
         session,
         run_id=run_id,
-        level=RunEventLevel.info,
+        level=level,
         message=message or f"stage {stage_index}/{total_stages}: {stage_name}",
         data={
             "event": STAGE_EVENT,

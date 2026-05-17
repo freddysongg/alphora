@@ -11,7 +11,6 @@ from app.services.provenance_recorder import persist_provenance
 from app.services.run_events import (
     PAUSE_EVENT,
     RESUME_EVENT,
-    STAGE_EVENT,
     emit_run_event,
     emit_stage_event,
 )
@@ -81,17 +80,13 @@ class RunOrchestrator:
                 return
             run.status = RunStatus.cancelled
             run.finished_at = _utcnow()
-            emit_run_event(
+            emit_stage_event(
                 session,
                 run_id=run_id,
+                stage_name="cancelled",
+                stage_index=_TERMINAL_STAGE_INDEX,
+                total_stages=_TOTAL_STAGES,
                 level=RunEventLevel.warn,
-                message=f"stage {_TERMINAL_STAGE_INDEX}/{_TOTAL_STAGES}: cancelled",
-                data={
-                    "event": STAGE_EVENT,
-                    "stage_name": "cancelled",
-                    "stage_index": _TERMINAL_STAGE_INDEX,
-                    "total_stages": _TOTAL_STAGES,
-                },
             )
             await session.commit()
 
@@ -161,17 +156,14 @@ class RunOrchestrator:
             run.status = RunStatus.failed
             run.error_message = message
             run.finished_at = _utcnow()
-            emit_run_event(
+            emit_stage_event(
                 session,
                 run_id=run_id,
-                level=RunEventLevel.err,
+                stage_name="failed",
+                stage_index=_TERMINAL_STAGE_INDEX,
+                total_stages=_TOTAL_STAGES,
                 message=f"run failed: {message}",
-                data={
-                    "event": STAGE_EVENT,
-                    "stage_name": "failed",
-                    "stage_index": _TERMINAL_STAGE_INDEX,
-                    "total_stages": _TOTAL_STAGES,
-                },
+                level=RunEventLevel.err,
             )
             await session.commit()
 

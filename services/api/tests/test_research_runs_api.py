@@ -9,6 +9,7 @@ from sqlalchemy import select
 from app.db.models_runs import ResearchRun, RunEvent, RunEventLevel, RunStatus
 from app.db.session import session_factory
 from app.main import app
+from app.services.run_events import COST_EVENT
 
 
 def test_create_research_runs_persists_rows_and_enqueues(
@@ -310,7 +311,7 @@ async def _seed_succeeded_run_with_cost_event() -> uuid.UUID:
                 run_id=run.id,
                 level=RunEventLevel.info,
                 message="llm call cost $0.05",
-                data={"event": "cost", "model": "gpt-5", "cost_usd": "0.05"},
+                data={"event": COST_EVENT, "model": "gpt-5", "cost_usd": "0.05"},
             )
         )
         await session.commit()
@@ -334,7 +335,7 @@ async def test_sse_stream_includes_data_field_for_cost_events(
     cost_payloads = [
         p
         for p in payloads
-        if isinstance(p.get("data"), dict) and p["data"].get("event") == "cost"
+        if isinstance(p.get("data"), dict) and p["data"].get("event") == COST_EVENT
     ]
     assert len(cost_payloads) == 1
     cost_payload = cost_payloads[0]
@@ -342,3 +343,47 @@ async def test_sse_stream_includes_data_field_for_cost_events(
     assert cost_payload["message"] == "llm call cost $0.05"
     assert cost_payload["data"]["model"] == "gpt-5"
     assert cost_payload["data"]["cost_usd"] == "0.05"
+
+
+async def _seed_succeeded_run_with_null_data_event() -> uuid.UUID:
+    run = ResearchRun(
+        id=uuid.uuid4(),
+        ticker="AAPL",
+        trade_date=date(2026, 5, 15),
+        status=RunStatus.succeeded,
+        config={},
+    )
+    async with session_factory() as session:
+        session.add(run)
+        await session.flush()
+        session.add(
+            RunEvent(
+                run_id=run.id,
+                level=RunEventLevel.info,
+                message="event without data",
+                data=None,
+            )
+        )
+        await session.commit()
+    return run.id
+
+
+async def test_sse_stream_serializes_null_data_field(
+    initialized_schema: None,
+) -> None:
+    _ = initialized_schema
+    from app.api.routes.research_runs import _stream_run_events
+
+    run_id = await _seed_succeeded_run_with_null_data_event()
+
+    payloads: list[dict[str, Any]] = []
+    async for frame in _stream_run_events(run_id):
+        for line in frame.splitlines():
+            if line.startswith("data: "):
+                payloads.append(json.loads(line[len("data: "):]))
+
+    null_data_payloads = [
+        p for p in payloads if p.get("message") == "event without data"
+    ]
+    assert len(null_data_payloads) == 1
+    assert null_data_payloads[0]["data"] is None
