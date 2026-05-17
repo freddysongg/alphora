@@ -1,0 +1,13 @@
+{
+  "name": "alphora",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @alphora/web",
+    "build": "npm run build --workspace @alphora/web",
+    "lint": "npm run lint --workspace @alphora/web",
+    "typecheck": "npm run typecheck --workspace @alphora/web"
+  }
+}
