@@ -27,6 +27,8 @@ class Settings(BaseSettings):
 
     secret_box_key: str = ""
 
+    openai_api_key: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:
