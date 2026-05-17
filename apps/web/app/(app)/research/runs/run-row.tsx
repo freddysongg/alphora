@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowsClockwise, Eye } from "@phosphor-icons/react/dist/ssr";
+import { Eye } from "@phosphor-icons/react/dist/ssr";
 import {
   Badge,
   Button,
@@ -10,7 +10,8 @@ import {
 } from "@/components/ui";
 import type { BadgeVariant } from "@/components/ui";
 import type { components } from "@/lib/api";
-import { runStatusToStatusKind } from "@/lib/research/status-mapping";
+import { isTerminal, runStatusToStatusKind } from "@/lib/research/status-mapping";
+import { RerunRowButton } from "./rerun-row-button";
 
 type ResearchRunSummary = components["schemas"]["ResearchRunSummary"];
 type FinalRating = NonNullable<ResearchRunSummary["final_rating"]>;
@@ -54,13 +55,9 @@ export function RunRow(props: RunRowProps): ReactElement {
         <Badge variant={resolveBadgeVariant(run.final_rating)} />
       </Link>
       <div className="flex items-center gap-1 shrink-0">
-        <Button
-          size="sm"
-          variant="ghost"
-          aria-label={`Re-run ${run.ticker}`}
-        >
-          <ArrowsClockwise size={12} weight="regular" />
-        </Button>
+        {isTerminal(run.status) ? (
+          <RerunRowButton runId={run.id} ticker={run.ticker} />
+        ) : null}
         <Button asChild size="sm" variant="ghost" aria-label={`View ${run.ticker}`}>
           <Link href={href}>
             <Eye size={12} weight="regular" />

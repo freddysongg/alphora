@@ -31,6 +31,14 @@ export const initialNewRunState: NewRunActionState = {
   fields: {},
 };
 
+interface BuiltFieldErrors {
+  fields: NewRunFieldErrors;
+  leftover: ReadonlyArray<{
+    field: string;
+    messages: readonly string[];
+  }>;
+}
+
 function readField(formData: FormData, key: string): string {
   const raw = formData.get(key);
   if (typeof raw === "string") {
@@ -39,13 +47,21 @@ function readField(formData: FormData, key: string): string {
   return "";
 }
 
+/**
+ * FastAPI's `_format_loc` (services/api/app/api/errors.py) joins location parts
+ * with `.`, stripping the leading source prefix ("body"/"query"/...). So a
+ * validation error on `body.tickers[0]` arrives as the field key `tickers.0`,
+ * and a bare-field error on `body.trade_date` arrives as `trade_date`. We match
+ * `tickers` exactly and `tickers.<index>` via dot-prefix to cover both shapes.
+ */
 function buildFieldErrors(
   fields: Readonly<Record<string, ReadonlyArray<string>>>,
-): NewRunFieldErrors {
+): BuiltFieldErrors {
   const out: { ticker?: readonly string[]; trade_date?: readonly string[] } =
     {};
+  const leftover: Array<{ field: string; messages: readonly string[] }> = [];
   for (const [key, messages] of Object.entries(fields)) {
-    if (key === "ticker" || key === "tickers" || key.startsWith("tickers")) {
+    if (key === "ticker" || key === "tickers" || key.startsWith("tickers.")) {
       out.ticker = [...messages];
       continue;
     }
@@ -53,8 +69,18 @@ function buildFieldErrors(
       out.trade_date = [...messages];
       continue;
     }
+    leftover.push({ field: key, messages: [...messages] });
   }
-  return out;
+  return { fields: out, leftover };
+}
+
+function formatLeftoverMessage(
+  leftover: ReadonlyArray<{ field: string; messages: readonly string[] }>,
+): string {
+  const parts = leftover.map(
+    (entry) => `${entry.field}: ${entry.messages.join(", ")}`,
+  );
+  return `Validation failed: ${parts.join("; ")}`;
 }
 
 export async function createResearchRun(
@@ -111,14 +137,22 @@ export async function createResearchRun(
     createdId = firstRun.id;
   } catch (caught) {
     if (isApiError(caught)) {
-      const apiFields =
-        caught.fields !== undefined ? buildFieldErrors(caught.fields) : {};
+      const built: BuiltFieldErrors =
+        caught.fields !== undefined
+          ? buildFieldErrors(caught.fields)
+          : { fields: {}, leftover: [] };
       const hasFieldErrors =
-        apiFields.ticker !== undefined || apiFields.trade_date !== undefined;
+        built.fields.ticker !== undefined ||
+        built.fields.trade_date !== undefined;
+      const leftoverMessage =
+        built.leftover.length > 0 ? formatLeftoverMessage(built.leftover) : null;
+      const resolvedMessage = hasFieldErrors
+        ? leftoverMessage
+        : (leftoverMessage ?? caught.detail);
       return {
         status: "error",
-        message: hasFieldErrors ? null : caught.detail,
-        fields: apiFields,
+        message: resolvedMessage,
+        fields: built.fields,
       };
     }
     return {

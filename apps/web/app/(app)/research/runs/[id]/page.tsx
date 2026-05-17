@@ -20,7 +20,9 @@ interface RunDetailPageProps {
 
 const NOT_FOUND_STATUS = 404;
 
-async function loadRunDetail(runId: string): Promise<ResearchRunDetail> {
+async function loadRunDetail(
+  runId: string,
+): Promise<ResearchRunDetail | null> {
   try {
     const { data } = await getServerApi().GET("/api/research-runs/{run_id}", {
       params: { path: { run_id: runId } },
@@ -28,12 +30,12 @@ async function loadRunDetail(runId: string): Promise<ResearchRunDetail> {
       next: { tags: ["research-runs", `research-run-${runId}`] },
     });
     if (data === undefined) {
-      notFound();
+      return null;
     }
     return data;
   } catch (caught) {
     if (isApiError(caught) && caught.status === NOT_FOUND_STATUS) {
-      notFound();
+      return null;
     }
     throw caught;
   }
@@ -44,5 +46,8 @@ export default async function RunDetailPage(
 ): Promise<ReactElement> {
   const { id } = await props.params;
   const detail = await loadRunDetail(id);
+  if (detail === null) {
+    notFound();
+  }
   return <RunDetail detail={detail} />;
 }

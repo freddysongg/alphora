@@ -24,6 +24,10 @@ import { readNumber, readStringArray } from "@/lib/api/config";
 import { formatWallClock } from "@/lib/format/wall-clock";
 import { mapEventsToLogLines } from "@/lib/research/map-events-to-log-lines";
 import {
+  compareAnalysts,
+  resolveAnalystLabel,
+} from "@/lib/research/analyst-labels";
+import {
   isTerminal,
   provenanceStatusToStatusKind,
   runStatusToStatusKind,
@@ -171,9 +175,14 @@ function buildAnalystChips(
   for (const report of reports) {
     fulfilled.add(report.analyst);
   }
-  return analystKeys.map((key) => ({
+  const union = new Set<string>(analystKeys);
+  for (const report of reports) {
+    union.add(report.analyst);
+  }
+  const ordered = Array.from(union).sort(compareAnalysts);
+  return ordered.map((key) => ({
     key,
-    label: key.toUpperCase(),
+    label: resolveAnalystLabel(key).toUpperCase(),
     status: fulfilled.has(key) ? "succeeded" : "pending",
   }));
 }
@@ -230,7 +239,7 @@ export function RunDetail(props: RunDetailProps): ReactElement {
       detail.reports.map((report) => ({
         key: report.id,
         analyst: report.analyst,
-        label: report.analyst.charAt(0).toUpperCase() + report.analyst.slice(1),
+        label: resolveAnalystLabel(report.analyst),
         markdown: report.markdown,
       })),
     [detail.reports],
