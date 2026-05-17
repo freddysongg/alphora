@@ -21,6 +21,7 @@ dependencies = [
 
 [project.scripts]
 alphora-worker = "app.workers.worker:main"
+alphora-paper-scheduler = "app.workers.paper_scheduler:main"
 
 [project.optional-dependencies]
 dev = [
