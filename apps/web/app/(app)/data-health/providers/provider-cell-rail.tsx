@@ -3,12 +3,7 @@
 import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  CapsLabel,
-  CodeBlock,
-  DataTable,
-  StatusDot,
-} from "@/components/ui";
+import { CapsLabel, DataTable, StatusDot } from "@/components/ui";
 import { getBrowserApi, isApiError } from "@/lib/api";
 import type { components } from "@/lib/api";
 import { providerCheckStatusToStatusKind } from "@/lib/data-health/status";
@@ -23,7 +18,8 @@ type FetchState =
 
 const CALL_LIMIT = 20;
 
-const SAMPLE_RESPONSE_PLACEHOLDER = "Sample response not stored yet.";
+const SAMPLE_RESPONSE_CAPTION = "Sample response not stored yet.";
+const GENERIC_FETCH_ERROR = "Failed to load recent calls.";
 
 const callsColumns: ColumnDef<ProviderCheckPublic, unknown>[] = [
   {
@@ -134,7 +130,8 @@ export function ProviderCellRail(
           setState({ kind: "error", detail: caught.detail });
           return;
         }
-        throw caught;
+        console.error("Failed to load provider calls", caught);
+        setState({ kind: "error", detail: GENERIC_FETCH_ERROR });
       }
     }
 
@@ -176,9 +173,7 @@ export function ProviderCellRail(
       </div>
       <div className="flex flex-col gap-2">
         <CapsLabel>SAMPLE RESPONSE</CapsLabel>
-        <CodeBlock lang="json" hasCopy={false}>
-          {SAMPLE_RESPONSE_PLACEHOLDER}
-        </CodeBlock>
+        <p className="text-fg-subtle text-xs">{SAMPLE_RESPONSE_CAPTION}</p>
       </div>
     </div>
   );
