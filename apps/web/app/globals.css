@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  --color-canvas: #06050A;
+  --color-panel: #11101A;
+  --color-surface: #1A1728;
+  --color-surface-2: #211C33;
+
+  --color-line: #332D48;
+  --color-line-strong: #4A2E8A;
+
+  --color-accent: #B98CFF;
+  --color-accent-soft: #D9C2FF;
+  --color-accent-deep: #7A4DFF;
+  --color-accent-press: #4A2E8A;
+  --color-accent-text: #D8B4FE;
+
+  --color-warn: #E879F9;
+  --color-danger: #FF6B7A;
+  --color-success: #B98CFF;
+
+  --color-fg: #ECE6FA;
+  --color-fg-muted: #9A92B5;
+  --color-fg-subtle: #5E5878;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", monospace;
+
+  --shadow-card: 0 1px 0 0 rgba(217, 194, 255, 0.04) inset, 0 8px 24px -12px rgba(6, 5, 10, 0.6);
+  --shadow-popover: 0 1px 0 0 rgba(217, 194, 255, 0.06) inset, 0 16px 48px -16px rgba(6, 5, 10, 0.8);
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-press: 140ms;
+  --dur-tooltip: 160ms;
+  --dur-popover: 200ms;
+  --dur-sheet: 320ms;
+}
+
+html,
+body {
+  background: var(--color-canvas);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  letter-spacing: -0.01em;
+}
+
+body {
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.press-scale:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .press-scale:active {
+    transform: scale(0.98);
+  }
+}
+
+::selection {
+  background: var(--color-accent-press);
+  color: var(--color-fg);
+}

@@ -1,0 +1,68 @@
+import type { ReactElement } from "react";
+import Link from "next/link";
+import type { Route } from "next";
+import { ArrowsClockwise, Eye } from "@phosphor-icons/react/dist/ssr";
+import {
+  ActivityStrip,
+  Badge,
+  Button,
+  HexPill,
+  StatusDot,
+} from "@/components/ui";
+import type { BadgeVariant, StatusKind } from "@/components/ui";
+import type { ResearchRun, RunRating, RunStatus } from "@/lib/fixtures/runs";
+
+const statusToDot: Record<RunStatus, StatusKind> = {
+  queued: "pending",
+  running: "live",
+  succeeded: "succeeded",
+  failed: "failed",
+};
+
+const ratingToBadge: Record<RunRating, BadgeVariant> = {
+  buy: "buy",
+  hold: "hold",
+  sell: "sell",
+  none: "none",
+};
+
+export interface RunRowProps {
+  run: ResearchRun;
+}
+
+export function RunRow(props: RunRowProps): ReactElement {
+  const { run } = props;
+  const href = `/research/runs/${run.id}` as Route;
+  return (
+    <li className="group flex items-center gap-4 px-3 py-3 border-b border-line/60 hover:bg-surface-2 transition-colors duration-150">
+      <Link
+        href={href}
+        className="flex flex-1 items-center gap-4 min-w-0"
+        aria-label={`Open run ${run.id} for ${run.ticker}`}
+      >
+        <span className="font-mono text-base text-fg w-20 shrink-0">
+          {run.ticker}
+        </span>
+        <HexPill value={run.id} />
+        <StatusDot status={statusToDot[run.status]} />
+        <div className="flex-1" />
+        <ActivityStrip buckets={[...run.activity]} />
+        <Badge variant={ratingToBadge[run.rating]} />
+      </Link>
+      <div className="flex items-center gap-1 shrink-0">
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-label={`Re-run ${run.ticker}`}
+        >
+          <ArrowsClockwise size={12} weight="regular" />
+        </Button>
+        <Button asChild size="sm" variant="ghost" aria-label={`View ${run.ticker}`}>
+          <Link href={href}>
+            <Eye size={12} weight="regular" />
+          </Link>
+        </Button>
+      </div>
+    </li>
+  );
+}
