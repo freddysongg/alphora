@@ -11,6 +11,8 @@ from app.db import models as _models  # noqa: F401
 from app.db.base import Base
 from app.db.models_runs import (
     ResearchRun,
+    RunEvent,
+    RunEventLevel,
     RunReport,
     RunStatus,
     SourceProvenance,
@@ -368,3 +370,193 @@ async def test_mark_failed_skips_cancelled_run(
         ).scalar_one()
         assert stored.status == RunStatus.cancelled
         assert stored.error_message is None
+
+
+async def _set_run_status(
+    factory: async_sessionmaker[AsyncSession],
+    run_id: Any,
+    new_status: RunStatus,
+) -> None:
+    async with factory() as session:
+        stored = (
+            await session.execute(select(ResearchRun).where(ResearchRun.id == run_id))
+        ).scalar_one()
+        stored.status = new_status
+        await session.commit()
+
+
+async def test_pause_running_run_transitions_to_paused_and_records_event(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    run = await _insert_queued_run(isolated_session_factory)
+    await _set_run_status(isolated_session_factory, run.id, RunStatus.running)
+    orchestrator = RunOrchestrator(
+        session_factory=isolated_session_factory,
+        adapter=TradingAgentsAdapter(factory=SuccessFakeGraph),
+    )
+
+    await orchestrator.pause(run.id, "budget exceeded")
+
+    async with isolated_session_factory() as session:
+        stored = (
+            await session.execute(select(ResearchRun).where(ResearchRun.id == run.id))
+        ).scalar_one()
+        assert stored.status == RunStatus.paused
+        assert stored.finished_at is None
+        events = (
+            await session.execute(select(RunEvent).where(RunEvent.run_id == run.id))
+        ).scalars().all()
+        assert len(events) == 1
+        event = events[0]
+        assert event.level == RunEventLevel.warn
+        assert event.message == "run paused: budget exceeded"
+        assert event.data == {"event": "pause", "reason": "budget exceeded"}
+
+
+async def test_pause_queued_run_raises(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    run = await _insert_queued_run(isolated_session_factory)
+    orchestrator = RunOrchestrator(
+        session_factory=isolated_session_factory,
+        adapter=TradingAgentsAdapter(factory=SuccessFakeGraph),
+    )
+
+    with pytest.raises(RunOrchestratorError):
+        await orchestrator.pause(run.id, "nope")
+
+
+async def test_pause_paused_run_is_noop(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    run = await _insert_queued_run(isolated_session_factory)
+    await _set_run_status(isolated_session_factory, run.id, RunStatus.paused)
+    orchestrator = RunOrchestrator(
+        session_factory=isolated_session_factory,
+        adapter=TradingAgentsAdapter(factory=SuccessFakeGraph),
+    )
+
+    await orchestrator.pause(run.id, "again")
+
+    async with isolated_session_factory() as session:
+        stored = (
+            await session.execute(select(ResearchRun).where(ResearchRun.id == run.id))
+        ).scalar_one()
+        assert stored.status == RunStatus.paused
+        events = (
+            await session.execute(select(RunEvent).where(RunEvent.run_id == run.id))
+        ).scalars().all()
+        assert events == []
+
+
+@pytest.mark.parametrize(
+    "terminal_status",
+    [RunStatus.succeeded, RunStatus.failed, RunStatus.cancelled],
+)
+async def test_pause_terminal_run_raises(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+    terminal_status: RunStatus,
+) -> None:
+    run = await _insert_queued_run(isolated_session_factory)
+    await _set_run_status(isolated_session_factory, run.id, terminal_status)
+    orchestrator = RunOrchestrator(
+        session_factory=isolated_session_factory,
+        adapter=TradingAgentsAdapter(factory=SuccessFakeGraph),
+    )
+
+    with pytest.raises(RunOrchestratorError):
+        await orchestrator.pause(run.id, "too late")
+
+
+async def test_resume_paused_run_transitions_to_queued_and_records_event(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    run = await _insert_queued_run(isolated_session_factory)
+    await _set_run_status(isolated_session_factory, run.id, RunStatus.paused)
+    orchestrator = RunOrchestrator(
+        session_factory=isolated_session_factory,
+        adapter=TradingAgentsAdapter(factory=SuccessFakeGraph),
+    )
+
+    await orchestrator.resume(run.id)
+
+    async with isolated_session_factory() as session:
+        stored = (
+            await session.execute(select(ResearchRun).where(ResearchRun.id == run.id))
+        ).scalar_one()
+        assert stored.status == RunStatus.queued
+        events = (
+            await session.execute(select(RunEvent).where(RunEvent.run_id == run.id))
+        ).scalars().all()
+        assert len(events) == 1
+        event = events[0]
+        assert event.level == RunEventLevel.info
+        assert event.message == "run resumed"
+        assert event.data == {"event": "resume"}
+
+
+@pytest.mark.parametrize(
+    "active_status",
+    [RunStatus.queued, RunStatus.running],
+)
+async def test_resume_active_run_is_noop(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+    active_status: RunStatus,
+) -> None:
+    run = await _insert_queued_run(isolated_session_factory)
+    await _set_run_status(isolated_session_factory, run.id, active_status)
+    orchestrator = RunOrchestrator(
+        session_factory=isolated_session_factory,
+        adapter=TradingAgentsAdapter(factory=SuccessFakeGraph),
+    )
+
+    await orchestrator.resume(run.id)
+
+    async with isolated_session_factory() as session:
+        stored = (
+            await session.execute(select(ResearchRun).where(ResearchRun.id == run.id))
+        ).scalar_one()
+        assert stored.status == active_status
+        events = (
+            await session.execute(select(RunEvent).where(RunEvent.run_id == run.id))
+        ).scalars().all()
+        assert events == []
+
+
+@pytest.mark.parametrize(
+    "terminal_status",
+    [RunStatus.succeeded, RunStatus.failed, RunStatus.cancelled],
+)
+async def test_resume_terminal_run_raises(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+    terminal_status: RunStatus,
+) -> None:
+    run = await _insert_queued_run(isolated_session_factory)
+    await _set_run_status(isolated_session_factory, run.id, terminal_status)
+    orchestrator = RunOrchestrator(
+        session_factory=isolated_session_factory,
+        adapter=TradingAgentsAdapter(factory=SuccessFakeGraph),
+    )
+
+    with pytest.raises(RunOrchestratorError):
+        await orchestrator.resume(run.id)
+
+
+async def test_cancel_paused_run_transitions_to_cancelled(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    run = await _insert_queued_run(isolated_session_factory)
+    await _set_run_status(isolated_session_factory, run.id, RunStatus.paused)
+    orchestrator = RunOrchestrator(
+        session_factory=isolated_session_factory,
+        adapter=TradingAgentsAdapter(factory=SuccessFakeGraph),
+    )
+
+    await orchestrator.cancel(run.id)
+
+    async with isolated_session_factory() as session:
+        stored = (
+            await session.execute(select(ResearchRun).where(ResearchRun.id == run.id))
+        ).scalar_one()
+        assert stored.status == RunStatus.cancelled
+        assert stored.finished_at is not None

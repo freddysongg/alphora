@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.models_runs import AnalystKind as DbAnalystKind
 from app.db.models_runs import FinalRating as DbFinalRating
-from app.db.models_runs import ResearchRun, RunReport, RunStatus
+from app.db.models_runs import ResearchRun, RunEvent, RunEventLevel, RunReport, RunStatus
 from app.services.provenance_recorder import persist_provenance
 from app.trading_agents.adapter import TradingAgentsAdapter
 from app.trading_agents.types import (
@@ -66,10 +66,51 @@ class RunOrchestrator:
     async def cancel(self, run_id: UUID) -> None:
         async with self._session_factory() as session:
             run = await self._load_run(session, run_id)
-            if run.status not in {RunStatus.queued, RunStatus.running}:
+            if run.status not in {RunStatus.queued, RunStatus.running, RunStatus.paused}:
                 return
             run.status = RunStatus.cancelled
             run.finished_at = _utcnow()
+            await session.commit()
+
+    async def pause(self, run_id: UUID, reason: str) -> None:
+        async with self._session_factory() as session:
+            run = await self._load_run(session, run_id)
+            if run.status == RunStatus.paused:
+                return
+            if run.status != RunStatus.running:
+                raise RunOrchestratorError(
+                    f"cannot pause run {run_id} from status {run.status.value}"
+                )
+            run.status = RunStatus.paused
+            run.finished_at = None
+            session.add(
+                RunEvent(
+                    run_id=run_id,
+                    level=RunEventLevel.warn,
+                    message=f"run paused: {reason}",
+                    data={"event": "pause", "reason": reason},
+                )
+            )
+            await session.commit()
+
+    async def resume(self, run_id: UUID) -> None:
+        async with self._session_factory() as session:
+            run = await self._load_run(session, run_id)
+            if run.status in {RunStatus.queued, RunStatus.running}:
+                return
+            if run.status != RunStatus.paused:
+                raise RunOrchestratorError(
+                    f"cannot resume run {run_id} from status {run.status.value}"
+                )
+            run.status = RunStatus.queued
+            session.add(
+                RunEvent(
+                    run_id=run_id,
+                    level=RunEventLevel.info,
+                    message="run resumed",
+                    data={"event": "resume"},
+                )
+            )
             await session.commit()
 
     async def _mark_running_and_load_config(self, run_id: UUID) -> RunConfig | None:

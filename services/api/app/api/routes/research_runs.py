@@ -269,4 +269,32 @@ async def cancel_research_run(
     return ResearchRunSummary.model_validate(existing)
 
 
+@router.post("/{run_id}/resume", response_model=ResearchRunSummary)
+async def resume_research_run(
+    run_id: uuid.UUID,
+    session: SessionDep,
+    orchestrator: OrchestratorDep,
+    queue: QueueDep,
+) -> ResearchRunSummary:
+    existing = (
+        await session.execute(select(ResearchRun).where(ResearchRun.id == run_id))
+    ).scalar_one_or_none()
+    if existing is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="research run not found")
+    if existing.status != RunStatus.paused:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"run not paused: {existing.status.value}",
+        )
+    try:
+        await orchestrator.resume(run_id)
+    except RunOrchestratorError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+        ) from exc
+    queue.enqueue("app.workers.tasks.execute_research_run", run_id.hex)
+    await session.refresh(existing)
+    return ResearchRunSummary.model_validate(existing)
+
+
 __all__ = ["router"]

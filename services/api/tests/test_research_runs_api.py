@@ -222,3 +222,72 @@ def test_create_research_runs_actually_persists(
             return len(rows)
 
     assert asyncio.run(_count_rows()) == 1
+
+
+def _seed_run_with_status(run_status: RunStatus) -> uuid.UUID:
+    import asyncio
+
+    async def _seed() -> uuid.UUID:
+        run = ResearchRun(
+            id=uuid.uuid4(),
+            ticker="AAPL",
+            trade_date=date(2026, 5, 15),
+            status=run_status,
+            config={},
+        )
+        async with session_factory() as session:
+            session.add(run)
+            await session.commit()
+        return run.id
+
+    return asyncio.run(_seed())
+
+
+def test_resume_research_run_returns_404_when_missing(
+    initialized_schema: None, fake_queue: Any
+) -> None:
+    _ = initialized_schema
+    _ = fake_queue
+    missing_id = uuid.uuid4()
+    with TestClient(app) as client:
+        response = client.post(f"/api/research-runs/{missing_id}/resume")
+    assert response.status_code == 404
+
+
+def test_resume_research_run_returns_409_when_not_paused(
+    initialized_schema: None, fake_queue: Any
+) -> None:
+    _ = initialized_schema
+    run_id = _seed_run_with_status(RunStatus.queued)
+    with TestClient(app) as client:
+        response = client.post(f"/api/research-runs/{run_id}/resume")
+    assert response.status_code == 409
+    assert len(fake_queue.calls) == 0
+
+
+def test_resume_paused_run_returns_queued_and_enqueues(
+    initialized_schema: None, fake_queue: Any
+) -> None:
+    _ = initialized_schema
+    run_id = _seed_run_with_status(RunStatus.paused)
+    with TestClient(app) as client:
+        response = client.post(f"/api/research-runs/{run_id}/resume")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["status"] == "queued"
+    assert len(fake_queue.calls) == 1
+    args, _kwargs = fake_queue.calls[0]
+    assert args[0] == "app.workers.tasks.execute_research_run"
+    assert args[1] == run_id.hex
+
+
+def test_cancel_paused_run_transitions_to_cancelled(
+    initialized_schema: None, fake_queue: Any
+) -> None:
+    _ = initialized_schema
+    _ = fake_queue
+    run_id = _seed_run_with_status(RunStatus.paused)
+    with TestClient(app) as client:
+        response = client.post(f"/api/research-runs/{run_id}/cancel")
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "cancelled"
