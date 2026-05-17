@@ -81,7 +81,7 @@ services:
       dockerfile: Dockerfile
     environment:
       <<: *api-env
-    command: ["alphora-worker"]
+    command: ["python", "-m", "app.workers.worker"]
     depends_on:
       postgres:
         condition: service_healthy
