@@ -18,6 +18,9 @@ dependencies = [
   "python-multipart>=0.0.12",
 ]
 
+[project.scripts]
+alphora-worker = "app.workers.worker:main"
+
 [project.optional-dependencies]
 dev = [
   "pytest>=8.3.3",
