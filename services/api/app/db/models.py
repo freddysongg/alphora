@@ -1,5 +1,6 @@
 from app.db.base import Base, TimestampMixin
 from app.db.models_data_health import ProviderCheck, ProviderCheckStatus
+from app.db.models_llm import LlmCallLog, LlmCallStatus
 from app.db.models_market import (
     ScreenerResult,
     ScreenerRun,
@@ -32,6 +33,8 @@ __all__ = [
     "ApplicationSettings",
     "Base",
     "FinalRating",
+    "LlmCallLog",
+    "LlmCallStatus",
     "LlmProvider",
     "OrderSide",
     "OrderStatus",

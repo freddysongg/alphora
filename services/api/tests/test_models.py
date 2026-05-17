@@ -1,13 +1,16 @@
 from datetime import date
+from decimal import Decimal
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.db import models
 from app.db.base import Base
+from app.db.models_llm import LlmCallLog, LlmCallStatus
 from app.db.models_runs import FinalRating, ResearchRun, RunStatus, Strategy
 from app.db.session import session_factory
 from app.schemas.common import RunStatusEnum, StrategyEnum
+from app.schemas.llm import LlmCallStatusEnum
 
 _EXPECTED_TABLES = {
     "research_runs",
@@ -23,6 +26,7 @@ _EXPECTED_TABLES = {
     "screener_results",
     "provider_checks",
     "application_settings",
+    "llm_call_logs",
 }
 
 
@@ -136,3 +140,112 @@ async def test_research_run_round_trips_paused_status() -> None:
             )
         ).scalar_one()
         assert reloaded.status == RunStatus.paused
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_llm_call_log_persists_and_round_trips() -> None:
+    async with session_factory() as session:
+        run = ResearchRun(
+            ticker="AAPL",
+            trade_date=date(2026, 5, 16),
+            status=RunStatus.running,
+            config={},
+        )
+        session.add(run)
+        await session.commit()
+        run_id = run.id
+
+        log = LlmCallLog(
+            run_id=run_id,
+            model="gpt-4o-mini",
+            prompt_hash="a" * 64,
+            input_hash="b" * 64,
+            input_tokens=120,
+            output_tokens=80,
+            cached_input_tokens=30,
+            reasoning_tokens=10,
+            cost_usd=Decimal("0.001234"),
+            latency_ms=842,
+            status=LlmCallStatus.success,
+            error_message=None,
+            evidence_ids=["ev_1", "ev_2"],
+        )
+        session.add(log)
+        await session.commit()
+        log_id = log.id
+
+    async with session_factory() as session:
+        reloaded = (
+            await session.execute(select(LlmCallLog).where(LlmCallLog.id == log_id))
+        ).scalar_one()
+
+    assert reloaded.run_id == run_id
+    assert reloaded.model == "gpt-4o-mini"
+    assert reloaded.prompt_hash == "a" * 64
+    assert reloaded.input_hash == "b" * 64
+    assert reloaded.input_tokens == 120
+    assert reloaded.output_tokens == 80
+    assert reloaded.cached_input_tokens == 30
+    assert reloaded.reasoning_tokens == 10
+    assert reloaded.cost_usd == Decimal("0.001234")
+    assert reloaded.latency_ms == 842
+    assert reloaded.status == LlmCallStatus.success
+    assert reloaded.error_message is None
+    assert reloaded.evidence_ids == ["ev_1", "ev_2"]
+    assert reloaded.created_at is not None
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_llm_call_log_run_id_set_null_on_run_delete() -> None:
+    async with session_factory() as session:
+        await session.execute(text("PRAGMA foreign_keys = ON"))
+        run = ResearchRun(
+            ticker="AAPL",
+            trade_date=date(2026, 5, 16),
+            status=RunStatus.running,
+            config={},
+        )
+        session.add(run)
+        await session.commit()
+        run_id = run.id
+
+        log = LlmCallLog(
+            run_id=run_id,
+            model="gpt-4o-mini",
+            prompt_hash="c" * 64,
+            input_hash="d" * 64,
+            input_tokens=1,
+            output_tokens=1,
+            cached_input_tokens=0,
+            reasoning_tokens=0,
+            cost_usd=Decimal("0"),
+            latency_ms=10,
+            status=LlmCallStatus.success,
+        )
+        session.add(log)
+        await session.commit()
+        log_id = log.id
+
+        await session.execute(
+            ResearchRun.__table__.delete().where(ResearchRun.id == run_id)
+        )
+        await session.commit()
+
+        stored_run_id = (
+            await session.execute(
+                select(LlmCallLog.__table__.c.run_id).where(
+                    LlmCallLog.__table__.c.id == log_id
+                )
+            )
+        ).scalar_one()
+        assert stored_run_id is None
+
+
+def test_llm_call_status_values() -> None:
+    assert LlmCallStatus.success.value == "success"
+    assert LlmCallStatus.error.value == "error"
+    assert LlmCallStatus.budget_paused.value == "budget_paused"
+    assert LlmCallStatus.budget_killed.value == "budget_killed"
+    assert {member.value for member in LlmCallStatus} == {
+        member.value for member in LlmCallStatusEnum
+    }
