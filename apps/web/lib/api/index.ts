@@ -3,8 +3,8 @@
  *
  * Usage:
  *   Server Components / Server Actions / Route Handlers:
- *     import { api } from "@/lib/api";
- *     const { data } = await api.GET("/api/health");
+ *     import { getServerApi } from "@/lib/api";
+ *     const { data } = await getServerApi().GET("/api/health");
  *
  *   Browser-only contexts (rare — most data flows through server first):
  *     import { getBrowserApi } from "@/lib/api";
@@ -23,12 +23,12 @@
  *
  *   Regenerating types:
  *     1. Refresh the contract file from FastAPI:
- *        `pnpm --filter @alphora/web run generate:api:export`
+ *        `npm run generate:api:export --workspace @alphora/web`
  *     2. Regenerate the TypeScript schema:
- *        `pnpm --filter @alphora/web run generate:api`
+ *        `npm run generate:api --workspace @alphora/web`
  */
 
-export { api, apiClient, getBrowserApi, getServerApi } from "./client";
+export { apiClient, getBrowserApi, getServerApi } from "./client";
 export type { ApiClient, ApiClientOptions } from "./client";
 export { ApiError, isApiError } from "./errors";
 export type { ApiErrorFields } from "./errors";

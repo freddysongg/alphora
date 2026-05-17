@@ -10,13 +10,11 @@ export type ApiClient = Client<paths>;
 
 export interface ApiClientOptions {
   baseUrl?: string;
-  init?: RequestInit;
 }
 
 interface RawErrorEnvelope {
   code?: unknown;
   detail?: unknown;
-  message?: unknown;
   fields?: unknown;
 }
 
@@ -55,11 +53,7 @@ async function readErrorEnvelope(response: Response): Promise<ApiError> {
   const code =
     typeof body?.code === "string" ? body.code : `http_${response.status}`;
   const detailFromBody =
-    typeof body?.detail === "string"
-      ? body.detail
-      : typeof body?.message === "string"
-        ? body.message
-        : undefined;
+    typeof body?.detail === "string" ? body.detail : undefined;
   const detail = detailFromBody ?? response.statusText ?? "Request failed";
   const fields = coerceFields(body?.fields);
   return new ApiError(response.status, code, detail, fields);
@@ -74,13 +68,13 @@ const throwOnErrorMiddleware: Middleware = {
   },
 };
 
-function buildClientOptions(options: ApiClientOptions | undefined): ClientOptions {
+function buildClientOptions(
+  options: ApiClientOptions | undefined,
+): ClientOptions {
   const baseUrl = options?.baseUrl ?? getApiBaseUrl();
-  const init = options?.init ?? {};
   return {
     baseUrl,
     cache: "no-store",
-    ...init,
   };
 }
 
@@ -107,5 +101,3 @@ export function getBrowserApi(): ApiClient {
   }
   return browserSingleton;
 }
-
-export const api: ApiClient = getServerApi();

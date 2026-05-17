@@ -1,6 +1,6 @@
 import { ApiError, isApiError } from "../errors";
 import type { ApiErrorFields } from "../errors";
-import { api, apiClient, getBrowserApi, getServerApi } from "../client";
+import { apiClient, getBrowserApi, getServerApi } from "../client";
 import type { ApiClient } from "../client";
 
 const _noFields = new ApiError(500, "internal_error", "Boom");
@@ -27,13 +27,11 @@ if (isApiError(_unknownValue)) {
 const _serverClient: ApiClient = getServerApi();
 const _browserClient: ApiClient = getBrowserApi();
 const _customClient: ApiClient = apiClient({ baseUrl: "http://example.com" });
-const _defaultClient: ApiClient = api;
 
 void _withFields;
 void _fields;
 void _serverClient;
 void _browserClient;
 void _customClient;
-void _defaultClient;
 
 export {};
