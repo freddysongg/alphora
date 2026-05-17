@@ -1,7 +1,7 @@
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Literal, Protocol
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -18,6 +18,16 @@ from app.logging import get_logger
 from app.services.quote_service import QuoteService
 
 _logger = get_logger(__name__)
+
+# Bounded per-tick work prevents a post-outage backlog from monopolizing the worker.
+_MAX_FILLS_PER_TICK: int = 500
+
+
+class PaperFillerProtocol(Protocol):
+    """Subset of PaperFiller consumed by the scheduler; enables test fakes."""
+
+    async def fill_open_orders(self) -> "FillResult":
+        ...
 
 
 @dataclass(frozen=True)
@@ -106,6 +116,7 @@ class PaperFiller:
                 .where(PaperOrder.status.in_([OrderStatus.pending, OrderStatus.accepted]))
                 .where(PaperOrder.order_type == OrderType.market)
                 .order_by(PaperOrder.submitted_at.asc())
+                .limit(_MAX_FILLS_PER_TICK)
             )
             rows = await session.execute(stmt)
             return [row[0] for row in rows.all()]
@@ -272,6 +283,7 @@ __all__ = [
     "FillResult",
     "FilledOutcome",
     "PaperFiller",
+    "PaperFillerProtocol",
     "RejectedOutcome",
     "SkippedOutcome",
 ]

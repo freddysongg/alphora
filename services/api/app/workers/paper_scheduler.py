@@ -3,13 +3,15 @@ import signal
 from collections.abc import Callable
 from datetime import UTC, datetime
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-
 from app.db.session import session_factory as default_session_factory
 from app.logging import configure_logging, get_logger
 from app.services.market_clock import is_us_market_open
-from app.services.paper_filler import FillResult, PaperFiller
-from app.services.quote_service import QuoteService, StubQuoteService
+from app.services.paper_filler import (
+    FillResult,
+    PaperFiller,
+    PaperFillerProtocol,
+)
+from app.services.quote_service import StubQuoteService
 
 _logger = get_logger(__name__)
 
@@ -25,15 +27,12 @@ class PaperScheduler:
 
     def __init__(
         self,
-        session_factory: async_sessionmaker[AsyncSession],
-        quote_service: QuoteService,
+        filler: PaperFillerProtocol,
         interval_seconds: float = 60.0,
         clock: ClockFn = _default_clock,
     ) -> None:
         self._interval_seconds = interval_seconds
-        self._filler = PaperFiller(
-            session_factory=session_factory, quote_service=quote_service
-        )
+        self._filler = filler
         self._clock = clock
 
     async def run_once(self) -> FillResult:
@@ -84,10 +83,11 @@ async def _run() -> None:
             loop.add_signal_handler(sig, stop_event.set)
         except NotImplementedError:
             signal.signal(sig, lambda *_: stop_event.set())
-    scheduler = PaperScheduler(
+    filler = PaperFiller(
         session_factory=default_session_factory,
         quote_service=StubQuoteService(),
     )
+    scheduler = PaperScheduler(filler=filler)
     await scheduler.run_forever(stop_event)
 
 
