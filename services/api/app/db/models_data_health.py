@@ -5,7 +5,7 @@ from enum import StrEnum
 from sqlalchemy import Date, DateTime, Enum, Index, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base
+from app.db.base import Base, enum_values
 
 
 class ProviderCheckStatus(StrEnum):
@@ -36,7 +36,7 @@ class ProviderCheck(Base):
     )
     latency_ms: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[ProviderCheckStatus] = mapped_column(
-        Enum(ProviderCheckStatus, name="provider_check_status"),
+        Enum(ProviderCheckStatus, name="provider_check_status", values_callable=enum_values),
         nullable=False,
     )
     sample_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

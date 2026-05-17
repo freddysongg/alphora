@@ -1,7 +1,12 @@
 from datetime import datetime
+from enum import Enum as PyEnum
 
 from sqlalchemy import DateTime, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+def enum_values(enum_cls: type[PyEnum]) -> list[str]:
+    return [str(member.value) for member in enum_cls]
 
 
 class Base(DeclarativeBase):

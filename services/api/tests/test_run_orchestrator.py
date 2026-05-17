@@ -255,3 +255,116 @@ async def test_missing_run_raises_orchestrator_error(
 
     with pytest.raises(RunOrchestratorError):
         await orchestrator.start(uuid4())
+
+
+async def test_execute_skips_cancelled_run(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    run = await _insert_queued_run(isolated_session_factory)
+    async with isolated_session_factory() as session:
+        stored = (
+            await session.execute(select(ResearchRun).where(ResearchRun.id == run.id))
+        ).scalar_one()
+        stored.status = RunStatus.cancelled
+        await session.commit()
+
+    orchestrator = RunOrchestrator(
+        session_factory=isolated_session_factory,
+        adapter=TradingAgentsAdapter(factory=SuccessFakeGraph),
+    )
+
+    await orchestrator.execute(run.id)
+
+    async with isolated_session_factory() as session:
+        stored = (
+            await session.execute(select(ResearchRun).where(ResearchRun.id == run.id))
+        ).scalar_one()
+        assert stored.status == RunStatus.cancelled
+        assert stored.final_rating is None
+        assert stored.final_decision_summary is None
+
+
+async def test_start_skips_already_running_run(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    run = await _insert_queued_run(isolated_session_factory)
+    async with isolated_session_factory() as session:
+        stored = (
+            await session.execute(select(ResearchRun).where(ResearchRun.id == run.id))
+        ).scalar_one()
+        stored.status = RunStatus.cancelled
+        await session.commit()
+
+    orchestrator = RunOrchestrator(
+        session_factory=isolated_session_factory,
+        adapter=TradingAgentsAdapter(factory=SuccessFakeGraph),
+    )
+
+    await orchestrator.start(run.id)
+
+    async with isolated_session_factory() as session:
+        stored = (
+            await session.execute(select(ResearchRun).where(ResearchRun.id == run.id))
+        ).scalar_one()
+        assert stored.status == RunStatus.cancelled
+
+
+async def test_persist_success_skips_cancelled_run(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    from app.trading_agents.types import RunResult
+
+    run = await _insert_queued_run(isolated_session_factory)
+    async with isolated_session_factory() as session:
+        stored = (
+            await session.execute(select(ResearchRun).where(ResearchRun.id == run.id))
+        ).scalar_one()
+        stored.status = RunStatus.cancelled
+        await session.commit()
+
+    orchestrator = RunOrchestrator(
+        session_factory=isolated_session_factory,
+        adapter=TradingAgentsAdapter(factory=SuccessFakeGraph),
+    )
+    fake_result = RunResult(
+        final_rating="buy",
+        decision_summary="ignored",
+        reports=[],
+        provenance=[],
+        wall_clock_ms=10,
+    )
+
+    await orchestrator._persist_success(run.id, fake_result)
+
+    async with isolated_session_factory() as session:
+        stored = (
+            await session.execute(select(ResearchRun).where(ResearchRun.id == run.id))
+        ).scalar_one()
+        assert stored.status == RunStatus.cancelled
+        assert stored.final_rating is None
+
+
+async def test_mark_failed_skips_cancelled_run(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    run = await _insert_queued_run(isolated_session_factory)
+    async with isolated_session_factory() as session:
+        stored = (
+            await session.execute(select(ResearchRun).where(ResearchRun.id == run.id))
+        ).scalar_one()
+        stored.status = RunStatus.cancelled
+        await session.commit()
+
+    orchestrator = RunOrchestrator(
+        session_factory=isolated_session_factory,
+        adapter=TradingAgentsAdapter(factory=SuccessFakeGraph),
+    )
+
+    await orchestrator._mark_failed(run.id, "should not stick")
+
+    async with isolated_session_factory() as session:
+        stored = (
+            await session.execute(select(ResearchRun).where(ResearchRun.id == run.id))
+        ).scalar_one()
+        assert stored.status == RunStatus.cancelled
+        assert stored.error_message is None

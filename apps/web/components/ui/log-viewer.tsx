@@ -39,26 +39,24 @@ export function LogViewer(props: LogViewerProps): ReactElement {
   const { lines, onLoadMore, className, initialFollow = true } = props;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [isFollowing, setIsFollowing] = useState(initialFollow);
-  const [unseenCount, setUnseenCount] = useState(0);
-  const lastSeenCountRef = useRef(lines.length);
+  const [seenCount, setSeenCount] = useState(lines.length);
+
+  if (isFollowing && seenCount !== lines.length) {
+    setSeenCount(lines.length);
+  }
 
   useEffect(() => {
+    if (!isFollowing) {
+      return;
+    }
     const node = scrollRef.current;
     if (!node) {
       return;
     }
-    if (isFollowing) {
-      node.scrollTop = node.scrollHeight;
-      lastSeenCountRef.current = lines.length;
-      setUnseenCount(0);
-      return;
-    }
-    const added = lines.length - lastSeenCountRef.current;
-    if (added > 0) {
-      setUnseenCount((prev) => prev + added);
-      lastSeenCountRef.current = lines.length;
-    }
+    node.scrollTop = node.scrollHeight;
   }, [lines, isFollowing]);
+
+  const unseenCount = Math.max(lines.length - seenCount, 0);
 
   const handleScroll = useCallback((): void => {
     const node = scrollRef.current;
@@ -69,11 +67,7 @@ export function LogViewer(props: LogViewerProps): ReactElement {
       node.scrollHeight - node.scrollTop - node.clientHeight;
     const isNearBottom = distanceFromBottom <= SCROLL_NEAR_BOTTOM_PX;
     setIsFollowing(isNearBottom);
-    if (isNearBottom) {
-      setUnseenCount(0);
-      lastSeenCountRef.current = lines.length;
-    }
-  }, [lines.length]);
+  }, []);
 
   const jumpToBottom = useCallback((): void => {
     const node = scrollRef.current;
@@ -82,9 +76,7 @@ export function LogViewer(props: LogViewerProps): ReactElement {
     }
     node.scrollTop = node.scrollHeight;
     setIsFollowing(true);
-    setUnseenCount(0);
-    lastSeenCountRef.current = lines.length;
-  }, [lines.length]);
+  }, []);
 
   return (
     <div

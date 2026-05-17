@@ -8,17 +8,27 @@ from app.schemas.settings import (
     ApplicationSettingsPublic,
     UpdateApplicationSettingsRequest,
 )
+from app.security import SecretBoxConfigError, get_secret_box
 
 router = APIRouter()
 
 _SETTINGS_SINGLETON_ID: int = 1
 
 
-def _mask_secret(secret: str | None) -> str | None:
+def _mask_plaintext(secret: str | None) -> str | None:
     if not secret:
         return None
     last_four = secret[-4:] if len(secret) >= 4 else secret
     return f"***{last_four}"
+
+
+def _decrypt_optional(ciphertext: str | None) -> str | None:
+    if ciphertext is None:
+        return None
+    try:
+        return get_secret_box().decrypt(ciphertext)
+    except SecretBoxConfigError:
+        return None
 
 
 def _to_public(row: ApplicationSettings) -> ApplicationSettingsPublic:
@@ -29,8 +39,10 @@ def _to_public(row: ApplicationSettings) -> ApplicationSettingsPublic:
         default_analyst_set=list(row.default_analyst_set),
         default_depth=row.default_depth,
         default_model=row.default_model,
-        llm_api_key_masked=_mask_secret(row.llm_api_key_encrypted),
-        alpha_vantage_key_masked=_mask_secret(row.alpha_vantage_key_encrypted),
+        llm_api_key_masked=_mask_plaintext(_decrypt_optional(row.llm_api_key_encrypted)),
+        alpha_vantage_key_masked=_mask_plaintext(
+            _decrypt_optional(row.alpha_vantage_key_encrypted)
+        ),
         has_llm_api_key=row.llm_api_key_encrypted is not None,
         has_alpha_vantage_key=row.alpha_vantage_key_encrypted is not None,
     )
@@ -65,10 +77,11 @@ async def update_provider_settings(
         row.llm_provider = LlmProvider(payload.llm_provider.value)
     if payload.llm_model is not None:
         row.llm_model = payload.llm_model
+    secret_box = get_secret_box()
     if payload.llm_api_key is not None:
-        row.llm_api_key_encrypted = payload.llm_api_key
+        row.llm_api_key_encrypted = secret_box.encrypt(payload.llm_api_key)
     if payload.alpha_vantage_key is not None:
-        row.alpha_vantage_key_encrypted = payload.alpha_vantage_key
+        row.alpha_vantage_key_encrypted = secret_box.encrypt(payload.alpha_vantage_key)
     if payload.default_analyst_set is not None:
         row.default_analyst_set = list(payload.default_analyst_set)
     if payload.default_depth is not None:

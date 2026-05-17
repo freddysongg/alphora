@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_json: bool = True
 
+    secret_box_key: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

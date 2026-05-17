@@ -15,7 +15,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, TimestampMixin, enum_values
 
 
 class OrderSide(StrEnum):
@@ -61,15 +61,17 @@ class PaperOrder(Base):
         index=True,
     )
     ticker: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
-    side: Mapped[OrderSide] = mapped_column(Enum(OrderSide, name="order_side"), nullable=False)
+    side: Mapped[OrderSide] = mapped_column(
+        Enum(OrderSide, name="order_side", values_callable=enum_values), nullable=False
+    )
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     order_type: Mapped[OrderType] = mapped_column(
-        Enum(OrderType, name="order_type"),
+        Enum(OrderType, name="order_type", values_callable=enum_values),
         nullable=False,
         default=OrderType.market,
     )
     status: Mapped[OrderStatus] = mapped_column(
-        Enum(OrderStatus, name="order_status"),
+        Enum(OrderStatus, name="order_status", values_callable=enum_values),
         nullable=False,
         default=OrderStatus.pending,
     )

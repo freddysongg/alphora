@@ -3,7 +3,7 @@ from enum import StrEnum
 from sqlalchemy import JSON, Enum, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, TimestampMixin, enum_values
 
 
 class LlmProvider(StrEnum):
@@ -27,7 +27,7 @@ class ApplicationSettings(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
     llm_provider: Mapped[LlmProvider] = mapped_column(
-        Enum(LlmProvider, name="llm_provider"),
+        Enum(LlmProvider, name="llm_provider", values_callable=enum_values),
         nullable=False,
         default=LlmProvider.openai,
     )

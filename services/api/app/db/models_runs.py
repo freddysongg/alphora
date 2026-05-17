@@ -5,7 +5,7 @@ from enum import StrEnum
 from sqlalchemy import JSON, Date, DateTime, Enum, ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, TimestampMixin, enum_values
 
 
 class RunStatus(StrEnum):
@@ -51,13 +51,13 @@ class ResearchRun(Base, TimestampMixin):
     ticker: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
     trade_date: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[RunStatus] = mapped_column(
-        Enum(RunStatus, name="run_status"),
+        Enum(RunStatus, name="run_status", values_callable=enum_values),
         nullable=False,
         default=RunStatus.queued,
     )
     config: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
     final_rating: Mapped[FinalRating | None] = mapped_column(
-        Enum(FinalRating, name="final_rating"),
+        Enum(FinalRating, name="final_rating", values_callable=enum_values),
         nullable=True,
     )
     final_decision_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -85,7 +85,7 @@ class RunReport(Base):
         Uuid, ForeignKey("research_runs.id", ondelete="CASCADE"), nullable=False, index=True
     )
     analyst: Mapped[AnalystKind] = mapped_column(
-        Enum(AnalystKind, name="analyst_kind"),
+        Enum(AnalystKind, name="analyst_kind", values_callable=enum_values),
         nullable=False,
     )
     markdown: Mapped[str] = mapped_column(Text, nullable=False)
@@ -111,7 +111,7 @@ class RunEvent(Base):
         default=datetime.utcnow,
     )
     level: Mapped[RunEventLevel] = mapped_column(
-        Enum(RunEventLevel, name="run_event_level"),
+        Enum(RunEventLevel, name="run_event_level", values_callable=enum_values),
         nullable=False,
     )
     message: Mapped[str] = mapped_column(Text, nullable=False)
@@ -137,7 +137,7 @@ class SourceProvenance(Base):
     )
     latency_ms: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[ProvenanceStatus] = mapped_column(
-        Enum(ProvenanceStatus, name="provenance_status"),
+        Enum(ProvenanceStatus, name="provenance_status", values_callable=enum_values),
         nullable=False,
     )
     sample_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

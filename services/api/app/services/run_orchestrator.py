@@ -46,12 +46,16 @@ class RunOrchestrator:
     async def start(self, run_id: UUID) -> None:
         async with self._session_factory() as session:
             run = await self._load_run(session, run_id)
+            if run.status != RunStatus.queued:
+                return
             run.status = RunStatus.running
             run.started_at = _utcnow()
             await session.commit()
 
     async def execute(self, run_id: UUID) -> None:
         config = await self._mark_running_and_load_config(run_id)
+        if config is None:
+            return
         try:
             result = self._adapter.run(config)
         except Exception as exc:
@@ -68,9 +72,11 @@ class RunOrchestrator:
             run.finished_at = _utcnow()
             await session.commit()
 
-    async def _mark_running_and_load_config(self, run_id: UUID) -> RunConfig:
+    async def _mark_running_and_load_config(self, run_id: UUID) -> RunConfig | None:
         async with self._session_factory() as session:
             run = await self._load_run(session, run_id)
+            if run.status not in {RunStatus.queued, RunStatus.running}:
+                return None
             run.status = RunStatus.running
             if run.started_at is None:
                 run.started_at = _utcnow()
@@ -80,6 +86,8 @@ class RunOrchestrator:
     async def _mark_failed(self, run_id: UUID, message: str) -> None:
         async with self._session_factory() as session:
             run = await self._load_run(session, run_id)
+            if run.status != RunStatus.running:
+                return
             run.status = RunStatus.failed
             run.error_message = message
             run.finished_at = _utcnow()
@@ -88,6 +96,8 @@ class RunOrchestrator:
     async def _persist_success(self, run_id: UUID, result: RunResult) -> None:
         async with self._session_factory() as session:
             run = await self._load_run(session, run_id)
+            if run.status != RunStatus.running:
+                return
             run.status = RunStatus.succeeded
             run.final_rating = _map_final_rating(result.final_rating)
             run.final_decision_summary = result.decision_summary
