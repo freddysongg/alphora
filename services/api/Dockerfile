@@ -33,6 +33,8 @@ COPY app ./app
 COPY alembic ./alembic
 COPY alembic.ini ./alembic.ini
 
+RUN pip install --no-deps -e .
+
 RUN groupadd --system --gid 1001 alphora \
     && useradd --system --uid 1001 --gid alphora alphora \
     && chown -R alphora:alphora /srv

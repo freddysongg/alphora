@@ -5,11 +5,9 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CodeBlock,
-  Sparkline,
 } from "@/components/ui";
-import { sampleTickers } from "@/lib/fixtures/tickers";
-import type { TickerRow } from "@/lib/fixtures/tickers";
+import { getServerApi, isApiError } from "@/lib/api";
+import type { components } from "@/lib/api";
 import { FactorHistoryChart } from "./factor-history-chart";
 import {
   HistoricalRunsTable,
@@ -20,77 +18,110 @@ export const metadata: Metadata = {
   title: "Company Dossier · Alphora",
 };
 
-const FALLBACK_TICKER: TickerRow = {
-  ticker: "AAPL",
-  name: "Apple Inc.",
-  sector: "Technology",
-  price: 212.45,
-  dayPct: 1.42,
-  score: 0.82,
-  quality: 0.91,
-  valuation: 0.62,
-  momentum: 0.78,
-  volatility: 0.21,
-  sentiment: 0.74,
-  priceHistory: [
-    168, 170, 172, 169, 174, 178, 181, 179, 182, 185, 188, 187, 190, 193, 191,
-    195, 198, 196, 199, 202, 204, 207, 210, 212,
-  ],
-};
+export const dynamic = "force-dynamic";
 
-function formatPrice(value: number): string {
-  return value.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
+type ResearchRunSummary = components["schemas"]["ResearchRunSummary"];
+type PaperPortfolioSnapshot = components["schemas"]["PaperPortfolioSnapshot"];
+type PaperPositionPublic = components["schemas"]["PaperPositionPublic"];
+
+const DASH = "—";
+const HISTORICAL_RUN_LIMIT = 50;
 
 interface DossierPageProps {
   params: Promise<{ ticker: string }>;
 }
 
-const noteSample = `# AAPL notes
+interface DossierLoadResult {
+  historicalRuns: readonly ResearchRunSummary[];
+  linkedPositions: readonly PaperPositionPublic[];
+  portfolioName: string;
+  errorDetail: string | null;
+}
 
-- Services momentum: 28% of revenue, margin > 70%
-- Watch: China demand inflection on FQ3 print
-- Hedge: pair with 0.4x QQQ short for sector beta`;
+async function loadHistoricalRuns(
+  ticker: string,
+): Promise<ResearchRunSummary[]> {
+  const { data } = await getServerApi().GET("/api/research-runs", {
+    params: {
+      query: { ticker, limit: HISTORICAL_RUN_LIMIT },
+    },
+    cache: "force-cache",
+    next: { tags: ["research-runs", `research-runs-ticker-${ticker}`] },
+  });
+  if (data === undefined || !Array.isArray(data)) {
+    return [];
+  }
+  return data;
+}
+
+async function loadPaperPortfolio(): Promise<PaperPortfolioSnapshot | null> {
+  const { data } = await getServerApi().GET("/api/paper/portfolio", {
+    cache: "force-cache",
+    next: { tags: ["paper-portfolio"] },
+  });
+  if (data === undefined) {
+    return null;
+  }
+  return data;
+}
+
+async function loadDossier(ticker: string): Promise<DossierLoadResult> {
+  try {
+    const [historicalRuns, portfolio] = await Promise.all([
+      loadHistoricalRuns(ticker),
+      loadPaperPortfolio(),
+    ]);
+    const positions = portfolio?.positions ?? [];
+    const linkedPositions = positions.filter(
+      (position) =>
+        position.ticker === ticker && position.closed_at === null,
+    );
+    return {
+      historicalRuns,
+      linkedPositions,
+      portfolioName: portfolio?.name ?? DASH,
+      errorDetail: null,
+    };
+  } catch (caught) {
+    if (isApiError(caught)) {
+      return {
+        historicalRuns: [],
+        linkedPositions: [],
+        portfolioName: DASH,
+        errorDetail: caught.detail,
+      };
+    }
+    throw caught;
+  }
+}
 
 export default async function CompanyDossierPage(
   props: DossierPageProps,
 ): Promise<ReactElement> {
   const { ticker } = await props.params;
-  const matched = sampleTickers.find(
-    (row) => row.ticker.toLowerCase() === ticker.toLowerCase(),
-  );
-  const company = matched ?? { ...FALLBACK_TICKER, ticker: ticker.toUpperCase() };
-  const dayPctClass = company.dayPct >= 0 ? "text-accent-text" : "text-danger";
+  const upperTicker = ticker.toUpperCase();
+  const { historicalRuns, linkedPositions, portfolioName, errorDetail } =
+    await loadDossier(upperTicker);
 
   return (
     <div className="max-w-[1400px] mx-auto px-6 py-8">
       <section className="border-b border-line pb-6">
         <div className="flex items-end gap-6">
           <h1 className="text-3xl tracking-[-0.03em] font-semibold text-fg">
-            {company.ticker}
+            {upperTicker}
           </h1>
-          <div className="flex flex-col gap-1">
-            <span className="font-mono tabular-nums text-base text-fg">
-              {formatPrice(company.price)}
-            </span>
-            <span className={`font-mono text-xs ${dayPctClass}`}>
-              {company.dayPct >= 0 ? "+" : ""}
-              {company.dayPct.toFixed(2)}%
-            </span>
-          </div>
-          <span className="text-xs text-fg-muted ml-4">{company.name}</span>
-        </div>
-        <div className="mt-4">
-          <Sparkline
-            data={[...company.priceHistory]}
-            width="100%"
-            height={60}
-          />
+          <span className="text-xs text-fg-muted ml-4">{DASH}</span>
         </div>
       </section>
+
+      {errorDetail !== null ? (
+        <div
+          role="alert"
+          className="mt-6 rounded-md border border-danger/50 bg-danger/10 px-3 py-2 text-sm text-danger"
+        >
+          Failed to load dossier: {errorDetail}
+        </div>
+      ) : null}
 
       <section className="grid grid-cols-2 gap-6 mt-8">
         <Card>
@@ -98,7 +129,7 @@ export default async function CompanyDossierPage(
             <CardTitle>HISTORICAL RUNS</CardTitle>
           </CardHeader>
           <CardContent>
-            <HistoricalRunsTable />
+            <HistoricalRunsTable runs={historicalRuns} />
           </CardContent>
         </Card>
 
@@ -116,7 +147,10 @@ export default async function CompanyDossierPage(
             <CardTitle>LINKED PAPER POSITIONS</CardTitle>
           </CardHeader>
           <CardContent>
-            <LinkedPositionsTable />
+            <LinkedPositionsTable
+              positions={linkedPositions}
+              portfolioName={portfolioName}
+            />
           </CardContent>
         </Card>
 
@@ -125,7 +159,9 @@ export default async function CompanyDossierPage(
             <CardTitle>NOTES</CardTitle>
           </CardHeader>
           <CardContent>
-            <CodeBlock lang="markdown">{noteSample}</CodeBlock>
+            <div className="h-32 w-full flex items-center justify-center text-xs text-fg-muted">
+              Notes not yet supported.
+            </div>
           </CardContent>
         </Card>
       </section>

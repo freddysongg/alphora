@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import {
   StatusDot,
@@ -10,46 +10,61 @@ import {
   TooltipTrigger,
 } from "@/components/ui";
 import { useAppShellRail } from "@/components/shell/app-shell";
-import {
-  providerMatrix,
-  providerRows,
-  toolColumns,
-} from "@/lib/fixtures/providers";
-import type {
-  MatrixCell,
-  ProviderId,
-  ToolId,
-} from "@/lib/fixtures/providers";
+import type { components } from "@/lib/api";
+import { providerCheckStatusToStatusKind } from "@/lib/data-health/status";
+import { formatDateTime } from "@/lib/format/date-time";
 import { ProviderCellRail } from "./provider-cell-rail";
 
+type ProviderMatrixResponse = components["schemas"]["ProviderMatrix"];
+type ProviderMatrixCell = components["schemas"]["ProviderMatrixCell"];
+
 interface SelectedCell {
-  providerId: ProviderId;
-  toolId: ToolId;
+  provider: string;
+  tool: string;
 }
 
-function formatTooltip(cell: MatrixCell): string {
-  return `${cell.lastFetch} · ${cell.samples.toLocaleString()} samples`;
+export interface ProviderMatrixProps {
+  matrix: ProviderMatrixResponse;
 }
 
-export function ProviderMatrix(): ReactElement {
+function cellKey(provider: string, tool: string): string {
+  return `${provider}::${tool}`;
+}
+
+function buildCellLookup(
+  cells: readonly ProviderMatrixCell[],
+): ReadonlyMap<string, ProviderMatrixCell> {
+  const lookup = new Map<string, ProviderMatrixCell>();
+  for (const cell of cells) {
+    lookup.set(cellKey(cell.provider, cell.tool), cell);
+  }
+  return lookup;
+}
+
+function formatTooltip(cell: ProviderMatrixCell): string {
+  return `${formatDateTime(cell.at)} · ${cell.sample_count.toLocaleString()} samples`;
+}
+
+export function ProviderMatrix(props: ProviderMatrixProps): ReactElement {
+  const { matrix } = props;
   const [selected, setSelected] = useState<SelectedCell | null>(null);
   const { setRail, closeRail } = useAppShellRail();
+
+  const cellLookup = useMemo(
+    () => buildCellLookup(matrix.cells),
+    [matrix.cells],
+  );
 
   useEffect(() => {
     if (!selected) {
       return;
     }
-    const providerRow = providerRows.find((row) => row.id === selected.providerId);
-    const toolColumn = toolColumns.find((column) => column.id === selected.toolId);
-    if (!providerRow || !toolColumn) {
-      return;
-    }
     setRail({
-      title: `${providerRow.label} · ${toolColumn.label}`,
+      title: `${selected.provider} · ${selected.tool}`,
       body: (
         <ProviderCellRail
-          providerLabel={providerRow.label}
-          toolLabel={toolColumn.label}
+          provider={selected.provider}
+          tool={selected.tool}
         />
       ),
     });
@@ -73,63 +88,59 @@ export function ProviderMatrix(): ReactElement {
               >
                 Provider
               </th>
-              {toolColumns.map((column) => (
+              {matrix.tools.map((tool) => (
                 <th
-                  key={column.id}
+                  key={tool}
                   scope="col"
                   className="text-[11px] tracking-[0.14em] font-medium uppercase text-fg-muted py-2 px-3 text-center min-w-[120px]"
                 >
-                  {column.label}
+                  {tool}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {providerRows.map((providerRow) => (
+            {matrix.providers.map((provider) => (
               <tr
-                key={providerRow.id}
+                key={provider}
                 className="border-b border-line/60 hover:bg-surface-2 transition-colors duration-150"
               >
                 <th
                   scope="row"
                   className="sticky left-0 z-10 bg-panel text-sm text-fg py-3 px-3 text-left font-normal"
                 >
-                  {providerRow.label}
+                  {provider}
                 </th>
-                {toolColumns.map((column) => {
-                  const cell = providerMatrix[providerRow.id][column.id];
+                {matrix.tools.map((tool) => {
+                  const cell = cellLookup.get(cellKey(provider, tool));
                   const isSelected =
                     selected !== null &&
-                    selected.providerId === providerRow.id &&
-                    selected.toolId === column.id;
+                    selected.provider === provider &&
+                    selected.tool === tool;
                   if (!cell) {
                     return (
-                      <td key={column.id} className="text-center py-3 px-3">
+                      <td key={tool} className="text-center py-3 px-3">
                         <span className="text-fg-subtle text-xs">—</span>
                       </td>
                     );
                   }
+                  const statusKind = providerCheckStatusToStatusKind(cell.status);
                   return (
                     <td
-                      key={column.id}
+                      key={tool}
                       className={`text-center py-3 px-3 cursor-pointer ${
                         isSelected ? "bg-surface-2" : ""
                       }`}
-                      onClick={() =>
-                        setSelected({
-                          providerId: providerRow.id,
-                          toolId: column.id,
-                        })
-                      }
+                      onClick={() => setSelected({ provider, tool })}
                     >
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span
                             className="inline-flex"
-                            aria-label={`${providerRow.label} ${column.label} ${cell.status}`}
+                            aria-label={`${provider} ${tool} ${cell.status}`}
                           >
                             <StatusDot
-                              status={cell.status}
+                              status={statusKind}
                               label={cell.status}
                               className="[&>span:last-child]:sr-only"
                             />
