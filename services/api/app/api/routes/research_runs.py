@@ -224,6 +224,7 @@ async def _stream_run_events(run_id: uuid.UUID) -> AsyncIterator[str]:
                         "at": event.at.isoformat(),
                         "level": event.level.value,
                         "message": event.message,
+                        "data": event.data,
                     },
                 )
             if terminal_status is not None:

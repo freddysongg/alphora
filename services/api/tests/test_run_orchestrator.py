@@ -560,3 +560,167 @@ async def test_cancel_paused_run_transitions_to_cancelled(
         ).scalar_one()
         assert stored.status == RunStatus.cancelled
         assert stored.finished_at is not None
+
+
+def _stage_events(events: list[RunEvent]) -> list[RunEvent]:
+    return [e for e in events if isinstance(e.data, dict) and e.data.get("event") == "stage"]
+
+
+async def test_mark_running_and_load_config_emits_running_stage_event(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    run = await _insert_queued_run(isolated_session_factory)
+    orchestrator = RunOrchestrator(
+        session_factory=isolated_session_factory,
+        adapter=TradingAgentsAdapter(factory=SuccessFakeGraph),
+    )
+
+    await orchestrator._mark_running_and_load_config(run.id)
+
+    async with isolated_session_factory() as session:
+        events = (
+            await session.execute(select(RunEvent).where(RunEvent.run_id == run.id))
+        ).scalars().all()
+        stages = _stage_events(list(events))
+        assert len(stages) == 1
+        event = stages[0]
+        assert event.level == RunEventLevel.info
+        assert event.data is not None
+        assert event.data["stage_name"] == "running"
+        assert event.data["stage_index"] == 1
+        assert event.data["total_stages"] == 2
+
+
+async def test_persist_success_emits_succeeded_stage_event(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    from app.trading_agents.types import RunResult
+
+    run = await _insert_queued_run(isolated_session_factory)
+    await _set_run_status(isolated_session_factory, run.id, RunStatus.running)
+    orchestrator = RunOrchestrator(
+        session_factory=isolated_session_factory,
+        adapter=TradingAgentsAdapter(factory=SuccessFakeGraph),
+    )
+    fake_result = RunResult(
+        final_rating="buy",
+        decision_summary="Final decision: BUY",
+        reports=[],
+        provenance=[],
+        wall_clock_ms=10,
+    )
+
+    await orchestrator._persist_success(run.id, fake_result)
+
+    async with isolated_session_factory() as session:
+        events = (
+            await session.execute(select(RunEvent).where(RunEvent.run_id == run.id))
+        ).scalars().all()
+        stages = _stage_events(list(events))
+        assert len(stages) == 1
+        event = stages[0]
+        assert event.level == RunEventLevel.info
+        assert event.data is not None
+        assert event.data["stage_name"] == "succeeded"
+        assert event.data["stage_index"] == 2
+        assert event.data["total_stages"] == 2
+
+
+async def test_mark_failed_emits_failed_stage_event(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    run = await _insert_queued_run(isolated_session_factory)
+    await _set_run_status(isolated_session_factory, run.id, RunStatus.running)
+    orchestrator = RunOrchestrator(
+        session_factory=isolated_session_factory,
+        adapter=TradingAgentsAdapter(factory=SuccessFakeGraph),
+    )
+
+    await orchestrator._mark_failed(run.id, "boom")
+
+    async with isolated_session_factory() as session:
+        events = (
+            await session.execute(select(RunEvent).where(RunEvent.run_id == run.id))
+        ).scalars().all()
+        stages = _stage_events(list(events))
+        assert len(stages) == 1
+        event = stages[0]
+        assert event.level == RunEventLevel.err
+        assert event.message == "run failed: boom"
+        assert event.data is not None
+        assert event.data["stage_name"] == "failed"
+        assert event.data["stage_index"] == 2
+        assert event.data["total_stages"] == 2
+
+
+async def test_cancel_running_run_emits_cancelled_stage_event(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    run = await _insert_queued_run(isolated_session_factory)
+    await _set_run_status(isolated_session_factory, run.id, RunStatus.running)
+    orchestrator = RunOrchestrator(
+        session_factory=isolated_session_factory,
+        adapter=TradingAgentsAdapter(factory=SuccessFakeGraph),
+    )
+
+    await orchestrator.cancel(run.id)
+
+    async with isolated_session_factory() as session:
+        events = (
+            await session.execute(select(RunEvent).where(RunEvent.run_id == run.id))
+        ).scalars().all()
+        stages = _stage_events(list(events))
+        assert len(stages) == 1
+        event = stages[0]
+        assert event.level == RunEventLevel.warn
+        assert event.data is not None
+        assert event.data["stage_name"] == "cancelled"
+        assert event.data["stage_index"] == 2
+        assert event.data["total_stages"] == 2
+
+
+async def test_execute_emits_running_and_succeeded_stage_events(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    run = await _insert_queued_run(isolated_session_factory)
+    orchestrator = RunOrchestrator(
+        session_factory=isolated_session_factory,
+        adapter=TradingAgentsAdapter(factory=SuccessFakeGraph),
+    )
+
+    await orchestrator.execute(run.id)
+
+    async with isolated_session_factory() as session:
+        events = (
+            await session.execute(
+                select(RunEvent).where(RunEvent.run_id == run.id).order_by(RunEvent.at)
+            )
+        ).scalars().all()
+        stages = _stage_events(list(events))
+        stage_names = [s.data["stage_name"] for s in stages if s.data is not None]
+        assert "running" in stage_names
+        assert "succeeded" in stage_names
+
+
+async def test_execute_emits_failed_stage_event_on_adapter_exception(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    run = await _insert_queued_run(isolated_session_factory)
+    orchestrator = RunOrchestrator(
+        session_factory=isolated_session_factory,
+        adapter=TradingAgentsAdapter(factory=FailingFakeGraph),
+    )
+
+    await orchestrator.execute(run.id)
+
+    async with isolated_session_factory() as session:
+        events = (
+            await session.execute(select(RunEvent).where(RunEvent.run_id == run.id))
+        ).scalars().all()
+        stages = _stage_events(list(events))
+        stage_names = [s.data["stage_name"] for s in stages if s.data is not None]
+        assert "failed" in stage_names
+        failed_event = next(
+            s for s in stages if s.data is not None and s.data["stage_name"] == "failed"
+        )
+        assert failed_event.level == RunEventLevel.err

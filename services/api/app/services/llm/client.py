@@ -14,13 +14,14 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models_llm import LlmCallLog, LlmCallStatus
-from app.db.models_runs import RunEvent, RunEventLevel
+from app.db.models_runs import RunEventLevel
 from app.schemas.budget import (
     BudgetAction,
     BudgetDecision,
     TokenUsage,
 )
 from app.services.budget import BudgetGuard, compute_cost
+from app.services.run_events import COST_EVENT, emit_run_event
 
 MessageRole = Literal["system", "user", "assistant"]
 
@@ -349,7 +350,7 @@ async def _emit_cost_event(
         else RunEventLevel.info
     )
     data: dict[str, object] = {
-        "event": "cost",
+        "event": COST_EVENT,
         "model": model,
         "input_tokens": usage.input_tokens,
         "output_tokens": usage.output_tokens,
@@ -361,11 +362,10 @@ async def _emit_cost_event(
     }
     if decision.threshold_crossed is not None:
         data["threshold_crossed"] = decision.threshold_crossed.value
-    session.add(
-        RunEvent(
-            run_id=run_id,
-            level=level,
-            message=f"llm call cost ${cost}",
-            data=data,
-        )
+    emit_run_event(
+        session,
+        run_id=run_id,
+        level=level,
+        message=f"llm call cost ${cost}",
+        data=data,
     )

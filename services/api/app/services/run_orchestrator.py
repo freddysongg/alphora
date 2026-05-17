@@ -6,8 +6,15 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.models_runs import AnalystKind as DbAnalystKind
 from app.db.models_runs import FinalRating as DbFinalRating
-from app.db.models_runs import ResearchRun, RunEvent, RunEventLevel, RunReport, RunStatus
+from app.db.models_runs import ResearchRun, RunEventLevel, RunReport, RunStatus
 from app.services.provenance_recorder import persist_provenance
+from app.services.run_events import (
+    PAUSE_EVENT,
+    RESUME_EVENT,
+    STAGE_EVENT,
+    emit_run_event,
+    emit_stage_event,
+)
 from app.trading_agents.adapter import TradingAgentsAdapter
 from app.trading_agents.types import (
     AnalystKind,
@@ -21,6 +28,10 @@ _ALLOWED_ANALYSTS: frozenset[AnalystKind] = frozenset(
     {"bull", "bear", "macro", "fundamentals", "sentiment", "risk"}
 )
 _ALLOWED_PROVIDERS: frozenset[LLMProvider] = frozenset({"openai", "anthropic", "together"})
+
+_RUNNING_STAGE_INDEX: int = 1
+_TERMINAL_STAGE_INDEX: int = 2
+_TOTAL_STAGES: int = 2
 
 
 class RunOrchestratorError(Exception):
@@ -70,6 +81,18 @@ class RunOrchestrator:
                 return
             run.status = RunStatus.cancelled
             run.finished_at = _utcnow()
+            emit_run_event(
+                session,
+                run_id=run_id,
+                level=RunEventLevel.warn,
+                message=f"stage {_TERMINAL_STAGE_INDEX}/{_TOTAL_STAGES}: cancelled",
+                data={
+                    "event": STAGE_EVENT,
+                    "stage_name": "cancelled",
+                    "stage_index": _TERMINAL_STAGE_INDEX,
+                    "total_stages": _TOTAL_STAGES,
+                },
+            )
             await session.commit()
 
     async def pause(self, run_id: UUID, reason: str) -> None:
@@ -83,13 +106,12 @@ class RunOrchestrator:
                 )
             run.status = RunStatus.paused
             run.finished_at = None
-            session.add(
-                RunEvent(
-                    run_id=run_id,
-                    level=RunEventLevel.warn,
-                    message=f"run paused: {reason}",
-                    data={"event": "pause", "reason": reason},
-                )
+            emit_run_event(
+                session,
+                run_id=run_id,
+                level=RunEventLevel.warn,
+                message=f"run paused: {reason}",
+                data={"event": PAUSE_EVENT, "reason": reason},
             )
             await session.commit()
 
@@ -103,13 +125,12 @@ class RunOrchestrator:
                     f"cannot resume run {run_id} from status {run.status.value}"
                 )
             run.status = RunStatus.queued
-            session.add(
-                RunEvent(
-                    run_id=run_id,
-                    level=RunEventLevel.info,
-                    message="run resumed",
-                    data={"event": "resume"},
-                )
+            emit_run_event(
+                session,
+                run_id=run_id,
+                level=RunEventLevel.info,
+                message="run resumed",
+                data={"event": RESUME_EVENT},
             )
             await session.commit()
 
@@ -121,6 +142,14 @@ class RunOrchestrator:
             run.status = RunStatus.running
             if run.started_at is None:
                 run.started_at = _utcnow()
+            emit_stage_event(
+                session,
+                run_id=run_id,
+                stage_name="running",
+                stage_index=_RUNNING_STAGE_INDEX,
+                total_stages=_TOTAL_STAGES,
+                message="execution started",
+            )
             await session.commit()
             return _build_run_config(run)
 
@@ -132,6 +161,18 @@ class RunOrchestrator:
             run.status = RunStatus.failed
             run.error_message = message
             run.finished_at = _utcnow()
+            emit_run_event(
+                session,
+                run_id=run_id,
+                level=RunEventLevel.err,
+                message=f"run failed: {message}",
+                data={
+                    "event": STAGE_EVENT,
+                    "stage_name": "failed",
+                    "stage_index": _TERMINAL_STAGE_INDEX,
+                    "total_stages": _TOTAL_STAGES,
+                },
+            )
             await session.commit()
 
     async def _persist_success(self, run_id: UUID, result: RunResult) -> None:
@@ -153,6 +194,13 @@ class RunOrchestrator:
                     )
                 )
             persist_provenance(session, run.id, run.ticker, result.provenance)
+            emit_stage_event(
+                session,
+                run_id=run_id,
+                stage_name="succeeded",
+                stage_index=_TERMINAL_STAGE_INDEX,
+                total_stages=_TOTAL_STAGES,
+            )
             await session.commit()
 
     async def _load_run(self, session: AsyncSession, run_id: UUID) -> ResearchRun:

@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import date
 from typing import Any
@@ -5,7 +6,7 @@ from typing import Any
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from app.db.models_runs import ResearchRun, RunStatus
+from app.db.models_runs import ResearchRun, RunEvent, RunEventLevel, RunStatus
 from app.db.session import session_factory
 from app.main import app
 
@@ -291,3 +292,53 @@ def test_cancel_paused_run_transitions_to_cancelled(
         response = client.post(f"/api/research-runs/{run_id}/cancel")
     assert response.status_code == 200, response.text
     assert response.json()["status"] == "cancelled"
+
+
+async def _seed_succeeded_run_with_cost_event() -> uuid.UUID:
+    run = ResearchRun(
+        id=uuid.uuid4(),
+        ticker="AAPL",
+        trade_date=date(2026, 5, 15),
+        status=RunStatus.succeeded,
+        config={},
+    )
+    async with session_factory() as session:
+        session.add(run)
+        await session.flush()
+        session.add(
+            RunEvent(
+                run_id=run.id,
+                level=RunEventLevel.info,
+                message="llm call cost $0.05",
+                data={"event": "cost", "model": "gpt-5", "cost_usd": "0.05"},
+            )
+        )
+        await session.commit()
+    return run.id
+
+
+async def test_sse_stream_includes_data_field_for_cost_events(
+    initialized_schema: None,
+) -> None:
+    _ = initialized_schema
+    from app.api.routes.research_runs import _stream_run_events
+
+    run_id = await _seed_succeeded_run_with_cost_event()
+
+    payloads: list[dict[str, Any]] = []
+    async for frame in _stream_run_events(run_id):
+        for line in frame.splitlines():
+            if line.startswith("data: "):
+                payloads.append(json.loads(line[len("data: "):]))
+
+    cost_payloads = [
+        p
+        for p in payloads
+        if isinstance(p.get("data"), dict) and p["data"].get("event") == "cost"
+    ]
+    assert len(cost_payloads) == 1
+    cost_payload = cost_payloads[0]
+    assert cost_payload["level"] == "info"
+    assert cost_payload["message"] == "llm call cost $0.05"
+    assert cost_payload["data"]["model"] == "gpt-5"
+    assert cost_payload["data"]["cost_usd"] == "0.05"
