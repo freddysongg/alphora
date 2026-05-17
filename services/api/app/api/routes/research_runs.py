@@ -11,12 +11,14 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import OrchestratorDep, QueueDep, SessionDep
 from app.api.sse import format_sse_event
+from app.db.models_llm import LlmCallLog
 from app.db.models_runs import (
     ResearchRun,
     RunEvent,
     RunStatus,
 )
 from app.db.session import session_factory
+from app.schemas.llm import LlmCallLogPublic
 from app.schemas.runs import (
     CreateResearchRunsRequest,
     GroupedRuns,
@@ -242,6 +244,29 @@ async def stream_research_run_events(run_id: uuid.UUID) -> StreamingResponse:
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@router.get("/{run_id}/llm-calls", response_model=list[LlmCallLogPublic])
+async def list_research_run_llm_calls(
+    run_id: uuid.UUID,
+    session: SessionDep,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> list[LlmCallLogPublic]:
+    run = (
+        await session.execute(select(ResearchRun).where(ResearchRun.id == run_id))
+    ).scalar_one_or_none()
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="research run not found")
+    stmt = (
+        select(LlmCallLog)
+        .where(LlmCallLog.run_id == run_id)
+        .order_by(desc(LlmCallLog.created_at))
+        .limit(limit)
+        .offset(offset)
+    )
+    rows = (await session.execute(stmt)).scalars().all()
+    return [LlmCallLogPublic.model_validate(row) for row in rows]
 
 
 @router.post("/{run_id}/cancel", response_model=ResearchRunSummary)

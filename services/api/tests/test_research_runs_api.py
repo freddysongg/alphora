@@ -1,11 +1,13 @@
 import json
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
+from app.db.models_llm import LlmCallLog, LlmCallStatus
 from app.db.models_runs import ResearchRun, RunEvent, RunEventLevel, RunStatus
 from app.db.session import session_factory
 from app.main import app
@@ -387,3 +389,172 @@ async def test_sse_stream_serializes_null_data_field(
     ]
     assert len(null_data_payloads) == 1
     assert null_data_payloads[0]["data"] is None
+
+
+async def _seed_run(ticker: str = "AAPL") -> uuid.UUID:
+    run = ResearchRun(
+        id=uuid.uuid4(),
+        ticker=ticker,
+        trade_date=date(2026, 5, 15),
+        status=RunStatus.queued,
+        config={},
+    )
+    async with session_factory() as session:
+        session.add(run)
+        await session.commit()
+    return run.id
+
+
+async def _insert_llm_call(
+    run_id: uuid.UUID | None,
+    *,
+    created_at: datetime | None = None,
+    model: str = "gpt-5",
+    prompt_hash: str | None = None,
+    input_hash: str | None = None,
+    input_tokens: int = 0,
+    output_tokens: int = 0,
+    cached_input_tokens: int = 0,
+    reasoning_tokens: int = 0,
+    cost_usd: Decimal = Decimal("0"),
+    latency_ms: int = 0,
+    call_status: LlmCallStatus = LlmCallStatus.success,
+    evidence_ids: list[str] | None = None,
+) -> uuid.UUID:
+    log = LlmCallLog(
+        id=uuid.uuid4(),
+        run_id=run_id,
+        model=model,
+        prompt_hash=prompt_hash or ("a" * 64),
+        input_hash=input_hash or ("b" * 64),
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        cached_input_tokens=cached_input_tokens,
+        reasoning_tokens=reasoning_tokens,
+        cost_usd=cost_usd,
+        latency_ms=latency_ms,
+        status=call_status,
+        evidence_ids=evidence_ids,
+    )
+    if created_at is not None:
+        log.created_at = created_at
+    async with session_factory() as session:
+        session.add(log)
+        await session.commit()
+    return log.id
+
+
+def test_list_llm_calls_returns_404_for_unknown_run(initialized_schema: None) -> None:
+    _ = initialized_schema
+    missing_id = uuid.uuid4()
+    with TestClient(app) as client:
+        response = client.get(f"/api/research-runs/{missing_id}/llm-calls")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "research run not found"
+
+
+async def test_list_llm_calls_returns_empty_for_run_without_calls(
+    initialized_schema: None,
+) -> None:
+    _ = initialized_schema
+    run_id = await _seed_run()
+    with TestClient(app) as client:
+        response = client.get(f"/api/research-runs/{run_id}/llm-calls")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+async def test_list_llm_calls_returns_logs_for_run_only(
+    initialized_schema: None,
+) -> None:
+    _ = initialized_schema
+    run_a_id = await _seed_run(ticker="AAPL")
+    run_b_id = await _seed_run(ticker="MSFT")
+    await _insert_llm_call(run_a_id)
+    await _insert_llm_call(run_b_id)
+    await _insert_llm_call(run_b_id)
+    with TestClient(app) as client:
+        response = client.get(f"/api/research-runs/{run_b_id}/llm-calls")
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 2
+    for row in body:
+        assert row["run_id"] == str(run_b_id)
+
+
+async def test_list_llm_calls_paginates(initialized_schema: None) -> None:
+    _ = initialized_schema
+    run_id = await _seed_run()
+    base_dt = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
+    for i in range(5):
+        await _insert_llm_call(run_id, created_at=base_dt + timedelta(seconds=i))
+    with TestClient(app) as client:
+        page_one = client.get(
+            f"/api/research-runs/{run_id}/llm-calls",
+            params={"limit": 2, "offset": 0},
+        )
+        page_two = client.get(
+            f"/api/research-runs/{run_id}/llm-calls",
+            params={"limit": 2, "offset": 2},
+        )
+        page_three = client.get(
+            f"/api/research-runs/{run_id}/llm-calls",
+            params={"limit": 2, "offset": 4},
+        )
+    assert page_one.status_code == 200
+    assert page_two.status_code == 200
+    assert page_three.status_code == 200
+    page_one_body = page_one.json()
+    page_two_body = page_two.json()
+    page_three_body = page_three.json()
+    assert len(page_one_body) == 2
+    assert len(page_two_body) == 2
+    assert len(page_three_body) == 1
+    page_one_timestamps = [row["created_at"] for row in page_one_body]
+    page_two_timestamps = [row["created_at"] for row in page_two_body]
+    assert page_one_timestamps == sorted(page_one_timestamps, reverse=True)
+    assert page_two_timestamps == sorted(page_two_timestamps, reverse=True)
+    assert page_one_timestamps[-1] > page_two_timestamps[0]
+    assert page_two_timestamps[-1] > page_three_body[0]["created_at"]
+
+
+async def test_list_llm_calls_returns_call_fields_correctly(
+    initialized_schema: None,
+) -> None:
+    _ = initialized_schema
+    run_id = await _seed_run()
+    log_id = await _insert_llm_call(
+        run_id,
+        model="gpt-5",
+        prompt_hash="a" * 64,
+        input_hash="b" * 64,
+        input_tokens=100,
+        output_tokens=50,
+        cached_input_tokens=10,
+        reasoning_tokens=5,
+        cost_usd=Decimal("0.001234"),
+        latency_ms=500,
+        call_status=LlmCallStatus.success,
+        evidence_ids=["e1", "e2"],
+    )
+    with TestClient(app) as client:
+        response = client.get(f"/api/research-runs/{run_id}/llm-calls")
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    row = body[0]
+    assert row["id"] == str(log_id)
+    assert row["run_id"] == str(run_id)
+    assert row["model"] == "gpt-5"
+    assert row["prompt_hash"] == "a" * 64
+    assert row["input_hash"] == "b" * 64
+    assert row["input_tokens"] == 100
+    assert row["output_tokens"] == 50
+    assert row["cached_input_tokens"] == 10
+    assert row["reasoning_tokens"] == 5
+    assert Decimal(row["cost_usd"]) == Decimal("0.001234")
+    assert row["latency_ms"] == 500
+    assert row["status"] == "success"
+    assert row["evidence_ids"] == ["e1", "e2"]
+    assert row["error_message"] is None
+    assert "created_at" in row
