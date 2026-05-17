@@ -8,7 +8,6 @@ FROM node:22-bookworm-slim AS builder
 WORKDIR /repo
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /repo/node_modules ./node_modules
-COPY --from=deps /repo/apps/web/node_modules ./apps/web/node_modules
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY apps/web ./apps/web
 RUN npm run build --workspace=@alphora/web
