@@ -1,5 +1,3 @@
-from typing import Any
-
 from fastapi import FastAPI, HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.testclient import TestClient
@@ -104,9 +102,8 @@ def test_401_preserves_www_authenticate_header() -> None:
 
 def test_validation_error_field_names_use_dotted_paths() -> None:
     test_app = _build_envelope_test_app()
-    payload: dict[str, Any] = {}
     with TestClient(test_app) as client:
-        response = client.post("/echo", json=payload)
+        response = client.post("/echo", json={})
     assert response.status_code == 422
     body = response.json()
     assert body["code"] == "validation_error"

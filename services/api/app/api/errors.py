@@ -64,9 +64,8 @@ def _format_loc(location: Sequence[object]) -> str:
 
 
 async def http_exception_handler(
-    request: Request, exc: Exception
+    _request: Request, exc: Exception
 ) -> JSONResponse:
-    _ = request
     if not isinstance(exc, StarletteHTTPException):
         raise exc
     envelope = _envelope_for_http_exception(exc)
@@ -79,9 +78,8 @@ async def http_exception_handler(
 
 
 async def validation_exception_handler(
-    request: Request, exc: Exception
+    _request: Request, exc: Exception
 ) -> JSONResponse:
-    _ = request
     if not isinstance(exc, RequestValidationError):
         raise exc
     envelope = APIErrorBody(
