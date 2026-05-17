@@ -209,6 +209,7 @@ export async function updateProviderSettings(
   }
 
   updateTag("settings-providers");
+  updateTag("settings");
   return {
     status: "ok",
     message: null,
