@@ -27,7 +27,8 @@ RUN pip install --upgrade pip \
         "httpx>=0.27.2" \
         "python-multipart>=0.0.12" \
         "cryptography>=43.0.1" \
-        "greenlet>=3.0.0"
+        "greenlet>=3.0.0" \
+        "openai>=1.50.0"
 
 COPY app ./app
 COPY alembic ./alembic

@@ -73,6 +73,30 @@ class RunOrchestrator:
             return
         await self._persist_success(run_id, result)
 
+    async def fail(self, run_id: UUID, reason: str) -> None:
+        """Mark a queued or running run as failed with the given reason.
+
+        Used when the worker rejects a run at dispatch (e.g., unimplemented
+        strategy) rather than during adapter execution.
+        """
+        async with self._session_factory() as session:
+            run = await self._load_run(session, run_id)
+            if run.status not in {RunStatus.queued, RunStatus.running}:
+                return
+            run.status = RunStatus.failed
+            run.error_message = reason
+            run.finished_at = _utcnow()
+            emit_stage_event(
+                session,
+                run_id=run_id,
+                stage_name="failed",
+                stage_index=_TERMINAL_STAGE_INDEX,
+                total_stages=_TOTAL_STAGES,
+                message=f"run failed: {reason}",
+                level=RunEventLevel.err,
+            )
+            await session.commit()
+
     async def cancel(self, run_id: UUID) -> None:
         async with self._session_factory() as session:
             run = await self._load_run(session, run_id)

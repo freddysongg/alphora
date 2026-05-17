@@ -16,10 +16,12 @@ _DEFAULT_THRESHOLDS: BudgetThresholds = BudgetThresholds()
 
 def compute_cost(usage: TokenUsage, model_id: str) -> Decimal:
     pricing = get_pricing(model_id)
+    non_cached_input = max(0, usage.input_tokens - usage.cached_input_tokens)
+    non_reasoning_output = max(0, usage.output_tokens - usage.reasoning_tokens)
     raw = (
-        Decimal(usage.input_tokens) * pricing.input_per_mtok
-        + Decimal(usage.output_tokens) * pricing.output_per_mtok
+        Decimal(non_cached_input) * pricing.input_per_mtok
         + Decimal(usage.cached_input_tokens) * pricing.cached_input_per_mtok
+        + Decimal(non_reasoning_output) * pricing.output_per_mtok
         + Decimal(usage.reasoning_tokens) * pricing.reasoning_per_mtok
     ) / _TOKENS_PER_MTOK
     return raw.quantize(_COST_QUANTUM, rounding=ROUND_HALF_UP)

@@ -16,19 +16,32 @@ def test_compute_cost_basic_input_output_only() -> None:
 
 def test_compute_cost_all_token_types() -> None:
     usage = TokenUsage(
-        input_tokens=1_000_000,
-        output_tokens=1_000_000,
-        cached_input_tokens=2_000_000,
-        reasoning_tokens=500_000,
+        input_tokens=1000,
+        output_tokens=500,
+        cached_input_tokens=200,
+        reasoning_tokens=100,
     )
     cost = compute_cost(usage, "gpt-5")
     expected = (
-        Decimal("1.25")
-        + Decimal("10.00")
-        + Decimal("2") * Decimal("0.125")
-        + Decimal("0.5") * Decimal("10.00")
-    ).quantize(Decimal("0.000001"))
+        Decimal("800") * Decimal("1.25")
+        + Decimal("200") * Decimal("0.125")
+        + Decimal("400") * Decimal("10.00")
+        + Decimal("100") * Decimal("10.00")
+    ) / Decimal(1_000_000)
+    expected = expected.quantize(Decimal("0.000001"))
     assert cost == expected
+
+
+def test_compute_cost_cached_tokens_priced_at_cached_rate() -> None:
+    usage = TokenUsage(input_tokens=1000, cached_input_tokens=1000)
+    cost = compute_cost(usage, "gpt-5")
+    assert cost == Decimal("0.000125")
+
+
+def test_compute_cost_reasoning_tokens_priced_at_reasoning_rate() -> None:
+    usage = TokenUsage(output_tokens=1000, reasoning_tokens=1000)
+    cost = compute_cost(usage, "gpt-5")
+    assert cost == Decimal("0.010000")
 
 
 def test_compute_cost_zero_usage_returns_zero() -> None:

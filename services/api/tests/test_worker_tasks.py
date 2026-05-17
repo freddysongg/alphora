@@ -1,9 +1,12 @@
+from datetime import date
 from typing import Any
 from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import select
 
+from app.db.models_runs import ResearchRun, RunStatus, Strategy
 from app.db.session import session_factory
 from app.workers import tasks as worker_tasks
 
@@ -21,8 +24,17 @@ def test_execute_research_run_invokes_orchestrator_with_uuid(
         async def execute(self, run_id: Any) -> None:
             captured["run_id"] = run_id
 
+        async def fail(self, run_id: Any, reason: str) -> None:
+            captured["failed_run_id"] = run_id
+            captured["fail_reason"] = reason
+
     monkeypatch.setattr(worker_tasks, "RunOrchestrator", FakeOrchestrator)
     monkeypatch.setattr(worker_tasks, "TradingAgentsAdapter", MagicMock())
+
+    async def fake_load_strategy(_run_id: Any) -> str:
+        return Strategy.tradingagents.value
+
+    monkeypatch.setattr(worker_tasks, "_load_strategy", fake_load_strategy)
 
     run_id = uuid4()
     worker_tasks.execute_research_run(run_id.hex)
@@ -30,6 +42,35 @@ def test_execute_research_run_invokes_orchestrator_with_uuid(
     assert captured["run_id"] == run_id
     assert captured["session_factory"] is session_factory
     assert captured["adapter"] is not None
+    assert "failed_run_id" not in captured
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_execute_research_run_marks_funnel_research_as_failed() -> None:
+    run_id = uuid4()
+    async with session_factory() as session:
+        session.add(
+            ResearchRun(
+                id=run_id,
+                ticker="AAPL",
+                trade_date=date(2026, 5, 16),
+                strategy=Strategy.funnel_research.value,
+                status=RunStatus.queued,
+                config={},
+            )
+        )
+        await session.commit()
+
+    await worker_tasks._dispatch(run_id)
+
+    async with session_factory() as session:
+        stored = (
+            await session.execute(select(ResearchRun).where(ResearchRun.id == run_id))
+        ).scalar_one()
+        assert stored.status == RunStatus.failed
+        assert stored.error_message is not None
+        assert "not implemented" in stored.error_message
+        assert "funnel_research" in stored.error_message
 
 
 def test_execute_research_run_rejects_invalid_uuid() -> None:

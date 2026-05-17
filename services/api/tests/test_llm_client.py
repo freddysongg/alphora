@@ -18,6 +18,7 @@ from app.services.llm import (
     LlmClient,
     LlmMessage,
 )
+from app.services.model_pricing import UnknownModelError
 
 
 def _fake_response(
@@ -377,6 +378,34 @@ async def test_complete_daily_cost_accumulates_across_calls() -> None:
         assert len(events) == 1
         assert events[0].data is not None
         assert events[0].data["budget_action"] == BudgetAction.warn.value
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_complete_unknown_model_logs_error_and_does_not_call_openai() -> None:
+    run_id = await _seed_run()
+    fake = _FakeOpenAi(_fake_response())
+    client = LlmClient(openai_client=fake)  # type: ignore[arg-type]
+
+    with pytest.raises(UnknownModelError):
+        async with session_factory() as session:
+            await client.complete(
+                session=session,
+                messages=[LlmMessage(role="user", content="hello")],
+                model="unknown-model-xyz",
+                run_id=run_id,
+            )
+
+    assert fake.chat.completions.calls == []
+
+    async with session_factory() as session:
+        logs = (await session.execute(select(LlmCallLog))).scalars().all()
+        assert len(logs) == 1
+        log = logs[0]
+        assert log.status is LlmCallStatus.error
+        assert log.cost_usd == Decimal("0")
+        assert log.latency_ms == 0
+        assert log.error_message is not None
+        assert "unknown-model-xyz" in log.error_message
 
 
 @pytest.mark.usefixtures("initialized_schema")

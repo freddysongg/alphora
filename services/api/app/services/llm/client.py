@@ -21,6 +21,7 @@ from app.schemas.budget import (
     TokenUsage,
 )
 from app.services.budget import BudgetGuard, compute_cost
+from app.services.model_pricing import UnknownModelError, get_pricing
 from app.services.run_events import COST_EVENT, emit_run_event
 
 MessageRole = Literal["system", "user", "assistant"]
@@ -92,6 +93,24 @@ class LlmClient:
         prompt_hash = _hash_messages(messages)
         input_hash = _hash_input(model=model, messages=messages)
         ev_ids = list(evidence_ids) if evidence_ids else None
+        try:
+            get_pricing(model)
+        except UnknownModelError as exc:
+            await _persist_log(
+                session,
+                run_id=run_id,
+                model=model,
+                prompt_hash=prompt_hash,
+                input_hash=input_hash,
+                usage=TokenUsage(),
+                cost_usd=Decimal("0"),
+                latency_ms=0,
+                status=LlmCallStatus.error,
+                error_message=str(exc),
+                evidence_ids=ev_ids,
+            )
+            await session.commit()
+            raise
         response, latency_ms = await self._call_openai_with_error_log(
             session=session,
             run_id=run_id,
