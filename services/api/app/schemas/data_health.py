@@ -32,3 +32,19 @@ class ProviderCheckPublic(BaseModel):
     sample_count: int
     as_of: date | None
     error_message: str | None
+
+
+class ProviderMatrixCell(BaseModel):
+    provider: str
+    tool: str
+    status: ProviderCheckStatusEnum
+    at: datetime
+    latency_ms: int
+    sample_count: int
+    as_of: date | None
+
+
+class ProviderMatrix(BaseModel):
+    providers: list[str]
+    tools: list[str]
+    cells: list[ProviderMatrixCell]

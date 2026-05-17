@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.common import OrderSideEnum, OrderStatusEnum, OrderTypeEnum
 
@@ -73,5 +73,32 @@ class PaperPositionPublic(BaseModel):
     ticker: str
     quantity: int
     avg_cost_cents: int
+    mark_cents: int
     opened_at: datetime
     closed_at: datetime | None
+
+
+class CreatePaperOrderRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    portfolio_id: uuid.UUID
+    ticker: str = Field(min_length=1, max_length=16)
+    side: OrderSideEnum
+    quantity: int = Field(gt=0)
+    order_type: OrderTypeEnum = OrderTypeEnum.market
+    source_run_id: uuid.UUID | None = None
+
+    @field_validator("ticker")
+    @classmethod
+    def _normalize_ticker(cls, ticker: str) -> str:
+        return ticker.strip().upper()
+
+
+class PaperPortfolioSnapshot(BaseModel):
+    id: uuid.UUID
+    name: str
+    cash_cents: int
+    equity_cents: int
+    unrealized_pl_cents: int
+    realized_pl_cents: int
+    positions: list[PaperPositionPublic]
