@@ -22,8 +22,8 @@
  *     not append it to the base URL.
  *
  *   Regenerating types:
- *     1. Refresh the contract file from FastAPI:
- *        `npm run generate:api:export --workspace @alphora/web`
+ *     1. Refresh the contract file from FastAPI (run inside services/api):
+ *        `python -c "from app.main import app; import json; print(json.dumps(app.openapi()))" > openapi.json`
  *     2. Regenerate the TypeScript schema:
  *        `npm run generate:api --workspace @alphora/web`
  */
