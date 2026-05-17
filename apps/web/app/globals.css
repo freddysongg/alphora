@@ -52,12 +52,20 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+.press-scale:active {
+  transform: scale(0.97);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .press-scale:active {
+    transform: scale(0.98);
   }
 }
 

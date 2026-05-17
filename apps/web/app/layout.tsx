@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
+import { NoiseGrain } from "@/components/system/noise-grain";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -37,11 +38,7 @@ export default function RootLayout({ children }: RootLayoutProps): ReactNode {
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
       <body className="min-h-[100dvh] bg-canvas text-fg">
-        <div
-          aria-hidden="true"
-          className="fixed inset-0 pointer-events-none z-0 opacity-[0.03]"
-          style={{ backgroundImage: "url(/noise.svg)" }}
-        />
+        <NoiseGrain />
         <div className="relative z-10">{children}</div>
         <Toaster
           theme="dark"
