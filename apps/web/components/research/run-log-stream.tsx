@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { useRouter } from "next/navigation";
 
@@ -30,6 +30,10 @@ const RAW_PAYLOAD_PREVIEW_LIMIT = 120;
 
 function isKnownLevel(value: string): value is LogLevel {
   return (KNOWN_LEVELS as readonly string[]).includes(value);
+}
+
+function isNonEmptyString(value: string | undefined): value is string {
+  return typeof value === "string" && value.length > 0;
 }
 
 function toLogLevel(value: unknown): LogLevel {
@@ -77,15 +81,27 @@ export function RunLogStream(props: RunLogStreamProps): ReactElement {
   const { runId, initialLines, isTerminal } = props;
   const [lines, setLines] = useState<LogLine[]>(initialLines);
   const router = useRouter();
-
-  const appendLine = useCallback((line: LogLine): void => {
-    setLines((prev) => [...prev, line]);
-  }, []);
+  const initialIdsRef = useRef<readonly string[]>(
+    initialLines.map((line) => line.id).filter(isNonEmptyString),
+  );
 
   useEffect(() => {
     if (isTerminal) {
       return;
     }
+
+    const seenIds = new Set<string>(initialIdsRef.current);
+
+    const appendLine = (line: LogLine): void => {
+      const lineId = line.id;
+      if (isNonEmptyString(lineId)) {
+        if (seenIds.has(lineId)) {
+          return;
+        }
+        seenIds.add(lineId);
+      }
+      setLines((prev) => [...prev, line]);
+    };
 
     let isDisposed = false;
     let attempt = 0;
@@ -161,7 +177,7 @@ export function RunLogStream(props: RunLogStreamProps): ReactElement {
       clearReconnectTimer();
       closeActiveSource();
     };
-  }, [runId, isTerminal, appendLine, router]);
+  }, [runId, isTerminal, router]);
 
   return <LogViewer lines={lines} />;
 }
