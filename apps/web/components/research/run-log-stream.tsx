@@ -25,6 +25,8 @@ const KNOWN_LEVELS: readonly LogLevel[] = ["info", "warn", "err"];
 const RECONNECT_DELAYS_MS: readonly number[] = [500, 2000];
 const SSE_EVENT_LOG = "log";
 const SSE_EVENT_END = "end";
+const LOG_PREFIX = "[RunLogStream]";
+const RAW_PAYLOAD_PREVIEW_LIMIT = 120;
 
 function isKnownLevel(value: string): value is LogLevel {
   return (KNOWN_LEVELS as readonly string[]).includes(value);
@@ -50,15 +52,25 @@ function toLogLine(raw: RawLogEvent, fallbackKey: string): LogLine {
 }
 
 function parseLogEvent(payload: string, fallbackKey: string): LogLine | null {
+  let parsed: unknown;
   try {
-    const parsed: unknown = JSON.parse(payload);
-    if (typeof parsed !== "object" || parsed === null) {
-      return null;
-    }
-    return toLogLine(parsed as RawLogEvent, fallbackKey);
-  } catch {
+    parsed = JSON.parse(payload);
+  } catch (error) {
+    console.warn(
+      `${LOG_PREFIX} dropped frame: JSON.parse failed`,
+      payload.slice(0, RAW_PAYLOAD_PREVIEW_LIMIT),
+      error,
+    );
     return null;
   }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    console.warn(
+      `${LOG_PREFIX} dropped frame: payload is not a plain object`,
+      parsed,
+    );
+    return null;
+  }
+  return toLogLine(parsed as RawLogEvent, fallbackKey);
 }
 
 export function RunLogStream(props: RunLogStreamProps): ReactElement {
@@ -126,6 +138,7 @@ export function RunLogStream(props: RunLogStreamProps): ReactElement {
         if (isDisposed) {
           return;
         }
+        clearReconnectTimer();
         closeActiveSource();
         const nextDelay = RECONNECT_DELAYS_MS[attempt];
         attempt += 1;
