@@ -377,3 +377,34 @@ async def test_complete_daily_cost_accumulates_across_calls() -> None:
         assert len(events) == 1
         assert events[0].data is not None
         assert events[0].data["budget_action"] == BudgetAction.warn.value
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_complete_handles_response_with_no_usage_field() -> None:
+    run_id = await _seed_run()
+    response = _fake_response()
+    response.usage = None
+    client = LlmClient(openai_client=_FakeOpenAi(response))  # type: ignore[arg-type]
+
+    async with session_factory() as session:
+        result = await client.complete(
+            session=session,
+            messages=[LlmMessage(role="user", content="hi")],
+            model="gpt-5",
+            run_id=run_id,
+        )
+
+    assert result.usage.input_tokens == 0
+    assert result.usage.output_tokens == 0
+    assert result.cost_usd == Decimal("0.000000")
+
+    async with session_factory() as session:
+        logs = (
+            await session.execute(
+                select(LlmCallLog).where(LlmCallLog.run_id == run_id)
+            )
+        ).scalars().all()
+        assert len(logs) == 1
+        assert logs[0].status is LlmCallStatus.success
+        assert logs[0].input_tokens == 0
+        assert logs[0].output_tokens == 0

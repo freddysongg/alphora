@@ -9,8 +9,8 @@ from typing import Literal, cast
 from uuid import UUID
 
 from openai import AsyncOpenAI
-from openai.types.chat import ChatCompletionMessageParam
-from sqlalchemy import select
+from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models_llm import LlmCallLog, LlmCallStatus
@@ -90,15 +90,67 @@ class LlmClient:
     ) -> LlmCompletionResult:
         prompt_hash = _hash_messages(messages)
         input_hash = _hash_input(model=model, messages=messages)
-        started = time.monotonic()
-        openai_messages = cast(
-            list[ChatCompletionMessageParam],
-            [{"role": m.role, "content": m.content} for m in messages],
+        ev_ids = list(evidence_ids) if evidence_ids else None
+        response, latency_ms = await self._call_openai_with_error_log(
+            session=session,
+            run_id=run_id,
+            model=model,
+            messages=messages,
+            prompt_hash=prompt_hash,
+            input_hash=input_hash,
+            evidence_ids=ev_ids,
         )
+        usage = _extract_usage(response)
+        cost = compute_cost(usage, model)
+        log, decision = await self._evaluate_and_persist(
+            session=session,
+            run_id=run_id,
+            model=model,
+            prompt_hash=prompt_hash,
+            input_hash=input_hash,
+            usage=usage,
+            cost=cost,
+            latency_ms=latency_ms,
+            evidence_ids=ev_ids,
+        )
+        if decision.action is BudgetAction.kill:
+            raise BudgetKilledError(decision)
+        if decision.action is BudgetAction.pause:
+            raise BudgetPausedError(decision)
+        content_raw = response.choices[0].message.content if response.choices else ""
+        content = content_raw if isinstance(content_raw, str) else ""
+        return LlmCompletionResult(
+            content=content,
+            model=model,
+            usage=usage,
+            cost_usd=cost,
+            latency_ms=latency_ms,
+            log_id=log.id,
+        )
+
+    async def _call_openai_with_error_log(
+        self,
+        *,
+        session: AsyncSession,
+        run_id: UUID | None,
+        model: str,
+        messages: Sequence[LlmMessage],
+        prompt_hash: str,
+        input_hash: str,
+        evidence_ids: list[str] | None,
+    ) -> tuple[ChatCompletion, int]:
+        """Call OpenAI. On exception, persist an error log + commit, then re-raise.
+
+        Returns (response, latency_ms) on success.
+        """
+        started = time.monotonic()
         try:
             response = await self._openai.chat.completions.create(
                 model=model,
-                messages=openai_messages,
+                messages=cast(
+                    list[ChatCompletionMessageParam],
+                    [{"role": m.role, "content": m.content} for m in messages],
+                ),
             )
         except Exception as exc:
             latency_ms = int((time.monotonic() - started) * 1000)
@@ -113,20 +165,37 @@ class LlmClient:
                 latency_ms=latency_ms,
                 status=LlmCallStatus.error,
                 error_message=str(exc),
-                evidence_ids=list(evidence_ids) if evidence_ids else None,
+                evidence_ids=evidence_ids,
             )
             await session.commit()
             raise
-        latency_ms = int((time.monotonic() - started) * 1000)
-        usage = _extract_usage(response)
-        cost = compute_cost(usage, model)
-        run_cost = await _sum_run_cost(session, run_id) + cost if run_id else cost
-        daily_cost = await _sum_daily_cost(session) + cost
+        return response, int((time.monotonic() - started) * 1000)
+
+    async def _evaluate_and_persist(
+        self,
+        *,
+        session: AsyncSession,
+        run_id: UUID | None,
+        model: str,
+        prompt_hash: str,
+        input_hash: str,
+        usage: TokenUsage,
+        cost: Decimal,
+        latency_ms: int,
+        evidence_ids: list[str] | None,
+    ) -> tuple[LlmCallLog, BudgetDecision]:
+        """Sum prior costs, evaluate the guard, persist the log, emit the event, commit.
+
+        Returns the persisted log + the decision so the caller can raise as needed.
+        """
+        prior_run_cost = await _sum_run_cost(session, run_id)
+        prior_daily_cost = await _sum_daily_cost(session)
+        run_cost_total = prior_run_cost + cost
+        daily_cost_total = prior_daily_cost + cost
         decision = self._guard.evaluate(
-            run_cost_usd=run_cost,
-            daily_cost_usd=daily_cost,
+            run_cost_usd=run_cost_total,
+            daily_cost_usd=daily_cost_total,
         )
-        status = _status_for_decision(decision)
         log = await _persist_log(
             session,
             run_id=run_id,
@@ -136,9 +205,9 @@ class LlmClient:
             usage=usage,
             cost_usd=cost,
             latency_ms=latency_ms,
-            status=status,
+            status=_status_for_decision(decision),
             error_message=None,
-            evidence_ids=list(evidence_ids) if evidence_ids else None,
+            evidence_ids=evidence_ids,
         )
         if run_id is not None:
             await _emit_cost_event(
@@ -147,24 +216,11 @@ class LlmClient:
                 model=model,
                 usage=usage,
                 cost=cost,
-                cumulative_run_cost=run_cost,
+                cumulative_run_cost=run_cost_total,
                 decision=decision,
             )
         await session.commit()
-        if decision.action is BudgetAction.kill:
-            raise BudgetKilledError(decision)
-        if decision.action is BudgetAction.pause:
-            raise BudgetPausedError(decision)
-        content_raw = response.choices[0].message.content
-        content = content_raw if isinstance(content_raw, str) else ""
-        return LlmCompletionResult(
-            content=content,
-            model=model,
-            usage=usage,
-            cost_usd=cost,
-            latency_ms=latency_ms,
-            log_id=log.id,
-        )
+        return log, decision
 
 
 def _hash_messages(messages: Sequence[LlmMessage]) -> str:
@@ -261,22 +317,20 @@ async def _persist_log(
 async def _sum_run_cost(session: AsyncSession, run_id: UUID | None) -> Decimal:
     if run_id is None:
         return Decimal("0")
-    stmt = select(LlmCallLog.cost_usd).where(LlmCallLog.run_id == run_id)
-    rows = (await session.execute(stmt)).scalars().all()
-    total = Decimal("0")
-    for value in rows:
-        total += value
-    return total
+    stmt = select(func.coalesce(func.sum(LlmCallLog.cost_usd), 0)).where(
+        LlmCallLog.run_id == run_id
+    )
+    total = (await session.execute(stmt)).scalar_one()
+    return total if isinstance(total, Decimal) else Decimal(str(total))
 
 
 async def _sum_daily_cost(session: AsyncSession) -> Decimal:
     today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
-    stmt = select(LlmCallLog.cost_usd).where(LlmCallLog.created_at >= today_start)
-    rows = (await session.execute(stmt)).scalars().all()
-    total = Decimal("0")
-    for value in rows:
-        total += value
-    return total
+    stmt = select(func.coalesce(func.sum(LlmCallLog.cost_usd), 0)).where(
+        LlmCallLog.created_at >= today_start
+    )
+    total = (await session.execute(stmt)).scalar_one()
+    return total if isinstance(total, Decimal) else Decimal(str(total))
 
 
 async def _emit_cost_event(
