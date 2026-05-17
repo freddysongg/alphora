@@ -3,31 +3,36 @@ import Link from "next/link";
 import type { Route } from "next";
 import { ArrowsClockwise, Eye } from "@phosphor-icons/react/dist/ssr";
 import {
-  ActivityStrip,
   Badge,
   Button,
   HexPill,
   StatusDot,
 } from "@/components/ui";
-import type { BadgeVariant, StatusKind } from "@/components/ui";
-import type { ResearchRun, RunRating, RunStatus } from "@/lib/fixtures/runs";
+import type { BadgeVariant } from "@/components/ui";
+import type { components } from "@/lib/api";
+import { runStatusToStatusKind } from "@/lib/research/status-mapping";
 
-const statusToDot: Record<RunStatus, StatusKind> = {
-  queued: "pending",
-  running: "live",
-  succeeded: "succeeded",
-  failed: "failed",
-};
+type ResearchRunSummary = components["schemas"]["ResearchRunSummary"];
+type FinalRating = NonNullable<ResearchRunSummary["final_rating"]>;
 
-const ratingToBadge: Record<RunRating, BadgeVariant> = {
+const ratingToBadge: Record<FinalRating, BadgeVariant> = {
   buy: "buy",
   hold: "hold",
   sell: "sell",
   none: "none",
 };
 
+function resolveBadgeVariant(
+  rating: ResearchRunSummary["final_rating"],
+): BadgeVariant {
+  if (rating === null) {
+    return "none";
+  }
+  return ratingToBadge[rating];
+}
+
 export interface RunRowProps {
-  run: ResearchRun;
+  run: ResearchRunSummary;
 }
 
 export function RunRow(props: RunRowProps): ReactElement {
@@ -44,10 +49,9 @@ export function RunRow(props: RunRowProps): ReactElement {
           {run.ticker}
         </span>
         <HexPill value={run.id} />
-        <StatusDot status={statusToDot[run.status]} />
+        <StatusDot status={runStatusToStatusKind(run.status)} />
         <div className="flex-1" />
-        <ActivityStrip buckets={[...run.activity]} />
-        <Badge variant={ratingToBadge[run.rating]} />
+        <Badge variant={resolveBadgeVariant(run.final_rating)} />
       </Link>
       <div className="flex items-center gap-1 shrink-0">
         <Button
