@@ -5,6 +5,7 @@ import { updateTag } from "next/cache";
 
 import { getServerApi, isApiError } from "@/lib/api";
 import type { components } from "@/lib/api";
+import type { NewRunActionState, NewRunFieldErrors } from "./action-state";
 
 type LlmProvider = components["schemas"]["LlmProviderEnum"];
 
@@ -13,23 +14,6 @@ const DEFAULT_MODEL = "gpt-4o-mini";
 const DEFAULT_DEBATE_DEPTH = 3;
 const TICKER_MAX_LENGTH = 16;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-export interface NewRunFieldErrors {
-  ticker?: readonly string[];
-  trade_date?: readonly string[];
-}
-
-export interface NewRunActionState {
-  status: "idle" | "error";
-  message: string | null;
-  fields: NewRunFieldErrors;
-}
-
-export const initialNewRunState: NewRunActionState = {
-  status: "idle",
-  message: null,
-  fields: {},
-};
 
 interface BuiltFieldErrors {
   fields: NewRunFieldErrors;

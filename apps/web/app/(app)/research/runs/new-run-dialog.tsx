@@ -17,7 +17,8 @@ import {
   DialogTrigger,
   Input,
 } from "@/components/ui";
-import { createResearchRun, initialNewRunState } from "./actions";
+import { initialNewRunState } from "./action-state";
+import { createResearchRun } from "./actions";
 
 const labelClasses =
   "text-[11px] tracking-[0.14em] font-medium uppercase text-fg-muted";
