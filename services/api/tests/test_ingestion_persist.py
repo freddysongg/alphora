@@ -142,6 +142,64 @@ async def test_insert_chunks_writes_all_drafts(
     assert count == 2
 
 
+async def test_insert_chunks_round_trips_attributes_and_content_hash(
+    populated_session: AsyncSession,
+) -> None:
+    from sqlalchemy import select
+
+    from app.db.models_graph import EvidenceChunk
+    from app.services.ingestion._chunkers import ChunkDraft
+    from app.services.ingestion._persist import (
+        insert_chunks,
+        insert_or_get_evidence,
+    )
+
+    async with populated_session.begin():
+        evidence, _ = await insert_or_get_evidence(
+            session=populated_session,
+            source="fred",
+            document_id="ROUNDTRIP-2024",
+            raw_url=None,
+            content_hash="9" * 64,
+            structured=None,
+        )
+        evidence_id = evidence.id
+
+    drafts = [
+        ChunkDraft(
+            chunk_index=0,
+            text="row zero",
+            start_offset=10,
+            end_offset=20,
+            attributes={"nested": {"k": "v"}, "n": 7},
+            content_hash="0" * 64,
+        ),
+    ]
+
+    async with populated_session.begin():
+        await insert_chunks(
+            session=populated_session,
+            evidence_id=evidence_id,
+            drafts=drafts,
+        )
+
+    persisted = (
+        (
+            await populated_session.execute(
+                select(EvidenceChunk).where(EvidenceChunk.evidence_id == evidence_id)
+            )
+        )
+        .scalars()
+        .one()
+    )
+
+    assert persisted.text == "row zero"
+    assert persisted.start_offset == 10
+    assert persisted.end_offset == 20
+    assert persisted.content_hash == "0" * 64
+    assert persisted.attributes == {"nested": {"k": "v"}, "n": 7}
+
+
 async def test_insert_chunks_returns_zero_for_empty_drafts(
     populated_session: AsyncSession,
 ) -> None:

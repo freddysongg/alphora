@@ -126,6 +126,72 @@ def test_chunk_sec_submissions_emits_one_chunk_per_filing() -> None:
     assert chunks[1].attributes["report_date"] is None
 
 
+def test_chunk_fred_observations_returns_empty_for_no_observations() -> None:
+    from datetime import date
+
+    from app.services.ingestion._chunkers import chunk_fred_observations
+    from app.services.source_clients.fred import FredSeriesObservations
+
+    payload = FredSeriesObservations(
+        series_id="GDP",
+        observation_start=date(2024, 1, 1),
+        observation_end=date(2024, 1, 1),
+        count=0,
+        observations=[],
+    )
+
+    assert chunk_fred_observations(payload) == []
+
+
+def test_chunk_fred_observations_is_deterministic() -> None:
+    from datetime import date
+    from decimal import Decimal
+
+    from app.services.ingestion._chunkers import chunk_fred_observations
+    from app.services.source_clients.fred import (
+        FredObservation,
+        FredSeriesObservations,
+    )
+
+    payload = FredSeriesObservations(
+        series_id="CPIAUCSL",
+        observation_start=date(2024, 1, 1),
+        observation_end=date(2024, 1, 1),
+        count=1,
+        observations=[
+            FredObservation(
+                date=date(2024, 1, 1),
+                value=Decimal("310.328"),
+                realtime_start=date(2024, 2, 1),
+                realtime_end=date(2024, 12, 31),
+            ),
+        ],
+    )
+
+    first = chunk_fred_observations(payload)
+    second = chunk_fred_observations(payload)
+
+    assert [draft.text for draft in first] == [draft.text for draft in second]
+    assert [draft.content_hash for draft in first] == [
+        draft.content_hash for draft in second
+    ]
+
+
+def test_chunk_sec_submissions_returns_empty_for_no_recent_filings() -> None:
+    from app.services.ingestion._chunkers import chunk_sec_submissions
+    from app.services.source_clients.sec_edgar import SecSubmissionsResponse
+
+    payload = SecSubmissionsResponse(
+        cik="0000320193",
+        name="Apple Inc.",
+        sic=None,
+        tickers=[],
+        recent=[],
+    )
+
+    assert chunk_sec_submissions(payload) == []
+
+
 def test_chunker_content_hashes_are_sha256_of_chunk_text() -> None:
     from datetime import date
 

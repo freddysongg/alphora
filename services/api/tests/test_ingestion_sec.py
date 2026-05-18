@@ -149,6 +149,50 @@ async def test_ingest_sec_submissions_idempotent(
     assert second.chunk_count == 0
 
 
+async def test_ingest_sec_company_tickers_stores_structured_payload(
+    populated_session: AsyncSession,
+) -> None:
+    from sqlalchemy import select
+
+    from app.db.models_graph import Evidence
+    from app.services.ingestion.sec_filings import ingest_sec_company_tickers
+    from app.services.source_clients.sec_edgar import (
+        SecCompanyTicker,
+        SecCompanyTickersResponse,
+    )
+
+    payload = SecCompanyTickersResponse(
+        companies=[
+            SecCompanyTicker(cik_str=320193, ticker="AAPL", title="Apple Inc."),
+        ]
+    )
+    content_hash = hashlib.sha256(b"structured-tickers").hexdigest()
+
+    result = await ingest_sec_company_tickers(
+        session=populated_session,
+        payload=payload,
+        content_hash=content_hash,
+        raw_url="https://www.sec.gov/files/company_tickers.json",
+    )
+
+    persisted = (
+        (
+            await populated_session.execute(
+                select(Evidence).where(Evidence.id == result.evidence_id)
+            )
+        )
+        .scalars()
+        .one()
+    )
+
+    assert persisted.structured == {
+        "companies": [
+            {"cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc."},
+        ]
+    }
+    assert persisted.raw_url == "https://www.sec.gov/files/company_tickers.json"
+
+
 async def test_ingest_sec_submissions_writes_chunks_with_form_attributes(
     populated_session: AsyncSession,
 ) -> None:
