@@ -1,10 +1,12 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Environment = Literal["development", "test", "production"]
+
+_DEFAULT_SEC_EDGAR_USER_AGENT = "Alphora Research Desk admin@alphora.local"
 
 
 class Settings(BaseSettings):
@@ -28,6 +30,9 @@ class Settings(BaseSettings):
     secret_box_key: str = ""
 
     openai_api_key: str = ""
+
+    fred_api_key: SecretStr | None = None
+    sec_edgar_user_agent: str = _DEFAULT_SEC_EDGAR_USER_AGENT
 
 
 @lru_cache
