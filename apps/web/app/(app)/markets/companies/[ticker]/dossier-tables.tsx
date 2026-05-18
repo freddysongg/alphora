@@ -1,91 +1,172 @@
 "use client";
 
 import type { ReactElement } from "react";
+import { useRouter } from "next/navigation";
+import type { Route } from "next";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Badge, DataTable, StatusDot } from "@/components/ui";
-import type { BadgeVariant, StatusKind } from "@/components/ui";
+import type { BadgeVariant } from "@/components/ui";
+import type { components } from "@/lib/api";
+import { centsToDollars } from "@/lib/format/cents";
+import { runStatusToStatusKind } from "@/lib/research/status-mapping";
 
-interface HistoricalRunRow {
-  id: string;
-  date: string;
-  rating: BadgeVariant;
-  status: StatusKind;
-  tokens: number;
+type ResearchRunSummary = components["schemas"]["ResearchRunSummary"];
+type PaperPositionPublic = components["schemas"]["PaperPositionPublic"];
+type FinalRating = NonNullable<ResearchRunSummary["final_rating"]>;
+
+const DASH = "—";
+const ISO_DATE_LENGTH = 10;
+
+const ratingToBadge: Record<FinalRating, BadgeVariant> = {
+  buy: "buy",
+  hold: "hold",
+  sell: "sell",
+  none: "none",
+};
+
+function resolveBadgeVariant(
+  rating: ResearchRunSummary["final_rating"],
+): BadgeVariant {
+  if (rating === null) {
+    return "none";
+  }
+  return ratingToBadge[rating];
 }
 
-const historicalRuns: readonly HistoricalRunRow[] = [
-  { id: "h1", date: "2026-05-16", rating: "buy", status: "succeeded", tokens: 25251 },
-  { id: "h2", date: "2026-05-09", rating: "hold", status: "succeeded", tokens: 22184 },
-  { id: "h3", date: "2026-05-02", rating: "buy", status: "succeeded", tokens: 24612 },
-  { id: "h4", date: "2026-04-25", rating: "buy", status: "succeeded", tokens: 23018 },
-  { id: "h5", date: "2026-04-18", rating: "hold", status: "succeeded", tokens: 21842 },
+function formatIsoDate(iso: string): string {
+  if (typeof iso !== "string" || iso.length < ISO_DATE_LENGTH) {
+    return DASH;
+  }
+  const datePart = iso.slice(0, ISO_DATE_LENGTH);
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) {
+    return DASH;
+  }
+  return datePart;
+}
+
+const historicalColumns: ColumnDef<ResearchRunSummary, unknown>[] = [
+  {
+    accessorKey: "created_at",
+    header: "Date",
+    cell: ({ getValue }) => (
+      <span className="font-mono text-fg">
+        {formatIsoDate(String(getValue<string>()))}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "final_rating",
+    header: "Rating",
+    cell: ({ getValue }) => (
+      <Badge
+        variant={resolveBadgeVariant(
+          getValue<ResearchRunSummary["final_rating"]>(),
+        )}
+      />
+    ),
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ getValue }) => (
+      <StatusDot
+        status={runStatusToStatusKind(getValue<ResearchRunSummary["status"]>())}
+      />
+    ),
+  },
+  {
+    id: "tokens",
+    header: "Tokens",
+    meta: { numeric: true },
+    cell: () => <span className="text-fg-subtle">{DASH}</span>,
+  },
 ];
 
-const historicalColumns: ColumnDef<HistoricalRunRow, unknown>[] = [
-  { accessorKey: "date", header: "Date", cell: ({ getValue }) => <span className="font-mono text-fg">{String(getValue<string>())}</span> },
-  { accessorKey: "rating", header: "Rating", cell: ({ getValue }) => <Badge variant={getValue<BadgeVariant>()} /> },
-  { accessorKey: "status", header: "Status", cell: ({ getValue }) => <StatusDot status={getValue<StatusKind>()} /> },
-  { accessorKey: "tokens", header: "Tokens", meta: { numeric: true }, cell: ({ getValue }) => <span>{getValue<number>().toLocaleString()}</span> },
-];
+export interface HistoricalRunsTableProps {
+  runs: readonly ResearchRunSummary[];
+}
 
-export function HistoricalRunsTable(): ReactElement {
+export function HistoricalRunsTable(
+  props: HistoricalRunsTableProps,
+): ReactElement {
+  const { runs } = props;
+  const router = useRouter();
   return (
-    <DataTable<HistoricalRunRow>
-      data={[...historicalRuns]}
+    <DataTable<ResearchRunSummary>
+      data={[...runs]}
       columns={historicalColumns}
       getRowId={(row) => row.id}
+      emptyState="No runs for this ticker yet."
+      onRowClick={(row) => router.push(`/research/runs/${row.id}` as Route)}
     />
   );
 }
 
-interface LinkedPosition {
+interface LinkedPositionRow {
   id: string;
   account: string;
-  qty: number;
-  avgCost: number;
-  mark: number;
-  pl: number;
+  quantity: number;
+  avgCostCents: number;
 }
 
-const linkedPositions: readonly LinkedPosition[] = [
-  { id: "lp1", account: "Default", qty: 142, avgCost: 184.21, mark: 212.45, pl: 4010.08 },
-  { id: "lp2", account: "Long-term", qty: 60, avgCost: 168.42, mark: 212.45, pl: 2641.8 },
-];
-
-function formatMoney(value: number): string {
-  return value.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-const linkedColumns: ColumnDef<LinkedPosition, unknown>[] = [
-  { accessorKey: "account", header: "Account", cell: ({ getValue }) => <span className="text-fg">{String(getValue<string>())}</span> },
-  { accessorKey: "qty", header: "Qty", meta: { numeric: true }, cell: ({ getValue }) => <span>{getValue<number>().toLocaleString()}</span> },
-  { accessorKey: "avgCost", header: "Avg Cost", meta: { numeric: true }, cell: ({ getValue }) => <span>{formatMoney(getValue<number>())}</span> },
-  { accessorKey: "mark", header: "Mark", meta: { numeric: true }, cell: ({ getValue }) => <span>{formatMoney(getValue<number>())}</span> },
+const linkedColumns: ColumnDef<LinkedPositionRow, unknown>[] = [
   {
-    accessorKey: "pl",
+    accessorKey: "account",
+    header: "Account",
+    cell: ({ getValue }) => (
+      <span className="text-fg">{String(getValue<string>())}</span>
+    ),
+  },
+  {
+    accessorKey: "quantity",
+    header: "Qty",
+    meta: { numeric: true },
+    cell: ({ getValue }) => (
+      <span>{getValue<number>().toLocaleString()}</span>
+    ),
+  },
+  {
+    accessorKey: "avgCostCents",
+    header: "Avg Cost",
+    meta: { numeric: true },
+    cell: ({ getValue }) => <span>{centsToDollars(getValue<number>())}</span>,
+  },
+  {
+    id: "mark",
+    header: "Mark",
+    meta: { numeric: true },
+    cell: () => <span className="text-fg-subtle">{DASH}</span>,
+  },
+  {
+    id: "pl",
     header: "P/L",
     meta: { numeric: true },
-    cell: ({ getValue }) => {
-      const pl = getValue<number>();
-      return (
-        <span className={pl >= 0 ? "text-accent-text" : "text-danger"}>
-          {pl >= 0 ? "+" : ""}
-          {formatMoney(pl)}
-        </span>
-      );
-    },
+    cell: () => <span className="text-fg-subtle">{DASH}</span>,
   },
 ];
 
-export function LinkedPositionsTable(): ReactElement {
+export interface LinkedPositionsTableProps {
+  positions: readonly PaperPositionPublic[];
+  portfolioName: string;
+}
+
+export function LinkedPositionsTable(
+  props: LinkedPositionsTableProps,
+): ReactElement {
+  const { positions, portfolioName } = props;
+  const rows: LinkedPositionRow[] = positions.map((position) => ({
+    id: position.id,
+    account: portfolioName,
+    quantity: position.quantity,
+    avgCostCents: position.avg_cost_cents,
+  }));
   return (
-    <DataTable<LinkedPosition>
-      data={[...linkedPositions]}
+    <DataTable<LinkedPositionRow>
+      data={rows}
       columns={linkedColumns}
       getRowId={(row) => row.id}
+      emptyState="No paper positions in this ticker."
     />
   );
 }
