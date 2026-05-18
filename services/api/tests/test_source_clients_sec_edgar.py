@@ -131,6 +131,62 @@ async def test_fetch_submissions_flattens_parallel_arrays() -> None:
 
 
 @respx.mock
+async def test_fetch_submissions_handles_empty_recent_block() -> None:
+    from app.services.source_clients.sec_edgar import fetch_submissions
+
+    respx.get("https://data.sec.gov/submissions/CIK0000320193.json").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "cik": "0000320193",
+                "name": "Apple Inc.",
+                "sic": "3571",
+                "tickers": ["AAPL"],
+                "filings": {
+                    "recent": {
+                        "accessionNumber": [],
+                        "filingDate": [],
+                        "reportDate": [],
+                        "form": [],
+                        "primaryDocument": [],
+                        "primaryDocDescription": [],
+                    }
+                },
+            },
+        )
+    )
+
+    async with httpx.AsyncClient() as client:
+        result, _ = await fetch_submissions(client=client, cik="320193")
+
+    assert result.recent == []
+
+
+@respx.mock
+async def test_fetch_submissions_missing_recent_key_raises_validation_error() -> None:
+    from pydantic import ValidationError
+
+    from app.services.source_clients.sec_edgar import fetch_submissions
+
+    respx.get("https://data.sec.gov/submissions/CIK0000320193.json").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "cik": "0000320193",
+                "name": "Apple Inc.",
+                "sic": None,
+                "tickers": [],
+                "filings": {},
+            },
+        )
+    )
+
+    async with httpx.AsyncClient() as client:
+        with pytest.raises(ValidationError):
+            await fetch_submissions(client=client, cik="320193")
+
+
+@respx.mock
 async def test_fetch_company_tickers_403_does_not_retry() -> None:
     from app.services.source_clients._http import SourceClientHTTPError
     from app.services.source_clients.sec_edgar import fetch_company_tickers

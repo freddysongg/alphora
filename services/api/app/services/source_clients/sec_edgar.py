@@ -82,6 +82,18 @@ class SecSubmissionsResponse(BaseModel):
         primary_documents = recent_arrays.get("primaryDocument", [])
         primary_doc_descriptions = recent_arrays.get("primaryDocDescription", [])
 
+        required_len = len(accession_numbers)
+        for name, arr in (
+            ("filingDate", filing_dates),
+            ("form", forms),
+            ("primaryDocument", primary_documents),
+        ):
+            if len(arr) != required_len:
+                raise ValueError(
+                    f"SEC submissions.recent.{name} length {len(arr)} != "
+                    f"accessionNumber length {required_len}"
+                )
+
         rows: list[dict[str, Any]] = []
         for index, accession in enumerate(accession_numbers):
             rows.append(
