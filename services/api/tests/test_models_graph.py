@@ -398,14 +398,14 @@ async def test_belief_recomputations_cascade_delete_with_hypothesis() -> None:
             session.add(recomputation)
         await session.commit()
 
-        existing_count = (
+        existing_recomputations = (
             await session.execute(
                 select(BeliefRecomputation).where(
                     BeliefRecomputation.hypothesis_id == hypothesis_id
                 )
             )
         ).all()
-        assert len(existing_count) == 3
+        assert len(existing_recomputations) == 3
 
         await session.execute(
             Hypothesis.__table__.delete().where(Hypothesis.id == hypothesis_id)
