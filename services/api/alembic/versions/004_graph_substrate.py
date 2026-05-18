@@ -6,6 +6,7 @@ Create Date: 2026-05-18 00:00:00.000000
 
 """
 from collections.abc import Sequence
+from typing import Final
 
 import sqlalchemy as sa
 
@@ -18,6 +19,10 @@ depends_on: str | Sequence[str] | None = None
 
 
 _JSONB_COLUMNS_ON_ENTITIES: tuple[str, ...] = ("aliases", "external_ids", "attributes")
+
+_HYPOTHESIS_STATUS_PROPOSED: Final[str] = "proposed"
+_ENTITY_RESOLUTION_REVIEW_STATUS_PENDING: Final[str] = "pending"
+_PROPOSED_TYPE_STATUS_PROPOSED: Final[str] = "proposed"
 
 
 def _is_postgres() -> bool:
@@ -226,7 +231,7 @@ def upgrade() -> None:
             "status",
             sa.String(length=32),
             nullable=False,
-            server_default="proposed",
+            server_default=_HYPOTHESIS_STATUS_PROPOSED,
         ),
         sa.Column("valid_until", sa.DateTime(timezone=True), nullable=True),
         sa.Column("proposed_by_run_id", sa.Uuid(), nullable=True),
@@ -293,7 +298,10 @@ def upgrade() -> None:
         sa.Column("candidate_entity_ids", sa.JSON(), nullable=False),
         sa.Column("chosen_entity_id", sa.Uuid(), nullable=True),
         sa.Column(
-            "status", sa.String(length=16), nullable=False, server_default="pending"
+            "status",
+            sa.String(length=16),
+            nullable=False,
+            server_default=_ENTITY_RESOLUTION_REVIEW_STATUS_PENDING,
         ),
         sa.Column("confidence", sa.Float(), nullable=True),
         sa.Column("evidence_id", sa.Uuid(), nullable=True),
@@ -366,7 +374,10 @@ def upgrade() -> None:
             "vote_count", sa.Integer(), nullable=False, server_default=sa.text("1")
         ),
         sa.Column(
-            "status", sa.String(length=16), nullable=False, server_default="proposed"
+            "status",
+            sa.String(length=16),
+            nullable=False,
+            server_default=_PROPOSED_TYPE_STATUS_PROPOSED,
         ),
         sa.Column(
             "created_at",
