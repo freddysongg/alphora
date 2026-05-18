@@ -1,5 +1,15 @@
 from app.db.base import Base, TimestampMixin
 from app.db.models_data_health import ProviderCheck, ProviderCheckStatus
+from app.db.models_graph import (
+    AuditAction,
+    EntityResolutionDecisionKind,
+    EntityResolutionReviewStatus,
+    EntityType,
+    HypothesisStatus,
+    ProposedTypeKind,
+    ProposedTypeStatus,
+    RelationType,
+)
 from app.db.models_llm import LlmCallLog, LlmCallStatus
 from app.db.models_market import (
     ScreenerResult,
@@ -31,8 +41,13 @@ from app.db.models_settings import ApplicationSettings, LlmProvider
 __all__ = [
     "AnalystKind",
     "ApplicationSettings",
+    "AuditAction",
     "Base",
+    "EntityResolutionDecisionKind",
+    "EntityResolutionReviewStatus",
+    "EntityType",
     "FinalRating",
+    "HypothesisStatus",
     "LlmCallLog",
     "LlmCallStatus",
     "LlmProvider",
@@ -42,9 +57,12 @@ __all__ = [
     "PaperOrder",
     "PaperPortfolio",
     "PaperPosition",
+    "ProposedTypeKind",
+    "ProposedTypeStatus",
     "ProvenanceStatus",
     "ProviderCheck",
     "ProviderCheckStatus",
+    "RelationType",
     "ResearchRun",
     "RunEvent",
     "RunEventLevel",
