@@ -131,7 +131,7 @@ class AuditActionEnum(StrEnum):
     merge = "merge"
 
 
-class EntityResolutionDecisionEnum(StrEnum):
+class EntityResolutionDecisionKindEnum(StrEnum):
     alias_match = "alias_match"
     external_id_match = "external_id_match"
     fuzzy_match = "fuzzy_match"

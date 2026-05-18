@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.schemas.common import (
     AuditActionEnum,
-    EntityResolutionDecisionEnum,
+    EntityResolutionDecisionKindEnum,
     EntityResolutionReviewStatusEnum,
     EntityTypeEnum,
     HypothesisStatusEnum,
@@ -131,7 +131,7 @@ class EntityResolutionReviewPublic(BaseModel):
     candidate_text: str
     suggested_type: EntityTypeEnum
     context_excerpt: str | None
-    decision_kind: EntityResolutionDecisionEnum
+    decision_kind: EntityResolutionDecisionKindEnum
     candidate_entity_ids: list[str]
     chosen_entity_id: uuid.UUID | None
     status: EntityResolutionReviewStatusEnum

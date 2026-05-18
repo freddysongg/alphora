@@ -31,7 +31,7 @@ from app.db.models_runs import ResearchRun, RunStatus
 from app.db.session import session_factory
 from app.schemas.common import (
     AuditActionEnum,
-    EntityResolutionDecisionEnum,
+    EntityResolutionDecisionKindEnum,
     EntityResolutionReviewStatusEnum,
     EntityTypeEnum,
     HypothesisStatusEnum,
@@ -95,9 +95,9 @@ def test_audit_action_enum_parity() -> None:
     }
 
 
-def test_entity_resolution_decision_enum_parity() -> None:
+def test_entity_resolution_decision_kind_enum_parity() -> None:
     assert {member.value for member in EntityResolutionDecisionKind} == {
-        member.value for member in EntityResolutionDecisionEnum
+        member.value for member in EntityResolutionDecisionKindEnum
     }
 
 
