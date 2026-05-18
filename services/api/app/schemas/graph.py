@@ -102,8 +102,8 @@ class HypothesisPublic(BaseModel):
 
     id: uuid.UUID
     claim_text: str
-    scope_entity_ids: list[uuid.UUID]
-    scope_theme_ids: list[uuid.UUID]
+    scope_entity_ids: list[str]
+    scope_theme_ids: list[str]
     status: HypothesisStatusEnum
     valid_until: datetime | None
     proposed_by_run_id: uuid.UUID | None
@@ -120,7 +120,7 @@ class BeliefRecomputationPublic(BaseModel):
     hypothesis_id: uuid.UUID
     computed_at: datetime
     belief: float
-    contributing_evidence_ids: list[uuid.UUID]
+    contributing_evidence_ids: list[str]
     computation_method: str
 
 
@@ -132,7 +132,7 @@ class EntityResolutionReviewPublic(BaseModel):
     suggested_type: EntityTypeEnum
     context_excerpt: str | None
     decision_kind: EntityResolutionDecisionEnum
-    candidate_entity_ids: list[uuid.UUID]
+    candidate_entity_ids: list[str]
     chosen_entity_id: uuid.UUID | None
     status: EntityResolutionReviewStatusEnum
     confidence: float | None
@@ -162,7 +162,7 @@ class ProposedTypePublic(BaseModel):
     kind: ProposedTypeKindEnum
     proposed_name: str
     description: str | None
-    example_evidence_ids: list[uuid.UUID]
+    example_evidence_ids: list[str]
     proposed_by: str
     vote_count: int
     status: ProposedTypeStatusEnum
