@@ -127,10 +127,10 @@ async def request(
                 json=dict(config.json_body) if config.json_body is not None else None,
                 timeout=config.timeout_seconds,
             )
-        except (httpx.ConnectError, httpx.ReadTimeout, httpx.RemoteProtocolError):
+        except httpx.TransportError as exc:
             last_error = SourceClientTimeoutError(url=config.url)
             if attempt >= config.max_retries:
-                raise last_error from None
+                raise last_error from exc
             backoff = _backoff_seconds(
                 attempt=attempt,
                 base=config.backoff_base_seconds,

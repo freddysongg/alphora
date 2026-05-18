@@ -358,3 +358,55 @@ async def test_request_calls_rate_limiter_before_each_attempt(
         )
 
     assert acquire_count == 2
+
+
+@respx.mock
+async def test_request_max_retries_zero_fails_fast_on_5xx(
+    recording_sleep: _RecordingSleep,
+) -> None:
+    from app.services.source_clients._http import (
+        HttpRequestConfig,
+        SourceClientHTTPError,
+        request,
+    )
+
+    route = respx.get("https://example.com/x").mock(return_value=httpx.Response(503))
+
+    async with httpx.AsyncClient() as client:
+        with pytest.raises(SourceClientHTTPError) as exc_info:
+            await request(
+                client,
+                HttpRequestConfig(
+                    method="GET", url="https://example.com/x", max_retries=0
+                ),
+                sleep=recording_sleep,
+                jitter=lambda _max: _max,
+            )
+
+    assert exc_info.value.status_code == 503
+    assert route.call_count == 1
+    assert recording_sleep.calls == []
+
+
+@respx.mock
+async def test_request_malformed_retry_after_falls_back_to_backoff(
+    recording_sleep: _RecordingSleep,
+) -> None:
+    from app.services.source_clients._http import HttpRequestConfig, request
+
+    route = respx.get("https://example.com/x")
+    route.side_effect = [
+        httpx.Response(429, headers={"Retry-After": "not-a-number"}),
+        httpx.Response(200, content=b"ok"),
+    ]
+
+    async with httpx.AsyncClient() as client:
+        response = await request(
+            client,
+            HttpRequestConfig(method="GET", url="https://example.com/x"),
+            sleep=recording_sleep,
+            jitter=lambda _max: _max,
+        )
+
+    assert response.status_code == 200
+    assert recording_sleep.calls == [pytest.approx(0.5)]
