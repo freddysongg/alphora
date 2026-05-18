@@ -51,9 +51,8 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("name", name="uq_data_sources_name"),
     )
-    op.create_index("ix_data_sources_name", "data_sources", ["name"])
+    op.create_index("ix_data_sources_name", "data_sources", ["name"], unique=True)
 
     op.create_table(
         "evidence",
