@@ -30,6 +30,7 @@ from app.services.strategies.funnel_research._persist import (
     mark_run_succeeded,
     persist_macro_brief,
 )
+from app.services.strategies.funnel_research._themes import promote_themes
 from app.services.strategies.funnel_research._verifier import (
     RegenLoopResult,
     run_regen_loop,
@@ -393,6 +394,7 @@ async def _run_funnel(
             stage_name="consolidate",
             message="stage 6/7: consolidate",
         )
+        await promote_themes(session=session, run_id=run_id)
         await session.commit()
 
     async with session_factory() as session:
