@@ -19,6 +19,7 @@ import { cn } from "@/lib/cn";
 type MacroBriefPublic = components["schemas"]["MacroBriefPublic"];
 type ChunkLookup = components["schemas"]["ChunkLookup"];
 type CitedClaim = components["schemas"]["CitedClaim"];
+type SectorCall = components["schemas"]["SectorCall"];
 type VerifierStatus = components["schemas"]["VerifierStatus"];
 type JudgeStatus = components["schemas"]["JudgeStatus"];
 
@@ -130,21 +131,7 @@ export function MacroBriefDetail(props: MacroBriefDetailProps): ReactElement {
             </thead>
             <tbody>
               {brief.sector_calls.map((call) => (
-                <tr
-                  key={call.sector_entity_id}
-                  className="h-10 border-b border-line/60"
-                >
-                  <td className="px-3 text-fg">{call.sector_name}</td>
-                  <td className="px-3 text-fg-muted uppercase tracking-[0.08em] text-[12px]">
-                    {call.direction}
-                  </td>
-                  <td className="px-3 text-right font-mono tabular-nums text-fg">
-                    {call.conviction.toFixed(2)}
-                  </td>
-                  <td className="px-3 text-right font-mono tabular-nums text-fg-muted">
-                    {call.evidence_ids.length}
-                  </td>
-                </tr>
+                <SectorCallRow key={call.sector_entity_id} call={call} />
               ))}
             </tbody>
           </table>
@@ -281,6 +268,67 @@ function Section(props: SectionProps): ReactElement {
 
 function Empty(): ReactElement {
   return <p className="text-sm text-fg-subtle">No data.</p>;
+}
+
+interface SectorCallRowProps {
+  call: SectorCall;
+}
+
+function SectorCallRow(props: SectorCallRowProps): ReactElement {
+  const { call } = props;
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const evidenceCount = call.evidence_ids.length;
+  const hasEvidence = evidenceCount > 0;
+
+  const handleToggle = (): void => {
+    setIsOpen((previous) => !previous);
+  };
+
+  return (
+    <tr
+      data-testid="macro-sector-call-row"
+      className="border-b border-line/60 align-top"
+    >
+      <td className="px-3 py-2 text-fg">{call.sector_name}</td>
+      <td className="px-3 py-2 text-fg-muted uppercase tracking-[0.08em] text-[12px]">
+        {call.direction}
+      </td>
+      <td className="px-3 py-2 text-right font-mono tabular-nums text-fg">
+        {call.conviction.toFixed(2)}
+      </td>
+      <td className="px-3 py-2 text-right font-mono tabular-nums text-fg-muted">
+        {hasEvidence ? (
+          <>
+            <button
+              type="button"
+              onClick={handleToggle}
+              aria-expanded={isOpen}
+              className="font-mono tabular-nums text-fg-muted hover:text-accent-text transition-colors duration-150"
+            >
+              {evidenceCount}
+            </button>
+            {isOpen ? (
+              <ul className="mt-2 flex flex-col gap-1 text-right text-xs">
+                {call.evidence_ids.map((evidenceId) => (
+                  <li key={evidenceId} className="font-mono">
+                    <Link
+                      href={`/research/evidence/${evidenceId}` as Route}
+                      className="text-accent-text hover:underline"
+                      data-testid="macro-sector-call-evidence-link"
+                    >
+                      {evidenceId}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </>
+        ) : (
+          evidenceCount
+        )}
+      </td>
+    </tr>
+  );
 }
 
 interface CitedClaimRowProps {

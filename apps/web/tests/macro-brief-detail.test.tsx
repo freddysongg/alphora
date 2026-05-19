@@ -7,6 +7,8 @@ import type { components } from "@/lib/api";
 type MacroBriefPublic = components["schemas"]["MacroBriefPublic"];
 
 const MACRO_CHUNK_ID = "00000000-0000-4000-8000-0000000000aa";
+const SECTOR_CALL_EVIDENCE_ID_1 = "00000000-0000-4000-8000-0000000000c1";
+const SECTOR_CALL_EVIDENCE_ID_2 = "00000000-0000-4000-8000-0000000000c2";
 
 function makeData(
   overrides: Partial<MacroBriefPublic> = {},
@@ -134,6 +136,49 @@ describe("MacroBriefDetail", () => {
     expect(
       within(row).getByText(/hyperscalers ramp/),
     ).toBeInTheDocument();
+  });
+
+  it("expands the sector call evidence cell into one trace link per evidence_id", () => {
+    const data = makeData({
+      brief: {
+        themes: [],
+        sector_calls: [
+          {
+            sector_entity_id: "00000000-0000-4000-8000-000000000001",
+            sector_name: "Information Technology",
+            direction: "overweight",
+            conviction: 0.85,
+            evidence_ids: [
+              SECTOR_CALL_EVIDENCE_ID_1,
+              SECTOR_CALL_EVIDENCE_ID_2,
+            ],
+          },
+        ],
+        watch_items: [],
+        cited_claims: [],
+        proposed_hypotheses: [],
+        confidence: 0.7,
+        evidence_ids: [],
+        verifier_status: "verified",
+        regeneration_count: 0,
+      },
+    });
+    render(<MacroBriefDetail data={data} />);
+    const row = screen.getByTestId("macro-sector-call-row");
+    const trigger = within(row).getByRole("button");
+    fireEvent.click(trigger);
+    const links = within(row).getAllByTestId("macro-sector-call-evidence-link");
+    expect(links).toHaveLength(2);
+    expect(links[0]).toHaveAttribute(
+      "href",
+      `/research/evidence/${SECTOR_CALL_EVIDENCE_ID_1}`,
+    );
+    expect(links[0]).toHaveTextContent(SECTOR_CALL_EVIDENCE_ID_1);
+    expect(links[1]).toHaveAttribute(
+      "href",
+      `/research/evidence/${SECTOR_CALL_EVIDENCE_ID_2}`,
+    );
+    expect(links[1]).toHaveTextContent(SECTOR_CALL_EVIDENCE_ID_2);
   });
 
   it("renders the evidence link even when the chunk lookup is missing", () => {
