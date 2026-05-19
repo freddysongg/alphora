@@ -46,13 +46,13 @@ def test_create_research_runs_persists_requested_strategy(
         "trade_date": "2026-05-15",
         "llm_provider": "openai",
         "llm_model": "gpt-4o-mini",
-        "strategy": "funnel_research",
+        "strategy": "tradingagents",
     }
     with TestClient(app) as client:
         response = client.post("/api/research-runs", json=payload)
     assert response.status_code == 201, response.text
     body = response.json()
-    assert {row["strategy"] for row in body} == {Strategy.funnel_research.value}
+    assert {row["strategy"] for row in body} == {Strategy.tradingagents.value}
 
     import asyncio
 
@@ -63,8 +63,8 @@ def test_create_research_runs_persists_requested_strategy(
 
     persisted = asyncio.run(_load_strategies())
     assert persisted == [
-        Strategy.funnel_research.value,
-        Strategy.funnel_research.value,
+        Strategy.tradingagents.value,
+        Strategy.tradingagents.value,
     ]
 
 
@@ -95,7 +95,7 @@ def test_get_research_run_detail_exposes_strategy(
         "trade_date": "2026-05-15",
         "llm_provider": "openai",
         "llm_model": "gpt-4o-mini",
-        "strategy": "funnel_research",
+        "strategy": "tradingagents",
     }
     with TestClient(app) as client:
         create_response = client.post("/api/research-runs", json=payload)
@@ -103,4 +103,4 @@ def test_get_research_run_detail_exposes_strategy(
         run_id = create_response.json()[0]["id"]
         detail_response = client.get(f"/api/research-runs/{run_id}")
     assert detail_response.status_code == 200
-    assert detail_response.json()["strategy"] == Strategy.funnel_research.value
+    assert detail_response.json()["strategy"] == Strategy.tradingagents.value
