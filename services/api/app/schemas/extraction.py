@@ -3,6 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
+from app.db.models_graph import EntityResolutionDecisionKind
 from app.schemas.common import EntityTypeEnum, RelationTypeEnum
 
 
@@ -82,11 +83,22 @@ class ExtractionResult(BaseModel):
     rejection_reasons: list[str]
 
 
+class EntityResolutionOutcome(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    candidate_text: str
+    decision_kind: EntityResolutionDecisionKind
+    chosen_entity_id: uuid.UUID | None
+    review_id: uuid.UUID | None
+    confidence: float
+
+
 __all__ = [
     "BootstrappedEntity",
     "CandidateEntity",
     "CandidateRelation",
     "EntityMergeCommand",
+    "EntityResolutionOutcome",
     "EvidenceChunkRef",
     "ExtractionResult",
     "IngestedEvidence",
