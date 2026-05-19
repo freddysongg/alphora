@@ -47,3 +47,54 @@ def test_settings_fred_api_key_reads_secret_str(
 
     assert settings.fred_api_key is not None
     assert settings.fred_api_key.get_secret_value() == "abc123"
+
+
+def test_settings_exposes_polygon_api_key_optional_secret() -> None:
+    from app.config import Settings
+
+    assert Settings(_env_file=None).polygon_api_key is None
+
+
+def test_settings_exposes_tiingo_api_key_optional_secret() -> None:
+    from app.config import Settings
+
+    assert Settings(_env_file=None).tiingo_api_key is None
+
+
+def test_settings_exposes_ainvest_api_key_optional_secret() -> None:
+    from app.config import Settings
+
+    assert Settings(_env_file=None).ainvest_api_key is None
+
+
+def test_settings_exposes_kalshi_keys_optional_secret() -> None:
+    from app.config import Settings
+
+    settings = Settings(_env_file=None)
+    assert settings.kalshi_api_key_id is None
+    assert settings.kalshi_api_key is None
+
+
+def test_settings_exposes_congress_api_key_optional_secret() -> None:
+    from app.config import Settings
+
+    assert Settings(_env_file=None).congress_api_key is None
+
+
+def test_settings_exposes_openfigi_api_key_optional_secret() -> None:
+    from app.config import Settings
+
+    assert Settings(_env_file=None).openfigi_api_key is None
+
+
+def test_settings_polygon_api_key_reads_secret_str(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.config import Settings
+
+    monkeypatch.setenv("POLYGON_API_KEY", "poly-secret")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.polygon_api_key is not None
+    assert settings.polygon_api_key.get_secret_value() == "poly-secret"
