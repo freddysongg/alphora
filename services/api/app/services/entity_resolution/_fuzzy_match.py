@@ -7,6 +7,7 @@ from app.services.entity_resolution._normalize import normalize_for_match
 
 _FUZZY_THRESHOLD: float = 0.85
 _AMBIGUITY_MARGIN: float = 0.80
+_TOP_N_FOR_DISAMBIGUATION: int = 5
 
 
 def _score(left: str, right: str) -> float:
@@ -17,17 +18,17 @@ async def step_3_fuzzy_match(
     *,
     session: AsyncSession,
     candidate_text: str,
-) -> tuple[Entity | None, float]:
+) -> tuple[Entity | None, float, list[Entity]]:
     normalized_candidate = normalize_for_match(candidate_text)
     if not normalized_candidate:
-        return None, 0.0
+        return None, 0.0, []
 
     result = await session.execute(
         select(Entity).where(Entity.merged_into_id.is_(None))
     )
     entities = result.scalars().all()
     if not entities:
-        return None, 0.0
+        return None, 0.0, []
 
     scored: list[tuple[Entity, float]] = []
     for entity in entities:
@@ -41,13 +42,18 @@ async def step_3_fuzzy_match(
     scored.sort(key=lambda pair: pair[1], reverse=True)
     top_entity, top_score = scored[0]
     if top_score < _FUZZY_THRESHOLD:
-        return None, top_score
+        return None, top_score, []
 
     second_score = scored[1][1] if len(scored) > 1 else 0.0
     if second_score >= _AMBIGUITY_MARGIN:
-        return None, top_score
+        ambiguous = [
+            entity
+            for entity, score in scored[:_TOP_N_FOR_DISAMBIGUATION]
+            if score >= _AMBIGUITY_MARGIN
+        ]
+        return None, top_score, ambiguous
 
-    return top_entity, top_score
+    return top_entity, top_score, []
 
 
 __all__ = ["step_3_fuzzy_match"]

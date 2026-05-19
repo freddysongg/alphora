@@ -55,7 +55,7 @@ async def resolve_candidate(
             confidence=_EXTERNAL_ID_DECISION_CONFIDENCE,
         )
 
-    fuzzy_hit, fuzzy_score = await step_3_fuzzy_match(
+    fuzzy_hit, fuzzy_score, ambiguous_candidates = await step_3_fuzzy_match(
         session=session, candidate_text=candidate.text_span
     )
     if fuzzy_hit is not None:
@@ -69,7 +69,7 @@ async def resolve_candidate(
 
     disambiguated_id = await step_4_llm_disambiguation(
         candidate=candidate,
-        candidate_entities=[],
+        candidate_entities=ambiguous_candidates,
         disambiguator=llm_disambiguator,
     )
     if disambiguated_id is not None:

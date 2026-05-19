@@ -54,13 +54,14 @@ async def test_fuzzy_match_returns_unique_high_score(
             aliases=["Microsoft"],
         )
 
-    match, score = await step_3_fuzzy_match(
+    match, score, ambiguous = await step_3_fuzzy_match(
         session=populated_session, candidate_text="Apple Inc"
     )
 
     assert match is not None
     assert match.canonical_name == "Apple Inc."
     assert score >= 0.85
+    assert ambiguous == []
 
 
 @pytest.mark.asyncio
@@ -76,11 +77,12 @@ async def test_fuzzy_match_falls_through_below_threshold(
             aliases=["Apple"],
         )
 
-    match, _score = await step_3_fuzzy_match(
+    match, _score, ambiguous = await step_3_fuzzy_match(
         session=populated_session, candidate_text="Tesla"
     )
 
     assert match is None
+    assert ambiguous == []
 
 
 @pytest.mark.asyncio
@@ -101,11 +103,15 @@ async def test_fuzzy_match_falls_through_on_two_close_matches(
             aliases=["Apple Hospitality"],
         )
 
-    match, _score = await step_3_fuzzy_match(
+    match, _score, ambiguous = await step_3_fuzzy_match(
         session=populated_session, candidate_text="Apple"
     )
 
     assert match is None
+    assert len(ambiguous) >= 2
+    ambiguous_names = {entity.canonical_name for entity in ambiguous}
+    assert "Apple Inc." in ambiguous_names
+    assert "Apple Hospitality" in ambiguous_names
 
 
 @pytest.mark.asyncio
@@ -126,13 +132,14 @@ async def test_fuzzy_match_strips_suffix_for_comparison(
             aliases=["Microsoft"],
         )
 
-    match, score = await step_3_fuzzy_match(
+    match, score, ambiguous = await step_3_fuzzy_match(
         session=populated_session, candidate_text="Apple Inc."
     )
 
     assert match is not None
     assert match.canonical_name == "Apple"
     assert score >= 0.85
+    assert ambiguous == []
 
 
 @pytest.mark.asyncio
@@ -148,12 +155,13 @@ async def test_fuzzy_match_returns_none_for_empty_candidate(
             aliases=["Apple"],
         )
 
-    match, score = await step_3_fuzzy_match(
+    match, score, ambiguous = await step_3_fuzzy_match(
         session=populated_session, candidate_text="   "
     )
 
     assert match is None
     assert score == 0.0
+    assert ambiguous == []
 
 
 @pytest.mark.asyncio
@@ -162,12 +170,13 @@ async def test_fuzzy_match_returns_none_for_empty_table(
 ) -> None:
     from app.services.entity_resolution._fuzzy_match import step_3_fuzzy_match
 
-    match, score = await step_3_fuzzy_match(
+    match, score, ambiguous = await step_3_fuzzy_match(
         session=populated_session, candidate_text="Apple"
     )
 
     assert match is None
     assert score == 0.0
+    assert ambiguous == []
 
 
 @pytest.mark.asyncio
@@ -189,7 +198,7 @@ async def test_fuzzy_match_skips_merged_tombstones(
         )
         tombstone.merged_into_id = survivor.id
 
-    match, score = await step_3_fuzzy_match(
+    match, score, _ambiguous = await step_3_fuzzy_match(
         session=populated_session, candidate_text="Apple Inc"
     )
 
