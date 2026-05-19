@@ -3,15 +3,10 @@ from datetime import datetime
 import httpx
 from pydantic import BaseModel, ConfigDict
 
-from app.config import get_settings
-from app.services.source_clients._http import (
-    HttpRequestConfig,
-    SourceClientConfigError,
-    request,
-)
+from app.services.source_clients._http import HttpRequestConfig, request
 from app.services.source_clients._rate_limit import RateLimiter
 
-_KALSHI_BASE = "https://trading-api.kalshi.com/trade-api/v2"
+_KALSHI_PUBLIC_BASE = "https://external-api.kalshi.com/trade-api/v2"
 
 _RATE_LIMITER = RateLimiter(rate_per_second=8.0, burst=5)
 
@@ -43,33 +38,32 @@ class KalshiMarketDetailResponse(BaseModel):
     market: KalshiMarket
 
 
-def _access_key_headers() -> dict[str, str]:
-    settings = get_settings()
-    if settings.kalshi_api_key_id is None:
-        raise SourceClientConfigError(setting_name="kalshi_api_key_id")
-    return {"KALSHI-ACCESS-KEY": settings.kalshi_api_key_id.get_secret_value()}
-
-
 async def fetch_kalshi_markets(
     *,
     client: httpx.AsyncClient,
     cursor: str | None = None,
     limit: int | None = None,
+    series_ticker: str | None = None,
+    event_ticker: str | None = None,
+    status: str | None = None,
 ) -> tuple[KalshiMarketsResponse, str]:
-    headers = _access_key_headers()
-
     params: dict[str, str | int | float] = {}
     if cursor is not None:
         params["cursor"] = cursor
     if limit is not None:
         params["limit"] = limit
+    if series_ticker is not None:
+        params["series_ticker"] = series_ticker
+    if event_ticker is not None:
+        params["event_ticker"] = event_ticker
+    if status is not None:
+        params["status"] = status
 
     response = await request(
         client,
         HttpRequestConfig(
             method="GET",
-            url=f"{_KALSHI_BASE}/markets",
-            headers=headers,
+            url=f"{_KALSHI_PUBLIC_BASE}/markets",
             params=params or None,
         ),
         rate_limiter=_RATE_LIMITER,
@@ -81,14 +75,11 @@ async def fetch_kalshi_markets(
 async def fetch_kalshi_market_detail(
     *, client: httpx.AsyncClient, ticker: str
 ) -> tuple[KalshiMarketDetailResponse, str]:
-    headers = _access_key_headers()
-
     response = await request(
         client,
         HttpRequestConfig(
             method="GET",
-            url=f"{_KALSHI_BASE}/markets/{ticker}",
-            headers=headers,
+            url=f"{_KALSHI_PUBLIC_BASE}/markets/{ticker}",
         ),
         rate_limiter=_RATE_LIMITER,
     )

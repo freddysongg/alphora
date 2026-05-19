@@ -1,23 +1,11 @@
-from collections.abc import Iterator
-
 import httpx
 import pytest
 import respx
 
-_KALSHI_MARKETS_URL = "https://trading-api.kalshi.com/trade-api/v2/markets"
+_KALSHI_MARKETS_URL = "https://external-api.kalshi.com/trade-api/v2/markets"
 _KALSHI_MARKET_DETAIL_URL = (
-    "https://trading-api.kalshi.com/trade-api/v2/markets/INXD-23DEC29-T4500"
+    "https://external-api.kalshi.com/trade-api/v2/markets/INXD-23DEC29-T4500"
 )
-
-
-@pytest.fixture(autouse=True)
-def _set_kalshi_key_id(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    from app.config import get_settings
-
-    monkeypatch.setenv("KALSHI_API_KEY_ID", "kalshi-id-123")
-    get_settings.cache_clear()
-    yield
-    get_settings.cache_clear()
 
 
 @respx.mock
@@ -56,7 +44,7 @@ async def test_fetch_kalshi_markets_parses_payload() -> None:
 
 
 @respx.mock
-async def test_fetch_kalshi_markets_sends_access_key_header() -> None:
+async def test_fetch_kalshi_markets_does_not_send_auth_headers() -> None:
     from app.services.source_clients.kalshi import fetch_kalshi_markets
 
     route = respx.get(_KALSHI_MARKETS_URL).mock(
@@ -66,24 +54,28 @@ async def test_fetch_kalshi_markets_sends_access_key_header() -> None:
     async with httpx.AsyncClient() as client:
         await fetch_kalshi_markets(client=client)
 
-    assert route.calls.last.request.headers["KALSHI-ACCESS-KEY"] == "kalshi-id-123"
+    sent_headers = route.calls.last.request.headers
+    assert "KALSHI-ACCESS-KEY" not in sent_headers
+    assert "Authorization" not in sent_headers
 
 
-async def test_fetch_kalshi_markets_raises_without_key_id(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from app.config import get_settings
-    from app.services.source_clients._http import SourceClientConfigError
+@respx.mock
+async def test_fetch_kalshi_markets_passes_filter_params() -> None:
     from app.services.source_clients.kalshi import fetch_kalshi_markets
 
-    monkeypatch.delenv("KALSHI_API_KEY_ID", raising=False)
-    get_settings.cache_clear()
+    route = respx.get(_KALSHI_MARKETS_URL).mock(
+        return_value=httpx.Response(200, json={"markets": []})
+    )
 
     async with httpx.AsyncClient() as client:
-        with pytest.raises(SourceClientConfigError) as exc_info:
-            await fetch_kalshi_markets(client=client)
+        await fetch_kalshi_markets(
+            client=client, cursor="abc", limit=50, series_ticker="INXD"
+        )
 
-    assert exc_info.value.setting_name == "kalshi_api_key_id"
+    sent = route.calls.last.request
+    assert sent.url.params["cursor"] == "abc"
+    assert sent.url.params["limit"] == "50"
+    assert sent.url.params["series_ticker"] == "INXD"
 
 
 @respx.mock
