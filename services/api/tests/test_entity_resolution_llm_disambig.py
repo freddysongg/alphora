@@ -3,7 +3,8 @@ import uuid
 import pytest
 from pydantic import BaseModel, ConfigDict
 
-from app.db.models_graph import Entity, EntityType
+from app.db.models_graph import Entity
+from app.schemas.common import EntityTypeEnum
 from app.services.entity_resolution._types import CandidateLike
 
 
@@ -11,7 +12,7 @@ class _StubCandidate(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     text_span: str
-    suggested_type: EntityType
+    suggested_type: EntityTypeEnum
     context_excerpt: str
     exact_quote: str
     chunk_id: uuid.UUID
@@ -21,7 +22,7 @@ class _StubCandidate(BaseModel):
 def _stub_candidate() -> _StubCandidate:
     return _StubCandidate(
         text_span="Apple",
-        suggested_type=EntityType.company,
+        suggested_type=EntityTypeEnum.company,
         context_excerpt="...",
         exact_quote="Apple",
         chunk_id=uuid.uuid4(),

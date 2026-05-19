@@ -11,13 +11,14 @@ from app.db.models_graph import (
     EntityResolutionDecisionKind,
     EntityType,
 )
+from app.schemas.common import EntityTypeEnum
 
 
 class _StubCandidate(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     text_span: str
-    suggested_type: EntityType
+    suggested_type: EntityTypeEnum
     context_excerpt: str
     exact_quote: str
     chunk_id: uuid.UUID
@@ -57,7 +58,7 @@ async def _seed(
 def _candidate(text_span: str, context: str) -> _StubCandidate:
     return _StubCandidate(
         text_span=text_span,
-        suggested_type=EntityType.company,
+        suggested_type=EntityTypeEnum.company,
         context_excerpt=context,
         exact_quote=text_span,
         chunk_id=uuid.uuid4(),
@@ -170,6 +171,51 @@ async def test_pipeline_resolves_via_llm_when_disambiguator_returns_id(
     assert outcome.decision_kind == EntityResolutionDecisionKind.llm_disambiguation
     assert outcome.chosen_entity_id == chosen
     assert outcome.review_id is None
+
+
+@pytest.mark.asyncio
+async def test_pipeline_forwards_ambiguous_fuzzy_candidates_to_disambiguator(
+    populated_session: AsyncSession,
+) -> None:
+    """When fuzzy match is ambiguous, the LLM disambiguator must receive the top-N entities."""
+    from app.services.entity_resolution.pipeline import resolve_candidate
+
+    async with populated_session.begin():
+        apple_inc = await _seed(
+            populated_session,
+            canonical_name="Apple Inc.",
+            aliases=["Apple Inc."],
+        )
+        apple_hosp = await _seed(
+            populated_session,
+            canonical_name="Apple Hospitality",
+            aliases=["Apple Hospitality"],
+        )
+        apple_inc_id = apple_inc.id
+        apple_hosp_id = apple_hosp.id
+
+    received_candidates: list[Entity] = []
+
+    async def pick_first(
+        _candidate: object, candidates: list[Entity]
+    ) -> uuid.UUID | None:
+        received_candidates.extend(candidates)
+        if not candidates:
+            return None
+        return candidates[0].id
+
+    async with populated_session.begin():
+        outcome = await resolve_candidate(
+            session=populated_session,
+            candidate=_candidate("Apple", "Apple announced X."),
+            llm_disambiguator=pick_first,
+        )
+
+    received_ids = {entity.id for entity in received_candidates}
+    assert apple_inc_id in received_ids
+    assert apple_hosp_id in received_ids
+    assert outcome.decision_kind == EntityResolutionDecisionKind.llm_disambiguation
+    assert outcome.chosen_entity_id in received_ids
 
 
 @pytest.mark.asyncio

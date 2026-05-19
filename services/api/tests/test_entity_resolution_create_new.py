@@ -14,13 +14,14 @@ from app.db.models_graph import (
     EntityResolutionReviewStatus,
     EntityType,
 )
+from app.schemas.common import EntityTypeEnum
 
 
 class _StubCandidate(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     text_span: str
-    suggested_type: EntityType
+    suggested_type: EntityTypeEnum
     context_excerpt: str
     exact_quote: str
     chunk_id: uuid.UUID
@@ -38,7 +39,7 @@ async def populated_session(initialized_schema: None) -> AsyncIterator[AsyncSess
 def _stub_candidate(
     *,
     text_span: str = "Foobar Inc.",
-    suggested_type: EntityType = EntityType.company,
+    suggested_type: EntityTypeEnum = EntityTypeEnum.company,
     context_excerpt: str = "Foobar Inc. announced a partnership.",
     extraction_confidence: float = 0.6,
 ) -> _StubCandidate:
@@ -142,7 +143,7 @@ async def test_step_5_preserves_suggested_type(
             session=populated_session,
             candidate=_stub_candidate(
                 text_span="Jane Doe",
-                suggested_type=EntityType.person,
+                suggested_type=EntityTypeEnum.person,
                 context_excerpt="Jane Doe testified.",
                 extraction_confidence=0.8,
             ),
