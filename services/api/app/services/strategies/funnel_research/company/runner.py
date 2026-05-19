@@ -18,8 +18,10 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 import httpx
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.db.models_company import CompanyThesis as CompanyThesisRow
 from app.db.models_runs import RunEventLevel
 from app.schemas.company_thesis import CompanyThesis
 from app.schemas.macro_brief import VerifierStatus
@@ -188,6 +190,19 @@ async def _run_one_company(
     async with semaphore:
         company_started = time.monotonic()
         async with session_factory() as session:
+            if resolution is not None and await _company_thesis_persisted(
+                session=session,
+                run_id=run_id,
+                company_entity_id=resolution.company_entity_id,
+            ):
+                _emit_resume(
+                    session,
+                    run_id=run_id,
+                    company=company_idea.company_name,
+                )
+                await session.commit()
+                return _CompanyOutcome.persisted
+
             if resolution is None:
                 _emit_skip(
                     session,
@@ -321,6 +336,37 @@ async def _run_one_company(
                 )
                 await session.commit()
                 return _CompanyOutcome.failed
+
+
+async def _company_thesis_persisted(
+    *,
+    session: AsyncSession,
+    run_id: uuid.UUID,
+    company_entity_id: uuid.UUID,
+) -> bool:
+    row_id = (
+        await session.execute(
+            select(CompanyThesisRow.id)
+            .where(CompanyThesisRow.run_id == run_id)
+            .where(CompanyThesisRow.company_entity_id == company_entity_id)
+        )
+    ).scalar_one_or_none()
+    return row_id is not None
+
+
+def _emit_resume(
+    session: AsyncSession,
+    *,
+    run_id: uuid.UUID,
+    company: str,
+) -> None:
+    emit_run_event(
+        session,
+        run_id=run_id,
+        level=RunEventLevel.info,
+        message=f"company {company!r} resumed from persisted thesis",
+        data={"event": "company_resumed", "company": company},
+    )
 
 
 def _emit_skip(
