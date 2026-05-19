@@ -277,6 +277,297 @@ async def test_run_macro_brief_invalid_scope_fails_run(initialized_schema: None)
 
 
 @pytest.mark.asyncio
+async def test_run_macro_brief_resume_with_all_stages_persisted_skips_all_llm(
+    initialized_schema: None,
+) -> None:
+    """A resumed funnel run with macro, sector, company, and portfolio rows
+    already persisted must invoke zero LLM calls and persist no duplicate rows.
+    """
+    from app.db.models_company import CompanyThesis as CompanyThesisRow
+    from app.db.models_graph import Entity, EntityType
+    from app.db.models_portfolio import PortfolioBrief as PortfolioBriefRow
+    from app.db.models_sector import SectorBrief as SectorBriefRow
+    from app.schemas.company_thesis import (
+        CompanyCatalyst,
+        CompanyRisk,
+        CompanyThesis,
+    )
+    from app.schemas.macro_brief import SectorCallDirection, VerifierStatus
+    from app.schemas.portfolio_brief import (
+        PortfolioBrief,
+        PortfolioCoverage,
+        PortfolioMacroSummary,
+    )
+    from app.schemas.sector_brief import JudgeStatus, SectorBrief
+    from app.services.run_orchestrator import RunOrchestrator
+    from app.services.source_clients.fred import (
+        FredObservation,
+        FredSeriesObservations,
+    )
+    from app.services.strategies.funnel_research._ingest import SourceFetcher
+    from app.services.strategies.funnel_research.core import run_macro_brief
+    from app.trading_agents.adapter import TradingAgentsAdapter
+
+    run_id = uuid.uuid4()
+    sector_entity_id = uuid.uuid4()
+    company_entity_id = uuid.uuid4()
+
+    async with session_factory() as setup:
+        run = ResearchRun(
+            id=run_id,
+            ticker=None,
+            trade_date=date(2026, 5, 18),
+            strategy=Strategy.funnel_research.value,
+            status=RunStatus.queued,
+            config={},
+            scope_payload={"kind": "macro", "universe": "us_equities"},
+        )
+        setup.add(run)
+        await setup.flush()
+
+        setup.add_all(
+            [
+                Entity(
+                    id=sector_entity_id,
+                    type=EntityType.sector.value,
+                    canonical_name="Information Technology",
+                    aliases=[],
+                    external_ids={},
+                    attributes={},
+                ),
+                Entity(
+                    id=company_entity_id,
+                    type=EntityType.company.value,
+                    canonical_name="Apple Inc.",
+                    aliases=[],
+                    external_ids={},
+                    attributes={},
+                ),
+            ]
+        )
+        await setup.flush()
+
+        setup.add(
+            MacroBriefRow(
+                run_id=run_id,
+                themes=[],
+                sector_calls=[],
+                watch_items=[],
+                cited_claims=[],
+                proposed_hypotheses=[],
+                confidence=0.5,
+                verifier_status="verified",
+                regeneration_count=0,
+                evidence_ids=[],
+                judge_status="passed",
+                judge_reasons=None,
+                judge_call_id=None,
+            )
+        )
+
+        sector_brief = SectorBrief(
+            sector_entity_id=sector_entity_id,
+            sector_name="Information Technology",
+            direction=SectorCallDirection.overweight,
+            themes=[],
+            companies=[],
+            watch_items=[],
+            cited_claims=[],
+            confidence=0.8,
+            verifier_status=VerifierStatus.verified,
+            regeneration_count=0,
+        )
+        setup.add(
+            SectorBriefRow(
+                run_id=run_id,
+                sector_entity_id=sector_entity_id,
+                direction="overweight",
+                payload=sector_brief.model_dump(mode="json"),
+                verifier_status="verified",
+                regeneration_count=0,
+                judge_status="passed",
+                judge_reasons=None,
+                judge_call_id=None,
+                wall_clock_ms=100,
+            )
+        )
+
+        company_thesis = CompanyThesis(
+            company_entity_id=company_entity_id,
+            company_name="Apple Inc.",
+            sector_entity_id=sector_entity_id,
+            sector_name="Information Technology",
+            ticker="AAPL",
+            direction=SectorCallDirection.overweight,
+            conviction=0.85,
+            bull_case="Strong fundamentals.",
+            bear_case="Demand risks.",
+            catalysts=[
+                CompanyCatalyst(
+                    name="earnings",
+                    expected_timing=None,
+                    evidence_ids=[uuid.uuid4()],
+                )
+            ],
+            risks=[
+                CompanyRisk(
+                    name="competition",
+                    severity=0.3,
+                    evidence_ids=[uuid.uuid4()],
+                )
+            ],
+            cited_claims=[],
+            confidence=0.85,
+            evidence_ids=[uuid.uuid4()],
+            verifier_status=VerifierStatus.verified,
+            regeneration_count=0,
+        )
+        setup.add(
+            CompanyThesisRow(
+                run_id=run_id,
+                company_entity_id=company_entity_id,
+                sector_entity_id=sector_entity_id,
+                ticker="AAPL",
+                direction="overweight",
+                payload=company_thesis.model_dump(mode="json"),
+                verifier_status="verified",
+                regeneration_count=0,
+                judge_status="passed",
+                judge_reasons=None,
+                judge_call_id=None,
+                wall_clock_ms=200,
+            )
+        )
+
+        portfolio = PortfolioBrief(
+            run_id=run_id,
+            macro=PortfolioMacroSummary(
+                themes=[],
+                watch_items=[],
+                confidence=0.5,
+                judge_status=JudgeStatus.passed,
+            ),
+            sectors=[],
+            companies=[],
+            cited_claims=[],
+            cited_chunk_ids=[],
+            coverage=PortfolioCoverage(
+                sectors_selected=1,
+                sectors_verified=1,
+                sectors_judge_passed=1,
+                sectors_judge_flagged=0,
+                companies_selected=1,
+                companies_verified=1,
+                companies_judge_passed=1,
+                companies_judge_flagged=0,
+            ),
+            verifier_status=VerifierStatus.verified,
+            regeneration_count=0,
+        )
+        setup.add(
+            PortfolioBriefRow(
+                run_id=run_id,
+                payload=portfolio.model_dump(mode="json"),
+                verifier_status="verified",
+                regeneration_count=0,
+                judge_status="passed",
+                judge_reasons=None,
+                judge_call_id=None,
+                wall_clock_ms=42,
+            )
+        )
+        await setup.commit()
+
+    fred_payload = FredSeriesObservations(
+        series_id="CPIAUCSL",
+        observation_start=date(2025, 1, 1),
+        observation_end=date(2026, 1, 1),
+        count=1,
+        observations=[
+            FredObservation(
+                date=date(2026, 1, 1),
+                value=Decimal("310.0"),
+                realtime_start=date(2026, 1, 15),
+                realtime_end=date(2026, 12, 31),
+            )
+        ],
+    )
+    fetcher = SourceFetcher(
+        fred=lambda client, series_id: (fred_payload, "a" * 64),
+        polymarket=lambda client, limit: ([], "b" * 64),
+        kalshi=lambda client, limit: ([], "c" * 64),
+        congress=lambda client, limit: ([], "d" * 64),
+        tiingo_news=lambda client, limit: ([], "e" * 64),
+    )
+
+    class _AssertionLlm:
+        async def complete(self, **_: Any) -> LlmCompletionResult:
+            raise AssertionError(
+                "no llm call expected when all stages already persisted"
+            )
+
+    orchestrator = RunOrchestrator(
+        session_factory=session_factory, adapter=TradingAgentsAdapter()
+    )
+
+    async with httpx.AsyncClient() as http_client:
+        await run_macro_brief(
+            session_factory=session_factory,
+            run_id=run_id,
+            llm_client=_AssertionLlm(),
+            orchestrator=orchestrator,
+            http_client=http_client,
+            fetcher=fetcher,
+            sector_constituents={},
+        )
+
+    async with session_factory() as session:
+        loaded = (
+            await session.execute(select(ResearchRun).where(ResearchRun.id == run_id))
+        ).scalar_one()
+        assert loaded.status == RunStatus.succeeded
+
+        macro_rows = (
+            await session.execute(
+                select(MacroBriefRow).where(MacroBriefRow.run_id == run_id)
+            )
+        ).scalars().all()
+        sector_rows = (
+            await session.execute(
+                select(SectorBriefRow).where(SectorBriefRow.run_id == run_id)
+            )
+        ).scalars().all()
+        company_rows = (
+            await session.execute(
+                select(CompanyThesisRow).where(CompanyThesisRow.run_id == run_id)
+            )
+        ).scalars().all()
+        portfolio_rows = (
+            await session.execute(
+                select(PortfolioBriefRow).where(PortfolioBriefRow.run_id == run_id)
+            )
+        ).scalars().all()
+        events = (
+            await session.execute(
+                select(RunEvent).where(RunEvent.run_id == run_id)
+            )
+        ).scalars().all()
+
+    assert len(macro_rows) == 1
+    assert len(sector_rows) == 1
+    assert len(company_rows) == 1
+    assert len(portfolio_rows) == 1
+
+    resumed_events = {
+        (event.data or {}).get("event")
+        for event in events
+        if isinstance(event.data, dict)
+    }
+    assert "run_resumed" in resumed_events
+    assert "portfolio_brief_resumed" in resumed_events
+
+
+@pytest.mark.asyncio
 async def test_run_macro_brief_resume_with_persisted_macro_skips_synthesis(
     initialized_schema: None,
 ) -> None:
