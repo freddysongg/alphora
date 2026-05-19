@@ -10,6 +10,7 @@ import { readNumber, readStringArray } from "@/lib/api/config";
 type ConfigDict = Record<string, unknown>;
 type LlmProvider = components["schemas"]["LlmProviderEnum"];
 type AnalystKind = components["schemas"]["AnalystKindEnum"];
+type MacroBriefPublic = components["schemas"]["MacroBriefPublic"];
 
 const ALLOWED_PROVIDERS: ReadonlySet<LlmProvider> = new Set<LlmProvider>([
   "openai",
@@ -161,4 +162,26 @@ export async function rerunResearchRun(runId: string): Promise<ActionResult> {
 
   updateTag("research-runs");
   redirect(`/research/runs/${createdId}`);
+}
+
+export async function getMacroBrief(
+  runId: string,
+): Promise<MacroBriefPublic | null> {
+  try {
+    const response = await getServerApi().GET(
+      "/api/research-runs/{run_id}/macro-brief",
+      {
+        params: { path: { run_id: runId } },
+      },
+    );
+    if (response.data === undefined) {
+      return null;
+    }
+    return response.data;
+  } catch (caught) {
+    if (isApiError(caught) && caught.status === 404) {
+      return null;
+    }
+    throw caught;
+  }
 }
