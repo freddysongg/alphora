@@ -71,6 +71,7 @@ const statusToLabel: Record<RunStatus, string> = {
   succeeded: "SUCCEEDED",
   failed: "FAILED",
   cancelled: "CANCELLED",
+  paused: "PAUSED",
 };
 
 const ratingToLabel: Record<FinalRating, string> = {
@@ -269,7 +270,7 @@ export function RunDetail(props: RunDetailProps): ReactElement {
       <header className="sticky top-0 z-10 bg-canvas border-b border-line">
         <div className="flex items-center gap-4 px-6 py-4">
           <span className="text-2xl font-mono tabular-nums text-fg">
-            {detail.ticker}
+            {detail.ticker ?? "—"}
           </span>
           <HexPill value={detail.id} />
           <StatusDot
@@ -283,9 +284,9 @@ export function RunDetail(props: RunDetailProps): ReactElement {
               onOptimisticCancel={handleOptimisticCancel}
               onCancelRollback={handleCancelRollback}
             />
-          ) : (
+          ) : detail.ticker !== null ? (
             <RerunButton runId={detail.id} />
-          )}
+          ) : null}
         </div>
       </header>
 

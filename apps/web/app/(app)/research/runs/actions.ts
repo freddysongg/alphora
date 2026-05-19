@@ -136,6 +136,7 @@ export async function createResearchRun(
   try {
     const response = await getServerApi().POST("/api/research-runs", {
       body: {
+        strategy: "tradingagents",
         tickers: [ticker],
         trade_date: tradeDate,
         llm_provider: DEFAULT_PROVIDER,

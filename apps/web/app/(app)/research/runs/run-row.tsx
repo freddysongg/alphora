@@ -39,15 +39,16 @@ export interface RunRowProps {
 export function RunRow(props: RunRowProps): ReactElement {
   const { run } = props;
   const href = `/research/runs/${run.id}` as Route;
+  const tickerLabel = run.ticker ?? "—";
   return (
     <li className="group flex items-center gap-4 px-3 py-3 border-b border-line/60 hover:bg-surface-2 transition-colors duration-150">
       <Link
         href={href}
         className="flex flex-1 items-center gap-4 min-w-0"
-        aria-label={`Open run ${run.id} for ${run.ticker}`}
+        aria-label={`Open run ${run.id} for ${tickerLabel}`}
       >
         <span className="font-mono text-base text-fg w-20 shrink-0">
-          {run.ticker}
+          {tickerLabel}
         </span>
         <HexPill value={run.id} />
         <StatusDot status={runStatusToStatusKind(run.status)} />
@@ -55,10 +56,10 @@ export function RunRow(props: RunRowProps): ReactElement {
         <Badge variant={resolveBadgeVariant(run.final_rating)} />
       </Link>
       <div className="flex items-center gap-1 shrink-0">
-        {isTerminal(run.status) ? (
+        {isTerminal(run.status) && run.ticker !== null ? (
           <RerunRowButton runId={run.id} ticker={run.ticker} />
         ) : null}
-        <Button asChild size="sm" variant="ghost" aria-label={`View ${run.ticker}`}>
+        <Button asChild size="sm" variant="ghost" aria-label={`View ${tickerLabel}`}>
           <Link href={href}>
             <Eye size={12} weight="regular" />
           </Link>

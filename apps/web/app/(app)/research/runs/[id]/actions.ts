@@ -122,9 +122,17 @@ export async function rerunResearchRun(runId: string): Promise<ActionResult> {
     return { ok: false, error: "Unable to fetch source run." };
   }
 
+  if (detail.ticker === null) {
+    return {
+      ok: false,
+      error: "Cannot rerun a run without a ticker.",
+    };
+  }
+
   const config = detail.config;
   const analysts = resolveAnalysts(config);
   const body = {
+    strategy: "tradingagents" as const,
     tickers: [detail.ticker],
     trade_date: detail.trade_date,
     llm_provider: resolveProvider(config),
