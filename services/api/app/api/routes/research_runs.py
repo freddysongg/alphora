@@ -18,6 +18,7 @@ from app.db.models_runs import (
     RunStatus,
 )
 from app.db.session import session_factory
+from app.schemas.common import StrategyEnum
 from app.schemas.llm import LlmCallLogPublic
 from app.schemas.runs import (
     CreateResearchRunsRequest,
@@ -26,6 +27,7 @@ from app.schemas.runs import (
     ResearchRunSummary,
 )
 from app.services.run_orchestrator import RunOrchestratorError
+from app.services.strategies.funnel_research.config import PROMPT_VERSION
 
 router = APIRouter()
 
@@ -39,15 +41,6 @@ _GROUPED_RECENT_LIMIT: int = 50
 _DETAIL_EVENT_LIMIT: int = 200
 
 
-def _build_run_config(request: CreateResearchRunsRequest) -> dict[str, object]:
-    return {
-        "analysts": [a.value for a in request.analysts],
-        "llm_provider": request.llm_provider.value,
-        "llm_model": request.llm_model,
-        "debate_depth": request.debate_depth,
-    }
-
-
 @router.post(
     "",
     response_model=list[ResearchRunSummary],
@@ -58,20 +51,45 @@ async def create_research_runs(
     session: SessionDep,
     queue: QueueDep,
 ) -> list[ResearchRunSummary]:
-    config = _build_run_config(payload)
     strategy = payload.strategy.value
     created: list[ResearchRun] = []
-    for ticker in payload.tickers:
+
+    if payload.strategy is StrategyEnum.funnel_research:
+        assert payload.scope_payload is not None
         run = ResearchRun(
             id=uuid.uuid4(),
-            ticker=ticker,
+            ticker=None,
             trade_date=payload.trade_date,
             strategy=strategy,
             status=RunStatus.queued,
-            config=config,
+            config={"prompt_version": PROMPT_VERSION},
+            scope_payload=payload.scope_payload.model_dump(mode="json"),
         )
         session.add(run)
         created.append(run)
+    else:
+        tickers = payload.tickers or []
+        provider = payload.llm_provider
+        model = payload.llm_model
+        assert provider is not None and model is not None
+        config: dict[str, object] = {
+            "analysts": [a.value for a in payload.analysts],
+            "llm_provider": provider.value,
+            "llm_model": model,
+            "debate_depth": payload.debate_depth,
+        }
+        for ticker in tickers:
+            run = ResearchRun(
+                id=uuid.uuid4(),
+                ticker=ticker,
+                trade_date=payload.trade_date,
+                strategy=strategy,
+                status=RunStatus.queued,
+                config=config,
+            )
+            session.add(run)
+            created.append(run)
+
     await session.commit()
     for run in created:
         queue.enqueue("app.workers.tasks.execute_research_run", run.id.hex)
