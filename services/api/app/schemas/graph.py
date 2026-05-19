@@ -61,6 +61,15 @@ class EvidenceChunkPublic(BaseModel):
     created_at: datetime
 
 
+class EvidenceTracePublic(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    chunk: EvidenceChunkPublic
+    evidence: EvidencePublic
+    data_source: DataSourcePublic | None
+    context_chunks: list[EvidenceChunkPublic]
+
+
 class EntityPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True, frozen=True)
 
@@ -192,6 +201,7 @@ __all__ = [
     "EntityResolutionReviewPublic",
     "EvidenceChunkPublic",
     "EvidencePublic",
+    "EvidenceTracePublic",
     "HypothesisPublic",
     "ProposedTypePublic",
     "RelationPublic",

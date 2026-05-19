@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
+import type { Route } from "next";
+import Link from "next/link";
 
 import {
   CapsLabel,
@@ -539,7 +541,13 @@ function CitedClaimRow(props: CitedClaimRowProps): ReactElement {
             <span className="uppercase tracking-[0.14em] text-fg-subtle">
               Chunk:
             </span>{" "}
-            {claim.chunk_id}
+            <Link
+              href={`/research/evidence/${claim.chunk_id}` as Route}
+              className="text-accent-text hover:underline"
+              data-testid="cited-claim-chunk-link"
+            >
+              {claim.chunk_id}
+            </Link>
           </p>
         </div>
       ) : null}

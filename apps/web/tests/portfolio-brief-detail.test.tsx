@@ -143,4 +143,14 @@ describe("PortfolioBriefDetail", () => {
     ).toBeInTheDocument();
     expect(within(row).getByText(CHUNK_ID)).toBeInTheDocument();
   });
+
+  it("links the expanded cited claim chunk_id to the evidence trace page", () => {
+    render(<PortfolioBriefDetail data={makeData()} />);
+    const row = screen.getByTestId("cited-claim-row");
+    const trigger = within(row).getByRole("button");
+    fireEvent.click(trigger);
+    const link = within(row).getByTestId("cited-claim-chunk-link");
+    expect(link).toHaveAttribute("href", `/research/evidence/${CHUNK_ID}`);
+    expect(link).toHaveTextContent(CHUNK_ID);
+  });
 });

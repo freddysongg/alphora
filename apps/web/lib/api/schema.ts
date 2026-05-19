@@ -209,6 +209,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/research/evidence/{chunk_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Evidence Trace */
+        get: operations["get_evidence_trace_api_research_evidence__chunk_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/screeners/run": {
         parameters: {
             query?: never;
@@ -510,6 +527,121 @@ export interface components {
              * @default 3
              */
             debate_depth: number;
+        };
+        /** DataSourcePublic */
+        DataSourcePublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Kind */
+            kind: string;
+            /** Description */
+            description: string | null;
+            /** Homepage Url */
+            homepage_url: string | null;
+            /** Attributes */
+            attributes: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** EvidenceChunkPublic */
+        EvidenceChunkPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Evidence Id
+             * Format: uuid
+             */
+            evidence_id: string;
+            /** Chunk Index */
+            chunk_index: number;
+            /** Text */
+            text: string;
+            /** Start Offset */
+            start_offset: number | null;
+            /** End Offset */
+            end_offset: number | null;
+            /** Attributes */
+            attributes: {
+                [key: string]: unknown;
+            } | null;
+            /** Content Hash */
+            content_hash: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** EvidencePublic */
+        EvidencePublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Source */
+            source: string;
+            /** Source Id */
+            source_id: string | null;
+            /** Document Id */
+            document_id: string;
+            /** Raw Url */
+            raw_url: string | null;
+            /** Raw Blob Ref */
+            raw_blob_ref: string | null;
+            /** Content Hash */
+            content_hash: string;
+            /** Structured */
+            structured: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Extracted At
+             * Format: date-time
+             */
+            extracted_at: string;
+            /** Extracted By Model */
+            extracted_by_model: string | null;
+            /** Prompt Version */
+            prompt_version: string | null;
+            /** Sign */
+            sign: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** EvidenceTracePublic */
+        EvidenceTracePublic: {
+            chunk: components["schemas"]["EvidenceChunkPublic"];
+            evidence: components["schemas"]["EvidencePublic"];
+            data_source: components["schemas"]["DataSourcePublic"] | null;
+            /** Context Chunks */
+            context_chunks: components["schemas"]["EvidenceChunkPublic"][];
         };
         /**
          * FinalRatingEnum
@@ -1790,6 +1922,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HypothesisPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_evidence_trace_api_research_evidence__chunk_id__get: {
+        parameters: {
+            query?: {
+                context_radius?: number;
+            };
+            header?: never;
+            path: {
+                chunk_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceTracePublic"];
                 };
             };
             /** @description Validation Error */

@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.routes import (
     data_health,
+    graph,
     health,
     hypotheses,
     macro_briefs,
@@ -27,6 +28,7 @@ api_router.include_router(
 api_router.include_router(
     hypotheses.router, prefix="/research", tags=["research"]
 )
+api_router.include_router(graph.router, prefix="/research", tags=["research"])
 api_router.include_router(screeners.router, prefix="/screeners", tags=["screeners"])
 api_router.include_router(paper.router, prefix="/paper", tags=["paper"])
 api_router.include_router(
