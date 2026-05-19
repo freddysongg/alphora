@@ -22,6 +22,10 @@ from app.schemas.budget import (
 )
 from app.services.budget import BudgetGuard, compute_cost
 from app.services.model_pricing import UnknownModelError, get_pricing
+from app.services.redis_lock import (
+    BudgetLockFactory,
+    make_local_budget_lock_factory,
+)
 from app.services.run_events import COST_EVENT, emit_run_event
 
 MessageRole = Literal["system", "user", "assistant"]
@@ -77,9 +81,15 @@ class LlmClient:
         *,
         openai_client: AsyncOpenAI,
         budget_guard: BudgetGuard | None = None,
+        budget_lock_factory: BudgetLockFactory | None = None,
     ) -> None:
         self._openai = openai_client
         self._guard = budget_guard if budget_guard is not None else BudgetGuard()
+        self._budget_lock_factory = (
+            budget_lock_factory
+            if budget_lock_factory is not None
+            else make_local_budget_lock_factory()
+        )
 
     async def complete(
         self,
@@ -206,41 +216,46 @@ class LlmClient:
     ) -> tuple[LlmCallLog, BudgetDecision]:
         """Sum prior costs, evaluate the guard, persist the log, emit the event, commit.
 
+        The prior-sum + decision + persist sequence is serialized per-run via
+        the configured budget lock so concurrent sector fan-out tasks cannot
+        race the cumulative cost evaluation.
+
         Returns the persisted log + the decision so the caller can raise as needed.
         """
-        prior_run_cost = await _sum_run_cost(session, run_id)
-        prior_daily_cost = await _sum_daily_cost(session)
-        run_cost_total = prior_run_cost + cost
-        daily_cost_total = prior_daily_cost + cost
-        decision = self._guard.evaluate(
-            run_cost_usd=run_cost_total,
-            daily_cost_usd=daily_cost_total,
-        )
-        log = await _persist_log(
-            session,
-            run_id=run_id,
-            model=model,
-            prompt_hash=prompt_hash,
-            input_hash=input_hash,
-            usage=usage,
-            cost_usd=cost,
-            latency_ms=latency_ms,
-            status=_status_for_decision(decision),
-            error_message=None,
-            evidence_ids=evidence_ids,
-        )
-        if run_id is not None:
-            await _emit_cost_event(
+        async with self._budget_lock_factory(run_id):
+            prior_run_cost = await _sum_run_cost(session, run_id)
+            prior_daily_cost = await _sum_daily_cost(session)
+            run_cost_total = prior_run_cost + cost
+            daily_cost_total = prior_daily_cost + cost
+            decision = self._guard.evaluate(
+                run_cost_usd=run_cost_total,
+                daily_cost_usd=daily_cost_total,
+            )
+            log = await _persist_log(
                 session,
                 run_id=run_id,
                 model=model,
+                prompt_hash=prompt_hash,
+                input_hash=input_hash,
                 usage=usage,
-                cost=cost,
-                cumulative_run_cost=run_cost_total,
-                decision=decision,
+                cost_usd=cost,
+                latency_ms=latency_ms,
+                status=_status_for_decision(decision),
+                error_message=None,
+                evidence_ids=evidence_ids,
             )
-        await session.commit()
-        return log, decision
+            if run_id is not None:
+                await _emit_cost_event(
+                    session,
+                    run_id=run_id,
+                    model=model,
+                    usage=usage,
+                    cost=cost,
+                    cumulative_run_cost=run_cost_total,
+                    decision=decision,
+                )
+            await session.commit()
+            return log, decision
 
 
 def _hash_messages(messages: Sequence[LlmMessage]) -> str:
