@@ -220,3 +220,100 @@ def test_chunker_content_hashes_are_sha256_of_chunk_text() -> None:
 
     chunks = chunk_sec_submissions(payload)
     assert chunks[0].content_hash == hashlib.sha256(chunks[0].text.encode("utf-8")).hexdigest()
+
+
+def test_chunk_polymarket_events_emits_one_chunk_per_event() -> None:
+    from app.services.ingestion._chunkers import chunk_polymarket_events
+    from app.services.source_clients.polymarket import PolymarketEvent
+
+    events = [
+        PolymarketEvent(
+            id="e1",
+            slug="fed-cuts-2026",
+            title="Fed cuts in 2026",
+            active=True,
+            closed=False,
+            category="economics",
+        ),
+        PolymarketEvent(
+            id="e2",
+            slug="recession-2026",
+            title="US recession 2026",
+            active=True,
+            closed=False,
+            category="economics",
+        ),
+    ]
+    chunks = chunk_polymarket_events(events)
+    assert len(chunks) == 2
+    assert "Fed cuts in 2026" in chunks[0].text
+    assert chunks[0].attributes["event_id"] == "e1"
+    assert chunks[0].content_hash != chunks[1].content_hash
+
+
+def test_chunk_kalshi_markets_emits_one_chunk_per_market() -> None:
+    from datetime import UTC, datetime
+
+    from app.services.ingestion._chunkers import chunk_kalshi_markets
+    from app.services.source_clients.kalshi import KalshiMarket
+
+    markets = [
+        KalshiMarket(
+            ticker="FED-2026",
+            event_ticker="FED",
+            title="Fed cuts in 2026",
+            status="open",
+            open_time=datetime(2026, 1, 1, tzinfo=UTC),
+            close_time=datetime(2026, 12, 31, tzinfo=UTC),
+            yes_bid=42,
+            yes_ask=45,
+            volume=1000,
+        ),
+    ]
+    chunks = chunk_kalshi_markets(markets)
+    assert len(chunks) == 1
+    assert chunks[0].attributes["ticker"] == "FED-2026"
+
+
+def test_chunk_congress_bills_emits_one_chunk_per_bill() -> None:
+    from datetime import UTC, datetime
+
+    from app.services.ingestion._chunkers import chunk_congress_bills
+    from app.services.source_clients.congress_gov import CongressBill
+
+    bills = [
+        CongressBill(
+            congress=119,
+            type="HR",
+            number="1234",
+            title="A bill to do X",
+            updateDate=datetime(2026, 4, 15, tzinfo=UTC),
+        ),
+    ]
+    chunks = chunk_congress_bills(bills)
+    assert len(chunks) == 1
+    assert chunks[0].attributes["number"] == "1234"
+
+
+def test_chunk_tiingo_news_items_emits_one_chunk_per_article() -> None:
+    from datetime import UTC, datetime
+
+    from app.services.ingestion._chunkers import chunk_tiingo_news_items
+    from app.services.source_clients.tiingo_news import TiingoNewsItem
+
+    items = [
+        TiingoNewsItem(
+            id=1,
+            title="Fed holds rates",
+            description="FOMC decision",
+            url="https://example.com",
+            publishedDate=datetime(2026, 5, 18, 14, 0, tzinfo=UTC),
+            source="Reuters",
+            tickers=["spy"],
+            tags=["fed"],
+        ),
+    ]
+    chunks = chunk_tiingo_news_items(items)
+    assert len(chunks) == 1
+    assert chunks[0].attributes["source"] == "Reuters"
+    assert chunks[0].attributes["tickers"] == ["spy"]
