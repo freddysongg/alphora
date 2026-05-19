@@ -497,6 +497,100 @@ async def test_run_portfolio_brief_budget_pause_routes_through_orchestrator(
 
 
 @pytest.mark.asyncio
+async def test_run_portfolio_brief_short_circuits_when_row_already_persisted(
+    initialized_schema: None,
+) -> None:
+    """A resumed funnel run with a portfolio_brief row already persisted must
+    skip the judge LLM call and not insert a duplicate row.
+    """
+    from app.schemas.portfolio_brief import (
+        PortfolioBrief,
+        PortfolioCoverage,
+        PortfolioMacroSummary,
+    )
+
+    async with session_factory() as session:
+        run_id = await _seed_run(session)
+        prior = PortfolioBrief(
+            run_id=run_id,
+            macro=PortfolioMacroSummary(
+                themes=[],
+                watch_items=[],
+                confidence=0.5,
+                judge_status=JudgeStatus.passed,
+            ),
+            sectors=[],
+            companies=[],
+            cited_claims=[],
+            cited_chunk_ids=[],
+            coverage=PortfolioCoverage(
+                sectors_selected=0,
+                sectors_verified=0,
+                sectors_judge_passed=0,
+                sectors_judge_flagged=0,
+                companies_selected=0,
+                companies_verified=0,
+                companies_judge_passed=0,
+                companies_judge_flagged=0,
+            ),
+            verifier_status=VerifierStatus.verified,
+            regeneration_count=0,
+        )
+        session.add(
+            PortfolioBriefRow(
+                run_id=run_id,
+                payload=prior.model_dump(mode="json"),
+                verifier_status="verified",
+                regeneration_count=0,
+                judge_status="flagged",
+                judge_reasons=["prior reason"],
+                judge_call_id=None,
+                wall_clock_ms=99,
+            )
+        )
+        await session.commit()
+
+    class _AssertionLlm:
+        async def complete(self, **_: Any) -> LlmCompletionResult:
+            raise AssertionError(
+                "judge llm must not be called when portfolio brief already persisted"
+            )
+
+    orchestrator = AsyncMock()
+    outcome = await run_portfolio_brief(
+        session_factory=session_factory,
+        run_id=run_id,
+        macro_brief=_macro_brief(),
+        macro_judge=JudgePublic(status=JudgeStatus.passed, reasons=[], call_id=None),
+        llm_client=_AssertionLlm(),
+        orchestrator=orchestrator,
+    )
+
+    assert outcome.persisted is True
+    assert outcome.judge_status is JudgeStatus.flagged
+    assert outcome.wall_clock_ms == 99
+
+    async with session_factory() as session:
+        rows = (
+            await session.execute(
+                select(PortfolioBriefRow).where(PortfolioBriefRow.run_id == run_id)
+            )
+        ).scalars().all()
+        events = (
+            await session.execute(
+                select(RunEvent).where(RunEvent.run_id == run_id)
+            )
+        ).scalars().all()
+
+    assert len(rows) == 1
+    assert any(
+        isinstance(event.data, dict)
+        and event.data.get("event") == "portfolio_brief_resumed"
+        for event in events
+    )
+
+
+@pytest.mark.asyncio
 async def test_run_portfolio_brief_loads_judge_chunks_when_cited(
     initialized_schema: None,
 ) -> None:

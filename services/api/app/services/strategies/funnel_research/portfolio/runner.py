@@ -21,6 +21,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.models_company import CompanyThesis as CompanyThesisRow
 from app.db.models_graph import Evidence, EvidenceChunk
+from app.db.models_portfolio import PortfolioBrief as PortfolioBriefRow
+from app.db.models_runs import RunEventLevel
 from app.db.models_sector import SectorBrief as SectorBriefRow
 from app.schemas.company_thesis import CompanyThesis, CompanyThesisPublic
 from app.schemas.extraction import EvidenceChunkRef
@@ -33,6 +35,7 @@ from app.schemas.sector_brief import (
     SectorBriefPublic,
 )
 from app.services.llm.client import LlmClient
+from app.services.run_events import emit_run_event
 from app.services.run_orchestrator import RunOrchestrator
 from app.services.strategies.funnel_research._judge import run_judge
 from app.services.strategies.funnel_research.portfolio.aggregator import (
@@ -147,6 +150,25 @@ async def run_portfolio_brief(
 ) -> PortfolioBriefOutcome:
     started = time.monotonic()
     async with session_factory() as session:
+        existing = (
+            await session.execute(
+                select(PortfolioBriefRow).where(PortfolioBriefRow.run_id == run_id)
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            emit_run_event(
+                session,
+                run_id=run_id,
+                level=RunEventLevel.info,
+                message="portfolio brief resumed from persisted row",
+                data={"event": "portfolio_brief_resumed"},
+            )
+            await session.commit()
+            return PortfolioBriefOutcome(
+                persisted=True,
+                judge_status=JudgeStatus(existing.judge_status),
+                wall_clock_ms=existing.wall_clock_ms,
+            )
         sectors = await _load_persisted_sector_briefs(session=session, run_id=run_id)
         companies = await _load_persisted_company_theses(
             session=session, run_id=run_id
