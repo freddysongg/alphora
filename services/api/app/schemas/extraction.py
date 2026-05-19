@@ -2,6 +2,8 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict
 
+from app.db.models_graph import EntityResolutionDecisionKind
+
 
 class IngestedEvidence(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -23,7 +25,18 @@ class EvidenceChunkRef(BaseModel):
     attributes: dict[str, object]
 
 
+class EntityResolutionOutcome(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    candidate_text: str
+    decision_kind: EntityResolutionDecisionKind
+    chosen_entity_id: uuid.UUID | None
+    review_id: uuid.UUID | None
+    confidence: float
+
+
 __all__ = [
+    "EntityResolutionOutcome",
     "EvidenceChunkRef",
     "IngestedEvidence",
 ]
