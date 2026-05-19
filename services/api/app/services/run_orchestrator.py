@@ -28,13 +28,55 @@ _ALLOWED_ANALYSTS: frozenset[AnalystKind] = frozenset(
 )
 _ALLOWED_PROVIDERS: frozenset[LLMProvider] = frozenset({"openai", "anthropic", "together"})
 
-_RUNNING_STAGE_INDEX: int = 1
-_TERMINAL_STAGE_INDEX: int = 2
-_TOTAL_STAGES: int = 2
+StageScheme = tuple[str, ...]
+
+STAGE_SCHEMES: dict[str, StageScheme] = {
+    "tradingagents": ("running",),
+    "funnel_research": ("ingest", "digest", "synthesize", "verify"),
+}
+
+_TERMINAL_STAGE_NAMES: frozenset[str] = frozenset({"succeeded", "failed", "cancelled"})
 
 
 class RunOrchestratorError(Exception):
     """Raised when orchestrator preconditions fail (e.g. run not found)."""
+
+
+def resolve_stage_position(*, strategy: str, stage_name: str) -> tuple[int, int]:
+    scheme = STAGE_SCHEMES.get(strategy)
+    if scheme is None:
+        raise RunOrchestratorError(f"unknown strategy {strategy!r}")
+    total = len(scheme) + 1
+    if stage_name in _TERMINAL_STAGE_NAMES:
+        return total, total
+    try:
+        index = scheme.index(stage_name) + 1
+    except ValueError as exc:
+        raise RunOrchestratorError(
+            f"unknown stage {stage_name!r} for strategy {strategy!r}"
+        ) from exc
+    return index, total
+
+
+def _emit_strategy_stage(
+    session: AsyncSession,
+    *,
+    run_id: UUID,
+    strategy: str,
+    stage_name: str,
+    message: str | None = None,
+    level: RunEventLevel = RunEventLevel.info,
+) -> None:
+    index, total = resolve_stage_position(strategy=strategy, stage_name=stage_name)
+    emit_stage_event(
+        session,
+        run_id=run_id,
+        stage_name=stage_name,
+        stage_index=index,
+        total_stages=total,
+        message=message,
+        level=level,
+    )
 
 
 class RunOrchestrator:
@@ -86,12 +128,11 @@ class RunOrchestrator:
             run.status = RunStatus.failed
             run.error_message = reason
             run.finished_at = _utcnow()
-            emit_stage_event(
+            _emit_strategy_stage(
                 session,
                 run_id=run_id,
+                strategy=run.strategy,
                 stage_name="failed",
-                stage_index=_TERMINAL_STAGE_INDEX,
-                total_stages=_TOTAL_STAGES,
                 message=f"run failed: {reason}",
                 level=RunEventLevel.err,
             )
@@ -104,12 +145,11 @@ class RunOrchestrator:
                 return
             run.status = RunStatus.cancelled
             run.finished_at = _utcnow()
-            emit_stage_event(
+            _emit_strategy_stage(
                 session,
                 run_id=run_id,
+                strategy=run.strategy,
                 stage_name="cancelled",
-                stage_index=_TERMINAL_STAGE_INDEX,
-                total_stages=_TOTAL_STAGES,
                 level=RunEventLevel.warn,
             )
             await session.commit()
@@ -161,12 +201,11 @@ class RunOrchestrator:
             run.status = RunStatus.running
             if run.started_at is None:
                 run.started_at = _utcnow()
-            emit_stage_event(
+            _emit_strategy_stage(
                 session,
                 run_id=run_id,
+                strategy=run.strategy,
                 stage_name="running",
-                stage_index=_RUNNING_STAGE_INDEX,
-                total_stages=_TOTAL_STAGES,
                 message="execution started",
             )
             await session.commit()
@@ -180,12 +219,11 @@ class RunOrchestrator:
             run.status = RunStatus.failed
             run.error_message = message
             run.finished_at = _utcnow()
-            emit_stage_event(
+            _emit_strategy_stage(
                 session,
                 run_id=run_id,
+                strategy=run.strategy,
                 stage_name="failed",
-                stage_index=_TERMINAL_STAGE_INDEX,
-                total_stages=_TOTAL_STAGES,
                 message=f"run failed: {message}",
                 level=RunEventLevel.err,
             )
@@ -209,13 +247,12 @@ class RunOrchestrator:
                         markdown=report.markdown,
                     )
                 )
-            persist_provenance(session, run.id, run.ticker, result.provenance)
-            emit_stage_event(
+            persist_provenance(session, run.id, run.ticker or "", result.provenance)
+            _emit_strategy_stage(
                 session,
                 run_id=run_id,
+                strategy=run.strategy,
                 stage_name="succeeded",
-                stage_index=_TERMINAL_STAGE_INDEX,
-                total_stages=_TOTAL_STAGES,
             )
             await session.commit()
 
@@ -243,6 +280,10 @@ def _map_final_rating(rating: FinalRating) -> DbFinalRating:
 
 
 def _build_run_config(run: ResearchRun) -> RunConfig:
+    if run.ticker is None:
+        raise RunOrchestratorError(
+            f"run {run.id} has no ticker but was dispatched to the tradingagents adapter"
+        )
     config_blob = run.config or {}
     analysts = _parse_analysts(config_blob.get("analysts"))
     llm_provider = _parse_provider(config_blob.get("llm_provider"))
@@ -291,6 +332,8 @@ def _parse_int(value: object, *, default: int) -> int:
 
 
 __all__ = [
+    "STAGE_SCHEMES",
     "RunOrchestrator",
     "RunOrchestratorError",
+    "resolve_stage_position",
 ]

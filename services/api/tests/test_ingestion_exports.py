@@ -4,9 +4,13 @@ def test_public_ingestion_exports() -> None:
     expected = {
         "EvidenceUpdateConflictError",
         "IngestionError",
+        "ingest_congress_bills",
         "ingest_fred_series_observations",
+        "ingest_kalshi_markets",
+        "ingest_polymarket_events",
         "ingest_sec_company_tickers",
         "ingest_sec_submissions",
+        "ingest_tiingo_news_items",
     }
     assert expected.issubset(set(ingestion.__all__))
     for name in expected:

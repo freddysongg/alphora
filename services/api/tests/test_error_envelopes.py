@@ -65,9 +65,9 @@ def test_validation_error_returns_envelope_with_fields(initialized_schema: None)
     assert body["detail"] == "Request validation failed"
     fields = body["fields"]
     assert isinstance(fields, dict)
-    assert "tickers" in fields
-    assert isinstance(fields["tickers"], list)
-    assert fields["tickers"]
+    assert "trade_date" in fields
+    assert isinstance(fields["trade_date"], list)
+    assert fields["trade_date"]
 
 
 def test_403_http_exception_returns_envelope() -> None:

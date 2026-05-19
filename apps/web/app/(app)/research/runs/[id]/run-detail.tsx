@@ -35,6 +35,7 @@ import {
 import { RunLogStream } from "@/components/research/run-log-stream";
 import { cn } from "@/lib/cn";
 import { CancelRunButton } from "./cancel-run-button";
+import { MacroBriefDetail } from "./macro-brief-detail";
 import { RerunButton } from "./rerun-button";
 
 type ResearchRunDetail = components["schemas"]["ResearchRunDetail"];
@@ -42,6 +43,7 @@ type RunStatus = components["schemas"]["RunStatusEnum"];
 type FinalRating = components["schemas"]["FinalRatingEnum"];
 type RunReport = components["schemas"]["RunReportPublic"];
 type SourceProvenance = components["schemas"]["SourceProvenancePublic"];
+type MacroBriefPublic = components["schemas"]["MacroBriefPublic"];
 
 type TabKey =
   | "overview"
@@ -71,6 +73,7 @@ const statusToLabel: Record<RunStatus, string> = {
   succeeded: "SUCCEEDED",
   failed: "FAILED",
   cancelled: "CANCELLED",
+  paused: "PAUSED",
 };
 
 const ratingToLabel: Record<FinalRating, string> = {
@@ -211,10 +214,12 @@ function buildMetricTiles(detail: ResearchRunDetail): MetricTile[] {
 
 export interface RunDetailProps {
   detail: ResearchRunDetail;
+  macroBrief: MacroBriefPublic | null;
 }
 
 export function RunDetail(props: RunDetailProps): ReactElement {
-  const { detail } = props;
+  const { detail, macroBrief } = props;
+  const isFunnelResearch = detail.strategy === "funnel_research";
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [optimisticStatus, setOptimisticStatus] = useState<RunStatus | null>(
     null,
@@ -269,7 +274,7 @@ export function RunDetail(props: RunDetailProps): ReactElement {
       <header className="sticky top-0 z-10 bg-canvas border-b border-line">
         <div className="flex items-center gap-4 px-6 py-4">
           <span className="text-2xl font-mono tabular-nums text-fg">
-            {detail.ticker}
+            {detail.ticker ?? "—"}
           </span>
           <HexPill value={detail.id} />
           <StatusDot
@@ -283,135 +288,146 @@ export function RunDetail(props: RunDetailProps): ReactElement {
               onOptimisticCancel={handleOptimisticCancel}
               onCancelRollback={handleCancelRollback}
             />
-          ) : (
+          ) : detail.ticker !== null ? (
             <RerunButton runId={detail.id} />
-          )}
+          ) : null}
         </div>
       </header>
 
       <div className="px-6 pt-4 pb-12">
-        <Tabs
-          value={activeTab}
-          onValueChange={(next) => setActiveTab(next as TabKey)}
-        >
-          <TabsList>
-            {tabConfigs.map((tab) => (
-              <TabsTrigger key={tab.key} value={tab.key}>
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+        {isFunnelResearch && macroBrief !== null ? (
+          <MacroBriefDetail data={macroBrief} />
+        ) : isFunnelResearch &&
+          (resolvedStatus === "failed" || resolvedStatus === "cancelled") ? (
+          <p className="text-sm text-fg-muted">
+            Macro brief was not produced because the run was {resolvedStatus}.
+          </p>
+        ) : isFunnelResearch ? (
+          <p className="text-sm text-fg-muted">Macro brief is generating…</p>
+        ) : (
+          <Tabs
+            value={activeTab}
+            onValueChange={(next) => setActiveTab(next as TabKey)}
+          >
+            <TabsList>
+              {tabConfigs.map((tab) => (
+                <TabsTrigger key={tab.key} value={tab.key}>
+                  {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
 
-          <TabsContent value="overview">
-            <div className="flex flex-col gap-6">
-              <MetricQuadrant tiles={metricTiles} />
-              <Card>
-                <CardHeader>
-                  <CardTitle>FINAL DECISION</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-baseline gap-4">
-                    <span
-                      className={cn(
-                        "text-2xl font-mono tabular-nums",
-                        resolveRatingClass(detail.final_rating),
-                      )}
-                    >
-                      {resolveRatingLabel(detail.final_rating)}
-                    </span>
-                  </div>
-                  <p className="mt-4 text-sm text-fg-muted leading-relaxed whitespace-pre-wrap">
-                    {detail.final_decision_summary ?? "Decision pending."}
-                  </p>
-                  {analystChips.length > 0 ? (
-                    <div className="mt-6 flex flex-wrap gap-4">
-                      {analystChips.map((chip) => (
-                        <StatusDot
-                          key={chip.key}
-                          status={chip.status}
-                          label={chip.label}
-                        />
-                      ))}
+            <TabsContent value="overview">
+              <div className="flex flex-col gap-6">
+                <MetricQuadrant tiles={metricTiles} />
+                <Card>
+                  <CardHeader>
+                    <CardTitle>FINAL DECISION</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-baseline gap-4">
+                      <span
+                        className={cn(
+                          "text-2xl font-mono tabular-nums",
+                          resolveRatingClass(detail.final_rating),
+                        )}
+                      >
+                        {resolveRatingLabel(detail.final_rating)}
+                      </span>
                     </div>
-                  ) : null}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="reports">
-            {reportOptions.length === 0 ? (
-              <p className="text-sm text-fg-subtle py-6">
-                Reports will appear here as analysts finish.
-              </p>
-            ) : (
-              <div className="flex gap-6">
-                <aside className="w-56 shrink-0">
-                  <CapsLabel className="px-2 py-2 block">ANALYSTS</CapsLabel>
-                  <ul className="flex flex-col">
-                    {reportOptions.map((option) => {
-                      const isActive = option.key === activeReportId;
-                      return (
-                        <li key={option.key}>
-                          <button
-                            type="button"
-                            onClick={() => setActiveReportId(option.key)}
-                            className={cn(
-                              "w-full text-left px-2 py-2 text-sm transition-colors duration-150 border-l-2",
-                              isActive
-                                ? "border-l-accent bg-surface-2 text-accent-text"
-                                : "border-l-transparent text-fg-muted hover:text-fg hover:bg-surface",
-                            )}
-                          >
-                            {option.label}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </aside>
-                <section className="flex-1 min-w-0 flex flex-col gap-6">
-                  <CapsLabel>REPORT</CapsLabel>
-                  {activeReport !== null ? (
-                    <p className="text-sm text-fg leading-relaxed whitespace-pre-wrap">
-                      {activeReport.markdown}
+                    <p className="mt-4 text-sm text-fg-muted leading-relaxed whitespace-pre-wrap">
+                      {detail.final_decision_summary ?? "Decision pending."}
                     </p>
-                  ) : (
-                    <p className="text-sm text-fg-subtle">
-                      Select a report to view its contents.
-                    </p>
-                  )}
-                </section>
+                    {analystChips.length > 0 ? (
+                      <div className="mt-6 flex flex-wrap gap-4">
+                        {analystChips.map((chip) => (
+                          <StatusDot
+                            key={chip.key}
+                            status={chip.status}
+                            label={chip.label}
+                          />
+                        ))}
+                      </div>
+                    ) : null}
+                  </CardContent>
+                </Card>
               </div>
-            )}
-          </TabsContent>
+            </TabsContent>
 
-          <TabsContent value="debate">
-            <p className="text-sm text-fg-subtle py-6">
-              Debate transcript not available for this run.
-            </p>
-          </TabsContent>
+            <TabsContent value="reports">
+              {reportOptions.length === 0 ? (
+                <p className="text-sm text-fg-subtle py-6">
+                  Reports will appear here as analysts finish.
+                </p>
+              ) : (
+                <div className="flex gap-6">
+                  <aside className="w-56 shrink-0">
+                    <CapsLabel className="px-2 py-2 block">ANALYSTS</CapsLabel>
+                    <ul className="flex flex-col">
+                      {reportOptions.map((option) => {
+                        const isActive = option.key === activeReportId;
+                        return (
+                          <li key={option.key}>
+                            <button
+                              type="button"
+                              onClick={() => setActiveReportId(option.key)}
+                              className={cn(
+                                "w-full text-left px-2 py-2 text-sm transition-colors duration-150 border-l-2",
+                                isActive
+                                  ? "border-l-accent bg-surface-2 text-accent-text"
+                                  : "border-l-transparent text-fg-muted hover:text-fg hover:bg-surface",
+                              )}
+                            >
+                              {option.label}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </aside>
+                  <section className="flex-1 min-w-0 flex flex-col gap-6">
+                    <CapsLabel>REPORT</CapsLabel>
+                    {activeReport !== null ? (
+                      <p className="text-sm text-fg leading-relaxed whitespace-pre-wrap">
+                        {activeReport.markdown}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-fg-subtle">
+                        Select a report to view its contents.
+                      </p>
+                    )}
+                  </section>
+                </div>
+              )}
+            </TabsContent>
 
-          <TabsContent value="risk">
-            <p className="text-sm text-fg-subtle py-6">Risk check pending.</p>
-          </TabsContent>
+            <TabsContent value="debate">
+              <p className="text-sm text-fg-subtle py-6">
+                Debate transcript not available for this run.
+              </p>
+            </TabsContent>
 
-          <TabsContent value="logs">
-            <RunLogStream
-              runId={detail.id}
-              initialLines={initialLogLines}
-              isTerminal={isLogStreamTerminal}
-            />
-          </TabsContent>
+            <TabsContent value="risk">
+              <p className="text-sm text-fg-subtle py-6">Risk check pending.</p>
+            </TabsContent>
 
-          <TabsContent value="provenance">
-            <DataTable<SourceProvenance>
-              data={[...detail.provenance]}
-              columns={provenanceColumns}
-              getRowId={(row) => row.id}
-            />
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="logs">
+              <RunLogStream
+                runId={detail.id}
+                initialLines={initialLogLines}
+                isTerminal={isLogStreamTerminal}
+              />
+            </TabsContent>
+
+            <TabsContent value="provenance">
+              <DataTable<SourceProvenance>
+                data={[...detail.provenance]}
+                columns={provenanceColumns}
+                getRowId={(row) => row.id}
+              />
+            </TabsContent>
+          </Tabs>
+        )}
       </div>
     </div>
   );

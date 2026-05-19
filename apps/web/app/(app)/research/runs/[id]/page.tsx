@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { getServerApi, isApiError } from "@/lib/api";
 import type { components } from "@/lib/api";
+import { getMacroBrief } from "./actions";
 import { RunDetail } from "./run-detail";
 
 export const metadata: Metadata = {
@@ -49,5 +50,7 @@ export default async function RunDetailPage(
   if (detail === null) {
     notFound();
   }
-  return <RunDetail detail={detail} />;
+  const macroBrief =
+    detail.strategy === "funnel_research" ? await getMacroBrief(id) : null;
+  return <RunDetail detail={detail} macroBrief={macroBrief} />;
 }

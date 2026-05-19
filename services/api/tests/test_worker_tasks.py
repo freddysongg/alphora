@@ -4,7 +4,6 @@ from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
 
 from app.db.models_runs import ResearchRun, RunStatus, Strategy
 from app.db.session import session_factory
@@ -46,7 +45,9 @@ def test_execute_research_run_invokes_orchestrator_with_uuid(
 
 
 @pytest.mark.usefixtures("initialized_schema")
-async def test_execute_research_run_marks_funnel_research_as_failed() -> None:
+async def test_execute_research_run_dispatches_funnel_research(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     run_id = uuid4()
     async with session_factory() as session:
         session.add(
@@ -61,16 +62,23 @@ async def test_execute_research_run_marks_funnel_research_as_failed() -> None:
         )
         await session.commit()
 
+    captured: dict[str, Any] = {}
+
+    async def fake_run_macro_brief(**kwargs: Any) -> None:
+        captured.update(kwargs)
+
+    monkeypatch.setattr(worker_tasks, "run_macro_brief", fake_run_macro_brief)
+    monkeypatch.setattr(
+        worker_tasks, "_build_openai_client", lambda: MagicMock()
+    )
+
     await worker_tasks._dispatch(run_id)
 
-    async with session_factory() as session:
-        stored = (
-            await session.execute(select(ResearchRun).where(ResearchRun.id == run_id))
-        ).scalar_one()
-        assert stored.status == RunStatus.failed
-        assert stored.error_message is not None
-        assert "not implemented" in stored.error_message
-        assert "funnel_research" in stored.error_message
+    assert captured["run_id"] == run_id
+    assert captured["session_factory"] is session_factory
+    assert "llm_client" in captured
+    assert "orchestrator" in captured
+    assert "http_client" in captured
 
 
 def test_execute_research_run_rejects_invalid_uuid() -> None:

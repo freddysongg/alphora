@@ -70,6 +70,10 @@ from app.services.source_clients.tiingo import (
     fetch_tiingo_daily_prices,
     fetch_tiingo_latest,
 )
+from app.services.source_clients.tiingo_news import (
+    TiingoNewsItem,
+    fetch_tiingo_news,
+)
 
 __all__ = [
     "AinvestCongressData",
@@ -105,6 +109,7 @@ __all__ = [
     "SourceClientTimeoutError",
     "TiingoDailyPriceRow",
     "TiingoIexQuote",
+    "TiingoNewsItem",
     "fetch_ainvest_congress_transactions",
     "fetch_company_tickers",
     "fetch_congress_bills",
@@ -122,4 +127,5 @@ __all__ = [
     "fetch_submissions",
     "fetch_tiingo_daily_prices",
     "fetch_tiingo_latest",
+    "fetch_tiingo_news",
 ]

@@ -1,1 +1,3208 @@
-{"openapi": "3.1.0", "info": {"title": "Alphora API", "version": "0.1.0"}, "paths": {"/api/health": {"get": {"tags": ["health"], "summary": "Health", "operationId": "health_api_health_get", "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HealthResponse"}}}}}}}, "/api/ready": {"get": {"tags": ["health"], "summary": "Ready", "operationId": "ready_api_ready_get", "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ReadyResponse"}}}}, "503": {"description": "Service Unavailable", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/NotReadyResponse"}}}}}}}, "/api/research-runs": {"post": {"tags": ["research-runs"], "summary": "Create Research Runs", "operationId": "create_research_runs_api_research_runs_post", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateResearchRunsRequest"}}}}, "responses": {"201": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "array", "items": {"$ref": "#/components/schemas/ResearchRunSummary"}, "title": "Response Create Research Runs Api Research Runs Post"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}, "get": {"tags": ["research-runs"], "summary": "List Research Runs", "operationId": "list_research_runs_api_research_runs_get", "parameters": [{"name": "status", "in": "query", "required": false, "schema": {"anyOf": [{"type": "array", "items": {"type": "string"}}, {"type": "null"}], "title": "Status"}}, {"name": "ticker", "in": "query", "required": false, "schema": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Ticker"}}, {"name": "limit", "in": "query", "required": false, "schema": {"type": "integer", "maximum": 200, "minimum": 1, "default": 50, "title": "Limit"}}, {"name": "offset", "in": "query", "required": false, "schema": {"type": "integer", "minimum": 0, "default": 0, "title": "Offset"}}, {"name": "group", "in": "query", "required": false, "schema": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Group"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"anyOf": [{"type": "array", "items": {"$ref": "#/components/schemas/ResearchRunSummary"}}, {"$ref": "#/components/schemas/GroupedRuns"}], "title": "Response List Research Runs Api Research Runs Get"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/api/research-runs/{run_id}": {"get": {"tags": ["research-runs"], "summary": "Get Research Run", "operationId": "get_research_run_api_research_runs__run_id__get", "parameters": [{"name": "run_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid", "title": "Run Id"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ResearchRunDetail"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/api/research-runs/{run_id}/events": {"get": {"tags": ["research-runs"], "summary": "Stream Research Run Events", "operationId": "stream_research_run_events_api_research_runs__run_id__events_get", "parameters": [{"name": "run_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid", "title": "Run Id"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/api/research-runs/{run_id}/cancel": {"post": {"tags": ["research-runs"], "summary": "Cancel Research Run", "operationId": "cancel_research_run_api_research_runs__run_id__cancel_post", "parameters": [{"name": "run_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid", "title": "Run Id"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ResearchRunSummary"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/api/screeners/run": {"post": {"tags": ["screeners"], "summary": "Run Screener", "operationId": "run_screener_api_screeners_run_post", "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ScreenerRunRequest"}}}, "required": true}, "responses": {"201": {"description": "Successful Response", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ScreenerRunResponse"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/api/screeners/runs/{screener_run_id}": {"get": {"tags": ["screeners"], "summary": "Get Screener Run", "operationId": "get_screener_run_api_screeners_runs__screener_run_id__get", "parameters": [{"name": "screener_run_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid", "title": "Screener Run Id"}}, {"name": "limit", "in": "query", "required": false, "schema": {"type": "integer", "maximum": 500, "minimum": 1, "default": 50, "title": "Limit"}}, {"name": "offset", "in": "query", "required": false, "schema": {"type": "integer", "minimum": 0, "default": 0, "title": "Offset"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ScreenerRunResponse"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/api/paper/orders": {"post": {"tags": ["paper"], "summary": "Create Paper Order", "operationId": "create_paper_order_api_paper_orders_post", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreatePaperOrderRequest"}}}}, "responses": {"201": {"description": "Successful Response", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/PaperOrderPublic"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}, "get": {"tags": ["paper"], "summary": "List Paper Orders", "operationId": "list_paper_orders_api_paper_orders_get", "parameters": [{"name": "portfolio_id", "in": "query", "required": true, "schema": {"type": "string", "format": "uuid", "title": "Portfolio Id"}}, {"name": "status", "in": "query", "required": false, "schema": {"anyOf": [{"$ref": "#/components/schemas/OrderStatusEnum"}, {"type": "null"}], "title": "Status"}}, {"name": "limit", "in": "query", "required": false, "schema": {"type": "integer", "maximum": 500, "minimum": 1, "default": 50, "title": "Limit"}}, {"name": "offset", "in": "query", "required": false, "schema": {"type": "integer", "minimum": 0, "default": 0, "title": "Offset"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "array", "items": {"$ref": "#/components/schemas/PaperOrderPublic"}, "title": "Response List Paper Orders Api Paper Orders Get"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/api/paper/portfolio": {"get": {"tags": ["paper"], "summary": "Get Paper Portfolio", "operationId": "get_paper_portfolio_api_paper_portfolio_get", "parameters": [{"name": "portfolio_id", "in": "query", "required": false, "schema": {"anyOf": [{"type": "string", "format": "uuid"}, {"type": "null"}], "title": "Portfolio Id"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/PaperPortfolioSnapshot"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/api/data-health": {"get": {"tags": ["data-health"], "summary": "Get Data Health Matrix", "operationId": "get_data_health_matrix_api_data_health_get", "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ProviderMatrix"}}}}}}}, "/api/data-health/calls": {"get": {"tags": ["data-health"], "summary": "List Provider Calls", "operationId": "list_provider_calls_api_data_health_calls_get", "parameters": [{"name": "provider", "in": "query", "required": true, "schema": {"type": "string", "minLength": 1, "maxLength": 64, "title": "Provider"}}, {"name": "tool", "in": "query", "required": true, "schema": {"type": "string", "minLength": 1, "maxLength": 128, "title": "Tool"}}, {"name": "ticker", "in": "query", "required": false, "schema": {"anyOf": [{"type": "string", "maxLength": 16}, {"type": "null"}], "title": "Ticker"}}, {"name": "limit", "in": "query", "required": false, "schema": {"type": "integer", "maximum": 500, "minimum": 1, "default": 50, "title": "Limit"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "array", "items": {"$ref": "#/components/schemas/ProviderCheckPublic"}, "title": "Response List Provider Calls Api Data Health Calls Get"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/api/settings/providers": {"get": {"tags": ["settings"], "summary": "Get Provider Settings", "operationId": "get_provider_settings_api_settings_providers_get", "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ApplicationSettingsPublic"}}}}}}, "put": {"tags": ["settings"], "summary": "Update Provider Settings", "operationId": "update_provider_settings_api_settings_providers_put", "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/UpdateApplicationSettingsRequest"}}}, "required": true}, "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ApplicationSettingsPublic"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/api/watchlists": {"get": {"tags": ["watchlists"], "summary": "List Watchlists", "operationId": "list_watchlists_api_watchlists_get", "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"items": {"$ref": "#/components/schemas/WatchlistPublic"}, "type": "array", "title": "Response List Watchlists Api Watchlists Get"}}}}}}, "post": {"tags": ["watchlists"], "summary": "Create Watchlist", "operationId": "create_watchlist_api_watchlists_post", "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WatchlistCreate"}}}, "required": true}, "responses": {"201": {"description": "Successful Response", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/WatchlistPublic"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/api/watchlists/{watchlist_id}": {"get": {"tags": ["watchlists"], "summary": "Get Watchlist", "operationId": "get_watchlist_api_watchlists__watchlist_id__get", "parameters": [{"name": "watchlist_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid", "title": "Watchlist Id"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/WatchlistDetail"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/api/watchlists/{watchlist_id}/members": {"post": {"tags": ["watchlists"], "summary": "Add Watchlist Member", "operationId": "add_watchlist_member_api_watchlists__watchlist_id__members_post", "parameters": [{"name": "watchlist_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid", "title": "Watchlist Id"}}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/WatchlistMemberAdd"}}}}, "responses": {"201": {"description": "Successful Response", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/WatchlistMemberPublic"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/api/watchlists/{watchlist_id}/members/{ticker}": {"delete": {"tags": ["watchlists"], "summary": "Remove Watchlist Member", "operationId": "remove_watchlist_member_api_watchlists__watchlist_id__members__ticker__delete", "parameters": [{"name": "watchlist_id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid", "title": "Watchlist Id"}}, {"name": "ticker", "in": "path", "required": true, "schema": {"type": "string", "title": "Ticker"}}], "responses": {"204": {"description": "Successful Response"}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}}, "components": {"schemas": {"AnalystKindEnum": {"type": "string", "enum": ["bull", "bear", "macro", "fundamentals", "sentiment", "risk"], "title": "AnalystKindEnum"}, "ApplicationSettingsPublic": {"properties": {"id": {"type": "integer", "title": "Id"}, "llm_provider": {"$ref": "#/components/schemas/LlmProviderEnum"}, "llm_model": {"type": "string", "title": "Llm Model"}, "default_analyst_set": {"items": {"type": "string"}, "type": "array", "title": "Default Analyst Set"}, "default_depth": {"type": "integer", "title": "Default Depth"}, "default_model": {"type": "string", "title": "Default Model"}, "llm_api_key_masked": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Llm Api Key Masked"}, "alpha_vantage_key_masked": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Alpha Vantage Key Masked"}, "has_llm_api_key": {"type": "boolean", "title": "Has Llm Api Key", "default": false}, "has_alpha_vantage_key": {"type": "boolean", "title": "Has Alpha Vantage Key", "default": false}}, "type": "object", "required": ["id", "llm_provider", "llm_model", "default_analyst_set", "default_depth", "default_model"], "title": "ApplicationSettingsPublic"}, "CreatePaperOrderRequest": {"properties": {"portfolio_id": {"type": "string", "format": "uuid", "title": "Portfolio Id"}, "ticker": {"type": "string", "maxLength": 16, "minLength": 1, "title": "Ticker"}, "side": {"$ref": "#/components/schemas/OrderSideEnum"}, "quantity": {"type": "integer", "exclusiveMinimum": 0.0, "title": "Quantity"}, "order_type": {"$ref": "#/components/schemas/OrderTypeEnum", "default": "market"}, "source_run_id": {"anyOf": [{"type": "string", "format": "uuid"}, {"type": "null"}], "title": "Source Run Id"}}, "additionalProperties": false, "type": "object", "required": ["portfolio_id", "ticker", "side", "quantity"], "title": "CreatePaperOrderRequest"}, "CreateResearchRunsRequest": {"properties": {"tickers": {"items": {"type": "string"}, "type": "array", "maxItems": 25, "minItems": 1, "title": "Tickers"}, "trade_date": {"type": "string", "format": "date", "title": "Trade Date"}, "analysts": {"items": {"$ref": "#/components/schemas/AnalystKindEnum"}, "type": "array", "title": "Analysts"}, "llm_provider": {"$ref": "#/components/schemas/LlmProviderEnum"}, "llm_model": {"type": "string", "maxLength": 128, "minLength": 1, "title": "Llm Model"}, "debate_depth": {"type": "integer", "maximum": 8.0, "minimum": 1.0, "title": "Debate Depth", "default": 3}}, "additionalProperties": false, "type": "object", "required": ["tickers", "trade_date", "llm_provider", "llm_model"], "title": "CreateResearchRunsRequest"}, "FinalRatingEnum": {"type": "string", "enum": ["buy", "hold", "sell", "none"], "title": "FinalRatingEnum"}, "GroupedRuns": {"properties": {"queued": {"items": {"$ref": "#/components/schemas/ResearchRunSummary"}, "type": "array", "title": "Queued"}, "running": {"items": {"$ref": "#/components/schemas/ResearchRunSummary"}, "type": "array", "title": "Running"}, "recent": {"items": {"$ref": "#/components/schemas/ResearchRunSummary"}, "type": "array", "title": "Recent"}, "failed": {"items": {"$ref": "#/components/schemas/ResearchRunSummary"}, "type": "array", "title": "Failed"}}, "type": "object", "required": ["queued", "running", "recent", "failed"], "title": "GroupedRuns"}, "HTTPValidationError": {"properties": {"detail": {"items": {"$ref": "#/components/schemas/ValidationError"}, "type": "array", "title": "Detail"}}, "type": "object", "title": "HTTPValidationError"}, "HealthResponse": {"properties": {"status": {"type": "string", "const": "ok", "title": "Status"}, "version": {"type": "string", "title": "Version"}}, "type": "object", "required": ["status", "version"], "title": "HealthResponse"}, "LlmProviderEnum": {"type": "string", "enum": ["openai", "anthropic", "together"], "title": "LlmProviderEnum"}, "NotReadyResponse": {"properties": {"status": {"type": "string", "const": "not_ready", "title": "Status"}, "reason": {"type": "string", "title": "Reason"}}, "type": "object", "required": ["status", "reason"], "title": "NotReadyResponse"}, "OrderSideEnum": {"type": "string", "enum": ["buy", "sell"], "title": "OrderSideEnum"}, "OrderStatusEnum": {"type": "string", "enum": ["pending", "accepted", "filled", "cancelled", "rejected"], "title": "OrderStatusEnum"}, "OrderTypeEnum": {"type": "string", "enum": ["market"], "title": "OrderTypeEnum"}, "PaperOrderPublic": {"properties": {"id": {"type": "string", "format": "uuid", "title": "Id"}, "portfolio_id": {"type": "string", "format": "uuid", "title": "Portfolio Id"}, "ticker": {"type": "string", "title": "Ticker"}, "side": {"$ref": "#/components/schemas/OrderSideEnum"}, "quantity": {"type": "integer", "title": "Quantity"}, "order_type": {"$ref": "#/components/schemas/OrderTypeEnum"}, "status": {"$ref": "#/components/schemas/OrderStatusEnum"}, "submitted_at": {"type": "string", "format": "date-time", "title": "Submitted At"}, "filled_at": {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}], "title": "Filled At"}, "filled_price_cents": {"anyOf": [{"type": "integer"}, {"type": "null"}], "title": "Filled Price Cents"}, "source_run_id": {"anyOf": [{"type": "string", "format": "uuid"}, {"type": "null"}], "title": "Source Run Id"}}, "type": "object", "required": ["id", "portfolio_id", "ticker", "side", "quantity", "order_type", "status", "submitted_at", "filled_at", "filled_price_cents", "source_run_id"], "title": "PaperOrderPublic"}, "PaperPortfolioSnapshot": {"properties": {"id": {"type": "string", "format": "uuid", "title": "Id"}, "name": {"type": "string", "title": "Name"}, "cash_cents": {"type": "integer", "title": "Cash Cents"}, "equity_cents": {"type": "integer", "title": "Equity Cents"}, "unrealized_pl_cents": {"type": "integer", "title": "Unrealized Pl Cents"}, "realized_pl_cents": {"type": "integer", "title": "Realized Pl Cents"}, "positions": {"items": {"$ref": "#/components/schemas/PaperPositionPublic"}, "type": "array", "title": "Positions"}}, "type": "object", "required": ["id", "name", "cash_cents", "equity_cents", "unrealized_pl_cents", "realized_pl_cents", "positions"], "title": "PaperPortfolioSnapshot"}, "PaperPositionPublic": {"properties": {"id": {"type": "string", "format": "uuid", "title": "Id"}, "portfolio_id": {"type": "string", "format": "uuid", "title": "Portfolio Id"}, "ticker": {"type": "string", "title": "Ticker"}, "quantity": {"type": "integer", "title": "Quantity"}, "avg_cost_cents": {"type": "integer", "title": "Avg Cost Cents"}, "mark_cents": {"type": "integer", "title": "Mark Cents"}, "opened_at": {"type": "string", "format": "date-time", "title": "Opened At"}, "closed_at": {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}], "title": "Closed At"}}, "type": "object", "required": ["id", "portfolio_id", "ticker", "quantity", "avg_cost_cents", "mark_cents", "opened_at", "closed_at"], "title": "PaperPositionPublic"}, "ProvenanceStatusEnum": {"type": "string", "enum": ["success", "failure", "partial"], "title": "ProvenanceStatusEnum"}, "ProviderCheckPublic": {"properties": {"id": {"type": "string", "format": "uuid", "title": "Id"}, "provider": {"type": "string", "title": "Provider"}, "tool": {"type": "string", "title": "Tool"}, "ticker": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Ticker"}, "at": {"type": "string", "format": "date-time", "title": "At"}, "latency_ms": {"type": "integer", "title": "Latency Ms"}, "status": {"$ref": "#/components/schemas/ProviderCheckStatusEnum"}, "sample_count": {"type": "integer", "title": "Sample Count"}, "as_of": {"anyOf": [{"type": "string", "format": "date"}, {"type": "null"}], "title": "As Of"}, "error_message": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Error Message"}}, "type": "object", "required": ["id", "provider", "tool", "ticker", "at", "latency_ms", "status", "sample_count", "as_of", "error_message"], "title": "ProviderCheckPublic"}, "ProviderCheckStatusEnum": {"type": "string", "enum": ["success", "failure", "partial"], "title": "ProviderCheckStatusEnum"}, "ProviderMatrix": {"properties": {"providers": {"items": {"type": "string"}, "type": "array", "title": "Providers"}, "tools": {"items": {"type": "string"}, "type": "array", "title": "Tools"}, "cells": {"items": {"$ref": "#/components/schemas/ProviderMatrixCell"}, "type": "array", "title": "Cells"}}, "type": "object", "required": ["providers", "tools", "cells"], "title": "ProviderMatrix"}, "ProviderMatrixCell": {"properties": {"provider": {"type": "string", "title": "Provider"}, "tool": {"type": "string", "title": "Tool"}, "status": {"$ref": "#/components/schemas/ProviderCheckStatusEnum"}, "at": {"type": "string", "format": "date-time", "title": "At"}, "latency_ms": {"type": "integer", "title": "Latency Ms"}, "sample_count": {"type": "integer", "title": "Sample Count"}, "as_of": {"anyOf": [{"type": "string", "format": "date"}, {"type": "null"}], "title": "As Of"}}, "type": "object", "required": ["provider", "tool", "status", "at", "latency_ms", "sample_count", "as_of"], "title": "ProviderMatrixCell"}, "ReadyResponse": {"properties": {"status": {"type": "string", "const": "ready", "title": "Status"}}, "type": "object", "required": ["status"], "title": "ReadyResponse"}, "ResearchRunDetail": {"properties": {"id": {"type": "string", "format": "uuid", "title": "Id"}, "ticker": {"type": "string", "title": "Ticker"}, "trade_date": {"type": "string", "format": "date", "title": "Trade Date"}, "status": {"$ref": "#/components/schemas/RunStatusEnum"}, "config": {"additionalProperties": true, "type": "object", "title": "Config"}, "final_rating": {"anyOf": [{"$ref": "#/components/schemas/FinalRatingEnum"}, {"type": "null"}]}, "final_decision_summary": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Final Decision Summary"}, "wall_clock_ms": {"anyOf": [{"type": "integer"}, {"type": "null"}], "title": "Wall Clock Ms"}, "error_message": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Error Message"}, "created_at": {"type": "string", "format": "date-time", "title": "Created At"}, "updated_at": {"type": "string", "format": "date-time", "title": "Updated At"}, "started_at": {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}], "title": "Started At"}, "finished_at": {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}], "title": "Finished At"}, "reports": {"items": {"$ref": "#/components/schemas/RunReportPublic"}, "type": "array", "title": "Reports"}, "events": {"items": {"$ref": "#/components/schemas/RunEventPublic"}, "type": "array", "title": "Events"}, "provenance": {"items": {"$ref": "#/components/schemas/SourceProvenancePublic"}, "type": "array", "title": "Provenance"}}, "type": "object", "required": ["id", "ticker", "trade_date", "status", "config", "final_rating", "final_decision_summary", "wall_clock_ms", "error_message", "created_at", "updated_at", "started_at", "finished_at", "reports", "events", "provenance"], "title": "ResearchRunDetail"}, "ResearchRunSummary": {"properties": {"id": {"type": "string", "format": "uuid", "title": "Id"}, "ticker": {"type": "string", "title": "Ticker"}, "status": {"$ref": "#/components/schemas/RunStatusEnum"}, "final_rating": {"anyOf": [{"$ref": "#/components/schemas/FinalRatingEnum"}, {"type": "null"}]}, "created_at": {"type": "string", "format": "date-time", "title": "Created At"}, "queue_position": {"anyOf": [{"type": "integer"}, {"type": "null"}], "title": "Queue Position"}}, "type": "object", "required": ["id", "ticker", "status", "final_rating", "created_at"], "title": "ResearchRunSummary"}, "RunEventLevelEnum": {"type": "string", "enum": ["info", "warn", "err"], "title": "RunEventLevelEnum"}, "RunEventPublic": {"properties": {"id": {"type": "string", "format": "uuid", "title": "Id"}, "run_id": {"type": "string", "format": "uuid", "title": "Run Id"}, "at": {"type": "string", "format": "date-time", "title": "At"}, "level": {"$ref": "#/components/schemas/RunEventLevelEnum"}, "message": {"type": "string", "title": "Message"}, "data": {"anyOf": [{"additionalProperties": true, "type": "object"}, {"type": "null"}], "title": "Data"}}, "type": "object", "required": ["id", "run_id", "at", "level", "message", "data"], "title": "RunEventPublic"}, "RunReportPublic": {"properties": {"id": {"type": "string", "format": "uuid", "title": "Id"}, "run_id": {"type": "string", "format": "uuid", "title": "Run Id"}, "analyst": {"$ref": "#/components/schemas/AnalystKindEnum"}, "markdown": {"type": "string", "title": "Markdown"}, "created_at": {"type": "string", "format": "date-time", "title": "Created At"}}, "type": "object", "required": ["id", "run_id", "analyst", "markdown", "created_at"], "title": "RunReportPublic"}, "RunStatusEnum": {"type": "string", "enum": ["queued", "running", "succeeded", "failed", "cancelled"], "title": "RunStatusEnum"}, "ScreenerResultPublic": {"properties": {"id": {"type": "string", "format": "uuid", "title": "Id"}, "screener_run_id": {"type": "string", "format": "uuid", "title": "Screener Run Id"}, "ticker": {"type": "string", "title": "Ticker"}, "score": {"type": "number", "title": "Score"}, "factor_scores": {"additionalProperties": {"type": "number"}, "type": "object", "title": "Factor Scores"}}, "type": "object", "required": ["id", "screener_run_id", "ticker", "score", "factor_scores"], "title": "ScreenerResultPublic"}, "ScreenerRunPublic": {"properties": {"id": {"type": "string", "format": "uuid", "title": "Id"}, "universe": {"type": "string", "title": "Universe"}, "factor_weights": {"additionalProperties": {"type": "number"}, "type": "object", "title": "Factor Weights"}, "created_at": {"type": "string", "format": "date-time", "title": "Created At"}, "finished_at": {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}], "title": "Finished At"}, "result_count": {"anyOf": [{"type": "integer"}, {"type": "null"}], "title": "Result Count"}}, "type": "object", "required": ["id", "universe", "factor_weights", "created_at", "finished_at", "result_count"], "title": "ScreenerRunPublic"}, "ScreenerRunRequest": {"properties": {"universe": {"$ref": "#/components/schemas/ScreenerUniverseEnum"}, "watchlist_id": {"anyOf": [{"type": "string", "format": "uuid"}, {"type": "null"}], "title": "Watchlist Id"}, "factor_weights": {"additionalProperties": {"type": "number"}, "type": "object", "title": "Factor Weights"}, "limit": {"type": "integer", "maximum": 500.0, "minimum": 1.0, "title": "Limit", "default": 50}}, "additionalProperties": false, "type": "object", "required": ["universe"], "title": "ScreenerRunRequest"}, "ScreenerRunResponse": {"properties": {"screener_run": {"$ref": "#/components/schemas/ScreenerRunPublic"}, "results": {"items": {"$ref": "#/components/schemas/ScreenerResultPublic"}, "type": "array", "title": "Results"}}, "type": "object", "required": ["screener_run", "results"], "title": "ScreenerRunResponse"}, "ScreenerUniverseEnum": {"type": "string", "enum": ["sp500", "nasdaq100", "watchlist"], "title": "ScreenerUniverseEnum"}, "SourceProvenancePublic": {"properties": {"id": {"type": "string", "format": "uuid", "title": "Id"}, "run_id": {"type": "string", "format": "uuid", "title": "Run Id"}, "provider": {"type": "string", "title": "Provider"}, "tool": {"type": "string", "title": "Tool"}, "ticker": {"type": "string", "title": "Ticker"}, "request_at": {"type": "string", "format": "date-time", "title": "Request At"}, "latency_ms": {"type": "integer", "title": "Latency Ms"}, "status": {"$ref": "#/components/schemas/ProvenanceStatusEnum"}, "sample_count": {"type": "integer", "title": "Sample Count"}, "as_of": {"anyOf": [{"type": "string", "format": "date"}, {"type": "null"}], "title": "As Of"}, "error_message": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Error Message"}}, "type": "object", "required": ["id", "run_id", "provider", "tool", "ticker", "request_at", "latency_ms", "status", "sample_count", "as_of", "error_message"], "title": "SourceProvenancePublic"}, "UpdateApplicationSettingsRequest": {"properties": {"llm_provider": {"anyOf": [{"$ref": "#/components/schemas/LlmProviderEnum"}, {"type": "null"}]}, "llm_model": {"anyOf": [{"type": "string", "maxLength": 128, "minLength": 1}, {"type": "null"}], "title": "Llm Model"}, "llm_api_key": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Llm Api Key"}, "alpha_vantage_key": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Alpha Vantage Key"}, "default_analyst_set": {"anyOf": [{"items": {"type": "string"}, "type": "array"}, {"type": "null"}], "title": "Default Analyst Set"}, "default_depth": {"anyOf": [{"type": "integer", "maximum": 10.0, "minimum": 1.0}, {"type": "null"}], "title": "Default Depth"}, "default_model": {"anyOf": [{"type": "string", "maxLength": 128, "minLength": 1}, {"type": "null"}], "title": "Default Model"}}, "additionalProperties": false, "type": "object", "title": "UpdateApplicationSettingsRequest"}, "ValidationError": {"properties": {"loc": {"items": {"anyOf": [{"type": "string"}, {"type": "integer"}]}, "type": "array", "title": "Location"}, "msg": {"type": "string", "title": "Message"}, "type": {"type": "string", "title": "Error Type"}, "input": {"title": "Input"}, "ctx": {"type": "object", "title": "Context"}}, "type": "object", "required": ["loc", "msg", "type"], "title": "ValidationError"}, "WatchlistCreate": {"properties": {"name": {"type": "string", "maxLength": 128, "minLength": 1, "title": "Name"}}, "additionalProperties": false, "type": "object", "required": ["name"], "title": "WatchlistCreate"}, "WatchlistDetail": {"properties": {"id": {"type": "string", "format": "uuid", "title": "Id"}, "name": {"type": "string", "title": "Name"}, "created_at": {"type": "string", "format": "date-time", "title": "Created At"}, "members": {"items": {"$ref": "#/components/schemas/WatchlistMemberPublic"}, "type": "array", "title": "Members"}}, "type": "object", "required": ["id", "name", "created_at", "members"], "title": "WatchlistDetail"}, "WatchlistMemberAdd": {"properties": {"ticker": {"type": "string", "maxLength": 16, "minLength": 1, "title": "Ticker"}, "notes": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Notes"}}, "additionalProperties": false, "type": "object", "required": ["ticker"], "title": "WatchlistMemberAdd"}, "WatchlistMemberPublic": {"properties": {"id": {"type": "string", "format": "uuid", "title": "Id"}, "watchlist_id": {"type": "string", "format": "uuid", "title": "Watchlist Id"}, "ticker": {"type": "string", "title": "Ticker"}, "notes": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Notes"}, "added_at": {"type": "string", "format": "date-time", "title": "Added At"}}, "type": "object", "required": ["id", "watchlist_id", "ticker", "notes", "added_at"], "title": "WatchlistMemberPublic"}, "WatchlistPublic": {"properties": {"id": {"type": "string", "format": "uuid", "title": "Id"}, "name": {"type": "string", "title": "Name"}, "created_at": {"type": "string", "format": "date-time", "title": "Created At"}}, "type": "object", "required": ["id", "name", "created_at"], "title": "WatchlistPublic"}}}}
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Alphora API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ready": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Ready",
+        "operationId": "ready_api_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotReadyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/research-runs": {
+      "post": {
+        "tags": [
+          "research-runs"
+        ],
+        "summary": "Create Research Runs",
+        "operationId": "create_research_runs_api_research_runs_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateResearchRunsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ResearchRunSummary"
+                  },
+                  "title": "Response Create Research Runs Api Research Runs Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "research-runs"
+        ],
+        "summary": "List Research Runs",
+        "operationId": "list_research_runs_api_research_runs_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "ticker",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ticker"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Group"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ResearchRunSummary"
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/GroupedRuns"
+                    }
+                  ],
+                  "title": "Response List Research Runs Api Research Runs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/research-runs/{run_id}": {
+      "get": {
+        "tags": [
+          "research-runs"
+        ],
+        "summary": "Get Research Run",
+        "operationId": "get_research_run_api_research_runs__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchRunDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/research-runs/{run_id}/events": {
+      "get": {
+        "tags": [
+          "research-runs"
+        ],
+        "summary": "Stream Research Run Events",
+        "operationId": "stream_research_run_events_api_research_runs__run_id__events_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/research-runs/{run_id}/llm-calls": {
+      "get": {
+        "tags": [
+          "research-runs"
+        ],
+        "summary": "List Research Run Llm Calls",
+        "operationId": "list_research_run_llm_calls_api_research_runs__run_id__llm_calls_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LlmCallLogPublic"
+                  },
+                  "title": "Response List Research Run Llm Calls Api Research Runs  Run Id  Llm Calls Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/research-runs/{run_id}/cancel": {
+      "post": {
+        "tags": [
+          "research-runs"
+        ],
+        "summary": "Cancel Research Run",
+        "operationId": "cancel_research_run_api_research_runs__run_id__cancel_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchRunSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/research-runs/{run_id}/resume": {
+      "post": {
+        "tags": [
+          "research-runs"
+        ],
+        "summary": "Resume Research Run",
+        "operationId": "resume_research_run_api_research_runs__run_id__resume_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchRunSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/research-runs/{run_id}/macro-brief": {
+      "get": {
+        "tags": [
+          "research-runs"
+        ],
+        "summary": "Get Macro Brief",
+        "operationId": "get_macro_brief_api_research_runs__run_id__macro_brief_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MacroBriefPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/screeners/run": {
+      "post": {
+        "tags": [
+          "screeners"
+        ],
+        "summary": "Run Screener",
+        "operationId": "run_screener_api_screeners_run_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScreenerRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScreenerRunResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/screeners/runs/{screener_run_id}": {
+      "get": {
+        "tags": [
+          "screeners"
+        ],
+        "summary": "Get Screener Run",
+        "operationId": "get_screener_run_api_screeners_runs__screener_run_id__get",
+        "parameters": [
+          {
+            "name": "screener_run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Screener Run Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScreenerRunResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/paper/orders": {
+      "post": {
+        "tags": [
+          "paper"
+        ],
+        "summary": "Create Paper Order",
+        "operationId": "create_paper_order_api_paper_orders_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePaperOrderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaperOrderPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "paper"
+        ],
+        "summary": "List Paper Orders",
+        "operationId": "list_paper_orders_api_paper_orders_get",
+        "parameters": [
+          {
+            "name": "portfolio_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Portfolio Id"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/OrderStatusEnum"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PaperOrderPublic"
+                  },
+                  "title": "Response List Paper Orders Api Paper Orders Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/paper/portfolio": {
+      "get": {
+        "tags": [
+          "paper"
+        ],
+        "summary": "Get Paper Portfolio",
+        "operationId": "get_paper_portfolio_api_paper_portfolio_get",
+        "parameters": [
+          {
+            "name": "portfolio_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Portfolio Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaperPortfolioSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/data-health": {
+      "get": {
+        "tags": [
+          "data-health"
+        ],
+        "summary": "Get Data Health Matrix",
+        "operationId": "get_data_health_matrix_api_data_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderMatrix"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/data-health/calls": {
+      "get": {
+        "tags": [
+          "data-health"
+        ],
+        "summary": "List Provider Calls",
+        "operationId": "list_provider_calls_api_data_health_calls_get",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "title": "Provider"
+            }
+          },
+          {
+            "name": "tool",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "title": "Tool"
+            }
+          },
+          {
+            "name": "ticker",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ticker"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProviderCheckPublic"
+                  },
+                  "title": "Response List Provider Calls Api Data Health Calls Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/providers": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get Provider Settings",
+        "operationId": "get_provider_settings_api_settings_providers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationSettingsPublic"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Update Provider Settings",
+        "operationId": "update_provider_settings_api_settings_providers_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateApplicationSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationSettingsPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/watchlists": {
+      "get": {
+        "tags": [
+          "watchlists"
+        ],
+        "summary": "List Watchlists",
+        "operationId": "list_watchlists_api_watchlists_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WatchlistPublic"
+                  },
+                  "type": "array",
+                  "title": "Response List Watchlists Api Watchlists Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "watchlists"
+        ],
+        "summary": "Create Watchlist",
+        "operationId": "create_watchlist_api_watchlists_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatchlistCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/watchlists/{watchlist_id}": {
+      "get": {
+        "tags": [
+          "watchlists"
+        ],
+        "summary": "Get Watchlist",
+        "operationId": "get_watchlist_api_watchlists__watchlist_id__get",
+        "parameters": [
+          {
+            "name": "watchlist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Watchlist Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/watchlists/{watchlist_id}/members": {
+      "post": {
+        "tags": [
+          "watchlists"
+        ],
+        "summary": "Add Watchlist Member",
+        "operationId": "add_watchlist_member_api_watchlists__watchlist_id__members_post",
+        "parameters": [
+          {
+            "name": "watchlist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Watchlist Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatchlistMemberAdd"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistMemberPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/watchlists/{watchlist_id}/members/{ticker}": {
+      "delete": {
+        "tags": [
+          "watchlists"
+        ],
+        "summary": "Remove Watchlist Member",
+        "operationId": "remove_watchlist_member_api_watchlists__watchlist_id__members__ticker__delete",
+        "parameters": [
+          {
+            "name": "watchlist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Watchlist Id"
+            }
+          },
+          {
+            "name": "ticker",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ticker"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnalystKindEnum": {
+        "type": "string",
+        "enum": [
+          "bull",
+          "bear",
+          "macro",
+          "fundamentals",
+          "sentiment",
+          "risk"
+        ],
+        "title": "AnalystKindEnum"
+      },
+      "ApplicationSettingsPublic": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "llm_provider": {
+            "$ref": "#/components/schemas/LlmProviderEnum"
+          },
+          "llm_model": {
+            "type": "string",
+            "title": "Llm Model"
+          },
+          "default_analyst_set": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Default Analyst Set"
+          },
+          "default_depth": {
+            "type": "integer",
+            "title": "Default Depth"
+          },
+          "default_model": {
+            "type": "string",
+            "title": "Default Model"
+          },
+          "llm_api_key_masked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Api Key Masked"
+          },
+          "alpha_vantage_key_masked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alpha Vantage Key Masked"
+          },
+          "has_llm_api_key": {
+            "type": "boolean",
+            "title": "Has Llm Api Key",
+            "default": false
+          },
+          "has_alpha_vantage_key": {
+            "type": "boolean",
+            "title": "Has Alpha Vantage Key",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "llm_provider",
+          "llm_model",
+          "default_analyst_set",
+          "default_depth",
+          "default_model"
+        ],
+        "title": "ApplicationSettingsPublic"
+      },
+      "ChunkLookup": {
+        "properties": {
+          "chunk_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunk Id"
+          },
+          "evidence_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Evidence Id"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "attributes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Attributes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chunk_id",
+          "evidence_id",
+          "source",
+          "text",
+          "attributes"
+        ],
+        "title": "ChunkLookup"
+      },
+      "CitedClaim": {
+        "properties": {
+          "claim_text": {
+            "type": "string",
+            "title": "Claim Text"
+          },
+          "exact_quote": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Exact Quote"
+          },
+          "chunk_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Chunk Id"
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Source"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "claim_text",
+          "exact_quote",
+          "chunk_id",
+          "source"
+        ],
+        "title": "CitedClaim"
+      },
+      "CreatePaperOrderRequest": {
+        "properties": {
+          "portfolio_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Portfolio Id"
+          },
+          "ticker": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 1,
+            "title": "Ticker"
+          },
+          "side": {
+            "$ref": "#/components/schemas/OrderSideEnum"
+          },
+          "quantity": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Quantity"
+          },
+          "order_type": {
+            "$ref": "#/components/schemas/OrderTypeEnum",
+            "default": "market"
+          },
+          "source_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Run Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "portfolio_id",
+          "ticker",
+          "side",
+          "quantity"
+        ],
+        "title": "CreatePaperOrderRequest"
+      },
+      "CreateResearchRunsRequest": {
+        "properties": {
+          "strategy": {
+            "$ref": "#/components/schemas/StrategyEnum",
+            "default": "tradingagents"
+          },
+          "trade_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Trade Date"
+          },
+          "tickers": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tickers"
+          },
+          "scope_payload": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MacroBriefScope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "analysts": {
+            "items": {
+              "$ref": "#/components/schemas/AnalystKindEnum"
+            },
+            "type": "array",
+            "title": "Analysts"
+          },
+          "llm_provider": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LlmProviderEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "llm_model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Model"
+          },
+          "debate_depth": {
+            "type": "integer",
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Debate Depth",
+            "default": 3
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "trade_date"
+        ],
+        "title": "CreateResearchRunsRequest"
+      },
+      "FinalRatingEnum": {
+        "type": "string",
+        "enum": [
+          "buy",
+          "hold",
+          "sell",
+          "none"
+        ],
+        "title": "FinalRatingEnum"
+      },
+      "GroupedRuns": {
+        "properties": {
+          "queued": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchRunSummary"
+            },
+            "type": "array",
+            "title": "Queued"
+          },
+          "running": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchRunSummary"
+            },
+            "type": "array",
+            "title": "Running"
+          },
+          "recent": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchRunSummary"
+            },
+            "type": "array",
+            "title": "Recent"
+          },
+          "failed": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchRunSummary"
+            },
+            "type": "array",
+            "title": "Failed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "queued",
+          "running",
+          "recent",
+          "failed"
+        ],
+        "title": "GroupedRuns"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok",
+            "title": "Status"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "version"
+        ],
+        "title": "HealthResponse"
+      },
+      "LlmCallLogPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "prompt_hash": {
+            "type": "string",
+            "title": "Prompt Hash"
+          },
+          "input_hash": {
+            "type": "string",
+            "title": "Input Hash"
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens"
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens"
+          },
+          "cached_input_tokens": {
+            "type": "integer",
+            "title": "Cached Input Tokens"
+          },
+          "reasoning_tokens": {
+            "type": "integer",
+            "title": "Reasoning Tokens"
+          },
+          "cost_usd": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cost Usd"
+          },
+          "latency_ms": {
+            "type": "integer",
+            "title": "Latency Ms"
+          },
+          "status": {
+            "$ref": "#/components/schemas/LlmCallStatusEnum"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "evidence_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Ids"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "run_id",
+          "model",
+          "prompt_hash",
+          "input_hash",
+          "input_tokens",
+          "output_tokens",
+          "cached_input_tokens",
+          "reasoning_tokens",
+          "cost_usd",
+          "latency_ms",
+          "status",
+          "error_message",
+          "evidence_ids",
+          "created_at"
+        ],
+        "title": "LlmCallLogPublic"
+      },
+      "LlmCallStatusEnum": {
+        "type": "string",
+        "enum": [
+          "success",
+          "error",
+          "budget_paused",
+          "budget_killed"
+        ],
+        "title": "LlmCallStatusEnum"
+      },
+      "LlmProviderEnum": {
+        "type": "string",
+        "enum": [
+          "openai",
+          "anthropic",
+          "together"
+        ],
+        "title": "LlmProviderEnum"
+      },
+      "MacroBrief": {
+        "properties": {
+          "themes": {
+            "items": {
+              "$ref": "#/components/schemas/Theme"
+            },
+            "type": "array",
+            "title": "Themes"
+          },
+          "sector_calls": {
+            "items": {
+              "$ref": "#/components/schemas/SectorCall"
+            },
+            "type": "array",
+            "title": "Sector Calls"
+          },
+          "watch_items": {
+            "items": {
+              "$ref": "#/components/schemas/WatchItem"
+            },
+            "type": "array",
+            "title": "Watch Items"
+          },
+          "cited_claims": {
+            "items": {
+              "$ref": "#/components/schemas/CitedClaim"
+            },
+            "type": "array",
+            "title": "Cited Claims"
+          },
+          "proposed_hypotheses": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedHypothesis"
+            },
+            "type": "array",
+            "title": "Proposed Hypotheses"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          },
+          "verifier_status": {
+            "$ref": "#/components/schemas/VerifierStatus"
+          },
+          "regeneration_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Regeneration Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "themes",
+          "sector_calls",
+          "watch_items",
+          "cited_claims",
+          "proposed_hypotheses",
+          "confidence",
+          "evidence_ids",
+          "verifier_status",
+          "regeneration_count"
+        ],
+        "title": "MacroBrief"
+      },
+      "MacroBriefPublic": {
+        "properties": {
+          "brief": {
+            "$ref": "#/components/schemas/MacroBrief"
+          },
+          "chunks": {
+            "items": {
+              "$ref": "#/components/schemas/ChunkLookup"
+            },
+            "type": "array",
+            "title": "Chunks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "brief",
+          "chunks"
+        ],
+        "title": "MacroBriefPublic"
+      },
+      "MacroBriefScope": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "macro",
+            "title": "Kind"
+          },
+          "universe": {
+            "type": "string",
+            "const": "us_equities",
+            "title": "Universe"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "universe"
+        ],
+        "title": "MacroBriefScope"
+      },
+      "NotReadyResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "not_ready",
+            "title": "Status"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "reason"
+        ],
+        "title": "NotReadyResponse"
+      },
+      "OrderSideEnum": {
+        "type": "string",
+        "enum": [
+          "buy",
+          "sell"
+        ],
+        "title": "OrderSideEnum"
+      },
+      "OrderStatusEnum": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "accepted",
+          "filled",
+          "cancelled",
+          "rejected"
+        ],
+        "title": "OrderStatusEnum"
+      },
+      "OrderTypeEnum": {
+        "type": "string",
+        "enum": [
+          "market"
+        ],
+        "title": "OrderTypeEnum"
+      },
+      "PaperOrderPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "portfolio_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Portfolio Id"
+          },
+          "ticker": {
+            "type": "string",
+            "title": "Ticker"
+          },
+          "side": {
+            "$ref": "#/components/schemas/OrderSideEnum"
+          },
+          "quantity": {
+            "type": "integer",
+            "title": "Quantity"
+          },
+          "order_type": {
+            "$ref": "#/components/schemas/OrderTypeEnum"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrderStatusEnum"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Submitted At"
+          },
+          "filled_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filled At"
+          },
+          "filled_price_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filled Price Cents"
+          },
+          "source_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Run Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "portfolio_id",
+          "ticker",
+          "side",
+          "quantity",
+          "order_type",
+          "status",
+          "submitted_at",
+          "filled_at",
+          "filled_price_cents",
+          "source_run_id"
+        ],
+        "title": "PaperOrderPublic"
+      },
+      "PaperPortfolioSnapshot": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "cash_cents": {
+            "type": "integer",
+            "title": "Cash Cents"
+          },
+          "equity_cents": {
+            "type": "integer",
+            "title": "Equity Cents"
+          },
+          "unrealized_pl_cents": {
+            "type": "integer",
+            "title": "Unrealized Pl Cents"
+          },
+          "realized_pl_cents": {
+            "type": "integer",
+            "title": "Realized Pl Cents"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/PaperPositionPublic"
+            },
+            "type": "array",
+            "title": "Positions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "cash_cents",
+          "equity_cents",
+          "unrealized_pl_cents",
+          "realized_pl_cents",
+          "positions"
+        ],
+        "title": "PaperPortfolioSnapshot"
+      },
+      "PaperPositionPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "portfolio_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Portfolio Id"
+          },
+          "ticker": {
+            "type": "string",
+            "title": "Ticker"
+          },
+          "quantity": {
+            "type": "integer",
+            "title": "Quantity"
+          },
+          "avg_cost_cents": {
+            "type": "integer",
+            "title": "Avg Cost Cents"
+          },
+          "mark_cents": {
+            "type": "integer",
+            "title": "Mark Cents"
+          },
+          "opened_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Opened At"
+          },
+          "closed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "portfolio_id",
+          "ticker",
+          "quantity",
+          "avg_cost_cents",
+          "mark_cents",
+          "opened_at",
+          "closed_at"
+        ],
+        "title": "PaperPositionPublic"
+      },
+      "ProposedHypothesis": {
+        "properties": {
+          "claim_text": {
+            "type": "string",
+            "title": "Claim Text"
+          },
+          "scope_entity_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Scope Entity Ids"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "claim_text",
+          "scope_entity_ids",
+          "evidence_ids"
+        ],
+        "title": "ProposedHypothesis"
+      },
+      "ProvenanceStatusEnum": {
+        "type": "string",
+        "enum": [
+          "success",
+          "failure",
+          "partial"
+        ],
+        "title": "ProvenanceStatusEnum"
+      },
+      "ProviderCheckPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "tool": {
+            "type": "string",
+            "title": "Tool"
+          },
+          "ticker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticker"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "latency_ms": {
+            "type": "integer",
+            "title": "Latency Ms"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProviderCheckStatusEnum"
+          },
+          "sample_count": {
+            "type": "integer",
+            "title": "Sample Count"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "provider",
+          "tool",
+          "ticker",
+          "at",
+          "latency_ms",
+          "status",
+          "sample_count",
+          "as_of",
+          "error_message"
+        ],
+        "title": "ProviderCheckPublic"
+      },
+      "ProviderCheckStatusEnum": {
+        "type": "string",
+        "enum": [
+          "success",
+          "failure",
+          "partial"
+        ],
+        "title": "ProviderCheckStatusEnum"
+      },
+      "ProviderMatrix": {
+        "properties": {
+          "providers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Providers"
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tools"
+          },
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderMatrixCell"
+            },
+            "type": "array",
+            "title": "Cells"
+          }
+        },
+        "type": "object",
+        "required": [
+          "providers",
+          "tools",
+          "cells"
+        ],
+        "title": "ProviderMatrix"
+      },
+      "ProviderMatrixCell": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "tool": {
+            "type": "string",
+            "title": "Tool"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProviderCheckStatusEnum"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "latency_ms": {
+            "type": "integer",
+            "title": "Latency Ms"
+          },
+          "sample_count": {
+            "type": "integer",
+            "title": "Sample Count"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider",
+          "tool",
+          "status",
+          "at",
+          "latency_ms",
+          "sample_count",
+          "as_of"
+        ],
+        "title": "ProviderMatrixCell"
+      },
+      "ReadyResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ready",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "ReadyResponse"
+      },
+      "ResearchRunDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "ticker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticker"
+          },
+          "trade_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Trade Date"
+          },
+          "strategy": {
+            "$ref": "#/components/schemas/StrategyEnum"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatusEnum"
+          },
+          "config": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Config"
+          },
+          "final_rating": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FinalRatingEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "final_decision_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Decision Summary"
+          },
+          "wall_clock_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wall Clock Ms"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "reports": {
+            "items": {
+              "$ref": "#/components/schemas/RunReportPublic"
+            },
+            "type": "array",
+            "title": "Reports"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/RunEventPublic"
+            },
+            "type": "array",
+            "title": "Events"
+          },
+          "provenance": {
+            "items": {
+              "$ref": "#/components/schemas/SourceProvenancePublic"
+            },
+            "type": "array",
+            "title": "Provenance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "ticker",
+          "trade_date",
+          "strategy",
+          "status",
+          "config",
+          "final_rating",
+          "final_decision_summary",
+          "wall_clock_ms",
+          "error_message",
+          "created_at",
+          "updated_at",
+          "started_at",
+          "finished_at",
+          "reports",
+          "events",
+          "provenance"
+        ],
+        "title": "ResearchRunDetail"
+      },
+      "ResearchRunSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "ticker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticker"
+          },
+          "strategy": {
+            "$ref": "#/components/schemas/StrategyEnum"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatusEnum"
+          },
+          "final_rating": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FinalRatingEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "queue_position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue Position"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "ticker",
+          "strategy",
+          "status",
+          "final_rating",
+          "created_at"
+        ],
+        "title": "ResearchRunSummary"
+      },
+      "RunEventLevelEnum": {
+        "type": "string",
+        "enum": [
+          "info",
+          "warn",
+          "err"
+        ],
+        "title": "RunEventLevelEnum"
+      },
+      "RunEventPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "level": {
+            "$ref": "#/components/schemas/RunEventLevelEnum"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "run_id",
+          "at",
+          "level",
+          "message",
+          "data"
+        ],
+        "title": "RunEventPublic"
+      },
+      "RunReportPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "analyst": {
+            "$ref": "#/components/schemas/AnalystKindEnum"
+          },
+          "markdown": {
+            "type": "string",
+            "title": "Markdown"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "run_id",
+          "analyst",
+          "markdown",
+          "created_at"
+        ],
+        "title": "RunReportPublic"
+      },
+      "RunStatusEnum": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "running",
+          "succeeded",
+          "failed",
+          "cancelled",
+          "paused"
+        ],
+        "title": "RunStatusEnum"
+      },
+      "ScreenerResultPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "screener_run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Screener Run Id"
+          },
+          "ticker": {
+            "type": "string",
+            "title": "Ticker"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "factor_scores": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Factor Scores"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "screener_run_id",
+          "ticker",
+          "score",
+          "factor_scores"
+        ],
+        "title": "ScreenerResultPublic"
+      },
+      "ScreenerRunPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "universe": {
+            "type": "string",
+            "title": "Universe"
+          },
+          "factor_weights": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Factor Weights"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "result_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "universe",
+          "factor_weights",
+          "created_at",
+          "finished_at",
+          "result_count"
+        ],
+        "title": "ScreenerRunPublic"
+      },
+      "ScreenerRunRequest": {
+        "properties": {
+          "universe": {
+            "$ref": "#/components/schemas/ScreenerUniverseEnum"
+          },
+          "watchlist_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Watchlist Id"
+          },
+          "factor_weights": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Factor Weights"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "default": 50
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "universe"
+        ],
+        "title": "ScreenerRunRequest"
+      },
+      "ScreenerRunResponse": {
+        "properties": {
+          "screener_run": {
+            "$ref": "#/components/schemas/ScreenerRunPublic"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/ScreenerResultPublic"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "screener_run",
+          "results"
+        ],
+        "title": "ScreenerRunResponse"
+      },
+      "ScreenerUniverseEnum": {
+        "type": "string",
+        "enum": [
+          "sp500",
+          "nasdaq100",
+          "watchlist"
+        ],
+        "title": "ScreenerUniverseEnum"
+      },
+      "SectorCall": {
+        "properties": {
+          "sector_entity_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Sector Entity Id"
+          },
+          "sector_name": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Sector Name"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/SectorCallDirection"
+          },
+          "conviction": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Conviction"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sector_entity_id",
+          "sector_name",
+          "direction",
+          "conviction",
+          "evidence_ids"
+        ],
+        "title": "SectorCall"
+      },
+      "SectorCallDirection": {
+        "type": "string",
+        "enum": [
+          "overweight",
+          "underweight",
+          "neutral"
+        ],
+        "title": "SectorCallDirection"
+      },
+      "SourceProvenancePublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "tool": {
+            "type": "string",
+            "title": "Tool"
+          },
+          "ticker": {
+            "type": "string",
+            "title": "Ticker"
+          },
+          "request_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Request At"
+          },
+          "latency_ms": {
+            "type": "integer",
+            "title": "Latency Ms"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProvenanceStatusEnum"
+          },
+          "sample_count": {
+            "type": "integer",
+            "title": "Sample Count"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "run_id",
+          "provider",
+          "tool",
+          "ticker",
+          "request_at",
+          "latency_ms",
+          "status",
+          "sample_count",
+          "as_of",
+          "error_message"
+        ],
+        "title": "SourceProvenancePublic"
+      },
+      "StrategyEnum": {
+        "type": "string",
+        "enum": [
+          "tradingagents",
+          "funnel_research"
+        ],
+        "title": "StrategyEnum"
+      },
+      "Theme": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "evidence_ids",
+          "confidence"
+        ],
+        "title": "Theme"
+      },
+      "UpdateApplicationSettingsRequest": {
+        "properties": {
+          "llm_provider": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LlmProviderEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "llm_model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Model"
+          },
+          "llm_api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Api Key"
+          },
+          "alpha_vantage_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alpha Vantage Key"
+          },
+          "default_analyst_set": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Analyst Set"
+          },
+          "default_depth": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Depth"
+          },
+          "default_model": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Model"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "UpdateApplicationSettingsRequest"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VerifierStatus": {
+        "type": "string",
+        "enum": [
+          "verified",
+          "quote_unverified"
+        ],
+        "title": "VerifierStatus"
+      },
+      "WatchItem": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "reason",
+          "evidence_ids"
+        ],
+        "title": "WatchItem"
+      },
+      "WatchlistCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "WatchlistCreate"
+      },
+      "WatchlistDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/WatchlistMemberPublic"
+            },
+            "type": "array",
+            "title": "Members"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "members"
+        ],
+        "title": "WatchlistDetail"
+      },
+      "WatchlistMemberAdd": {
+        "properties": {
+          "ticker": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 1,
+            "title": "Ticker"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ticker"
+        ],
+        "title": "WatchlistMemberAdd"
+      },
+      "WatchlistMemberPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "watchlist_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Watchlist Id"
+          },
+          "ticker": {
+            "type": "string",
+            "title": "Ticker"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "added_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Added At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "watchlist_id",
+          "ticker",
+          "notes",
+          "added_at"
+        ],
+        "title": "WatchlistMemberPublic"
+      },
+      "WatchlistPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "created_at"
+        ],
+        "title": "WatchlistPublic"
+      }
+    }
+  }
+}
