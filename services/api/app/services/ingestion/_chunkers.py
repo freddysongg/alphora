@@ -2,6 +2,7 @@ import hashlib
 from dataclasses import dataclass
 from typing import Any
 
+from app.services.source_clients.ainvest import AinvestCongressResponse
 from app.services.source_clients.congress_gov import CongressBill
 from app.services.source_clients.fred import FredSeriesObservations
 from app.services.source_clients.kalshi import KalshiMarket
@@ -289,8 +290,49 @@ def chunk_tiingo_news_items(items: list[TiingoNewsItem]) -> list[ChunkDraft]:
     return drafts
 
 
+def chunk_ainvest_congress_transactions(
+    *,
+    ticker: str,
+    payload: AinvestCongressResponse,
+) -> list[ChunkDraft]:
+    drafts: list[ChunkDraft] = []
+    for index, txn in enumerate(payload.data.data):
+        text = (
+            f"Ainvest congress transaction ticker={ticker} "
+            f"name={txn.name} party={txn.party} state={txn.state} "
+            f"trade_date={txn.trade_date.isoformat()} "
+            f"filing_date={txn.filing_date.isoformat()} "
+            f"reporting_gap={txn.reporting_gap} "
+            f"trade_type={txn.trade_type} size={txn.size}"
+        )
+        attributes: dict[str, Any] = {
+            "source": "ainvest_congress",
+            "ticker": ticker,
+            "name": txn.name,
+            "party": txn.party,
+            "state": txn.state,
+            "trade_date": txn.trade_date.isoformat(),
+            "filing_date": txn.filing_date.isoformat(),
+            "reporting_gap": txn.reporting_gap,
+            "trade_type": txn.trade_type,
+            "size": txn.size,
+        }
+        drafts.append(
+            ChunkDraft(
+                chunk_index=index,
+                text=text,
+                start_offset=None,
+                end_offset=None,
+                attributes=attributes,
+                content_hash=_hash_text(text),
+            )
+        )
+    return drafts
+
+
 __all__ = [
     "ChunkDraft",
+    "chunk_ainvest_congress_transactions",
     "chunk_congress_bills",
     "chunk_fred_observations",
     "chunk_kalshi_markets",

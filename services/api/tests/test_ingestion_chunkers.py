@@ -318,3 +318,76 @@ def test_chunk_tiingo_news_items_emits_one_chunk_per_article() -> None:
     assert chunks[0].attributes["source"] == "tiingo_news"
     assert chunks[0].attributes["outlet"] == "Reuters"
     assert chunks[0].attributes["tickers"] == ["spy"]
+
+
+def test_chunk_ainvest_congress_transactions_emits_one_chunk_per_transaction() -> None:
+    from datetime import date
+
+    from app.services.ingestion._chunkers import (
+        chunk_ainvest_congress_transactions,
+    )
+    from app.services.source_clients.ainvest import (
+        AinvestCongressData,
+        AinvestCongressResponse,
+        AinvestCongressTransaction,
+    )
+
+    payload = AinvestCongressResponse(
+        data=AinvestCongressData(
+            data=[
+                AinvestCongressTransaction(
+                    name="Jane Doe",
+                    party="D",
+                    state="CA",
+                    trade_date=date(2026, 4, 1),
+                    filing_date=date(2026, 4, 15),
+                    reporting_gap="14 days",
+                    trade_type="purchase",
+                    size="$1,001 - $15,000",
+                ),
+                AinvestCongressTransaction(
+                    name="John Roe",
+                    party="R",
+                    state="TX",
+                    trade_date=date(2026, 4, 2),
+                    filing_date=date(2026, 4, 16),
+                    reporting_gap="14 days",
+                    trade_type="sale",
+                    size="$15,001 - $50,000",
+                ),
+            ]
+        ),
+        status_code=200,
+        status_msg="ok",
+    )
+
+    chunks = chunk_ainvest_congress_transactions(ticker="AAPL", payload=payload)
+
+    assert len(chunks) == 2
+    assert chunks[0].chunk_index == 0
+    assert chunks[1].chunk_index == 1
+    assert chunks[0].content_hash != chunks[1].content_hash
+    assert chunks[0].attributes["source"] == "ainvest_congress"
+    assert chunks[0].attributes["ticker"] == "AAPL"
+    assert chunks[0].attributes["trade_type"] == "purchase"
+    assert chunks[0].attributes["filing_date"] == "2026-04-15"
+    assert "Jane Doe" in chunks[0].text
+    assert "AAPL" in chunks[0].text
+
+
+def test_chunk_ainvest_congress_transactions_empty_returns_empty() -> None:
+    from app.services.ingestion._chunkers import (
+        chunk_ainvest_congress_transactions,
+    )
+    from app.services.source_clients.ainvest import (
+        AinvestCongressData,
+        AinvestCongressResponse,
+    )
+
+    payload = AinvestCongressResponse(
+        data=AinvestCongressData(data=[]),
+        status_code=200,
+        status_msg="ok",
+    )
+
+    assert chunk_ainvest_congress_transactions(ticker="AAPL", payload=payload) == []
