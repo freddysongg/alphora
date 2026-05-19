@@ -8,9 +8,19 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.db.models_runs import ResearchRun, RunStatus
+from app.db.models_macro import MacroBrief as MacroBriefRow
+from app.db.models_runs import ResearchRun, RunEventLevel, RunStatus
 from app.schemas.extraction import BootstrappedEntity, EvidenceChunkRef
-from app.schemas.macro_brief import MacroBrief, MacroBriefScope, VerifierStatus
+from app.schemas.macro_brief import (
+    CitedClaim,
+    MacroBrief,
+    MacroBriefScope,
+    ProposedHypothesis,
+    SectorCall,
+    Theme,
+    VerifierStatus,
+    WatchItem,
+)
 from app.schemas.sector_brief import (
     JudgePublic,
     JudgeStatus,
@@ -19,7 +29,7 @@ from app.schemas.sector_brief import (
 )
 from app.services.entity_bootstrap.gics_sectors import load_top_level_sector_names
 from app.services.llm.client import LlmClient, LlmCompletionResult
-from app.services.run_events import emit_stage_event
+from app.services.run_events import emit_run_event, emit_stage_event
 from app.services.run_orchestrator import RunOrchestrator, resolve_stage_position
 from app.services.strategies.funnel_research._bootstrap import run as bootstrap_run
 from app.services.strategies.funnel_research._digest import build_digest, render_markdown
@@ -190,6 +200,12 @@ async def run_macro_brief(
     source clients are isolated to warn-level events; total source failure,
     invalid scope, all sector fan-outs failing, or all company fan-outs
     failing marks the run as failed via orchestrator.fail.
+
+    Resume is stage-aware: a run whose `macro_briefs` row is already
+    persisted skips synthesize/verify/persist on re-entry and reuses the
+    persisted brief and judge for the downstream fan-out stages. Ingest +
+    digest still run (idempotent on the evidence rows, deterministic on
+    the digest). A `run_resumed` info event marks the boundary.
     """
     active_fetcher = fetcher or default_fetcher()
     constituents = (
@@ -251,12 +267,24 @@ async def _run_funnel(
         run.status = RunStatus.running
         if run.started_at is None:
             run.started_at = datetime.now(UTC)
-        _emit_funnel_stage(
-            session,
-            run_id=run_id,
-            stage_name="ingest",
-            message="stage 1/9: ingest",
+        persisted_macro = await _load_persisted_macro_brief(
+            session=session, run_id=run_id
         )
+        if persisted_macro is not None:
+            emit_run_event(
+                session,
+                run_id=run_id,
+                level=RunEventLevel.info,
+                message="run resumed past macro brief stage",
+                data={"event": "run_resumed", "stage": "macro_brief"},
+            )
+        else:
+            _emit_funnel_stage(
+                session,
+                run_id=run_id,
+                stage_name="ingest",
+                message="stage 1/9: ingest",
+            )
         await session.commit()
 
     async with session_factory() as session:
@@ -290,108 +318,112 @@ async def _run_funnel(
         for name, entity_id in sector_entity_ids.items():
             chunk_id_capture[name] = entity_id
 
-    async with session_factory() as session:
-        _emit_funnel_stage(
-            session,
-            run_id=run_id,
-            stage_name="digest",
-            message="stage 2/9: digest",
-        )
-        await session.commit()
+    if persisted_macro is None:
+        async with session_factory() as session:
+            _emit_funnel_stage(
+                session,
+                run_id=run_id,
+                stage_name="digest",
+                message="stage 2/9: digest",
+            )
+            await session.commit()
 
     digest_markdown = render_markdown(build_digest(ingest_result.payloads))
     evidence_ids = [evidence.evidence_id for evidence in ingest_result.evidence]
 
-    async with session_factory() as session:
-        _emit_funnel_stage(
-            session,
-            run_id=run_id,
-            stage_name="synthesize",
-            message="stage 3/9: synthesize",
-        )
-        await session.commit()
-
-    async with session_factory() as session:
-        try:
-            initial_brief = await call_synthesis(
-                session=session,
+    if persisted_macro is not None:
+        macro_brief, macro_judge = persisted_macro
+    else:
+        async with session_factory() as session:
+            _emit_funnel_stage(
+                session,
                 run_id=run_id,
-                scope=scope,
-                digest_markdown=digest_markdown,
-                chunks=ingest_result.chunks,
-                sector_entity_ids=sector_entity_ids,
-                llm_complete=llm_client.complete,
-                orchestrator_pause=orchestrator.pause,
-                orchestrator_fail=orchestrator.fail,
-                evidence_ids=evidence_ids,
-                regeneration_feedback=None,
+                stage_name="synthesize",
+                message="stage 3/9: synthesize",
             )
-        except FunnelResearchError:
             await session.commit()
-            raise
 
-        _emit_funnel_stage(
-            session,
-            run_id=run_id,
-            stage_name="verify",
-            message="stage 4/9: verify",
-        )
+        async with session_factory() as session:
+            try:
+                initial_brief = await call_synthesis(
+                    session=session,
+                    run_id=run_id,
+                    scope=scope,
+                    digest_markdown=digest_markdown,
+                    chunks=ingest_result.chunks,
+                    sector_entity_ids=sector_entity_ids,
+                    llm_complete=llm_client.complete,
+                    orchestrator_pause=orchestrator.pause,
+                    orchestrator_fail=orchestrator.fail,
+                    evidence_ids=evidence_ids,
+                    regeneration_feedback=None,
+                )
+            except FunnelResearchError:
+                await session.commit()
+                raise
 
-        async def regenerate(reasons: list[str]) -> MacroBrief:
-            return await call_synthesis(
-                session=session,
+            _emit_funnel_stage(
+                session,
                 run_id=run_id,
-                scope=scope,
-                digest_markdown=digest_markdown,
-                chunks=ingest_result.chunks,
-                sector_entity_ids=sector_entity_ids,
-                llm_complete=llm_client.complete,
-                orchestrator_pause=orchestrator.pause,
-                orchestrator_fail=orchestrator.fail,
-                evidence_ids=evidence_ids,
-                regeneration_feedback=reasons,
+                stage_name="verify",
+                message="stage 4/9: verify",
             )
 
-        regen_result = await run_regen_loop(
-            session=session,
-            run_id=run_id,
-            initial_brief=initial_brief,
-            chunks=ingest_result.chunks,
-            sector_entity_ids=sector_entity_ids,
-            regenerate=regenerate,
-            allowed_sector_names=allowed_sector_names,
-        )
+            async def regenerate(reasons: list[str]) -> MacroBrief:
+                return await call_synthesis(
+                    session=session,
+                    run_id=run_id,
+                    scope=scope,
+                    digest_markdown=digest_markdown,
+                    chunks=ingest_result.chunks,
+                    sector_entity_ids=sector_entity_ids,
+                    llm_complete=llm_client.complete,
+                    orchestrator_pause=orchestrator.pause,
+                    orchestrator_fail=orchestrator.fail,
+                    evidence_ids=evidence_ids,
+                    regeneration_feedback=reasons,
+                )
 
-        macro_brief, macro_judge = await _judge_macro_with_optional_regen(
-            session=session,
-            run_id=run_id,
-            regen_result=regen_result,
-            chunks=ingest_result.chunks,
-            sector_entity_ids=sector_entity_ids,
-            allowed_sector_names=allowed_sector_names,
-            llm_complete=llm_client.complete,
-            regenerate=regenerate,
-            orchestrator_pause=orchestrator.pause,
-            orchestrator_fail=orchestrator.fail,
-        )
-        await session.commit()
+            regen_result = await run_regen_loop(
+                session=session,
+                run_id=run_id,
+                initial_brief=initial_brief,
+                chunks=ingest_result.chunks,
+                sector_entity_ids=sector_entity_ids,
+                regenerate=regenerate,
+                allowed_sector_names=allowed_sector_names,
+            )
 
-    async with session_factory() as session:
-        await persist_hypotheses(
-            session=session,
-            run_id=run_id,
-            proposed=list(macro_brief.proposed_hypotheses),
-        )
-        wall_clock_ms = int((time.monotonic() - started) * 1000)
-        await persist_macro_brief(
-            session=session,
-            run_id=run_id,
-            brief=macro_brief,
-            wall_clock_ms=wall_clock_ms,
-            mark_succeeded=False,
-            judge=macro_judge,
-        )
-        await session.commit()
+            macro_brief, macro_judge = await _judge_macro_with_optional_regen(
+                session=session,
+                run_id=run_id,
+                regen_result=regen_result,
+                chunks=ingest_result.chunks,
+                sector_entity_ids=sector_entity_ids,
+                allowed_sector_names=allowed_sector_names,
+                llm_complete=llm_client.complete,
+                regenerate=regenerate,
+                orchestrator_pause=orchestrator.pause,
+                orchestrator_fail=orchestrator.fail,
+            )
+            await session.commit()
+
+        async with session_factory() as session:
+            await persist_hypotheses(
+                session=session,
+                run_id=run_id,
+                proposed=list(macro_brief.proposed_hypotheses),
+            )
+            wall_clock_ms = int((time.monotonic() - started) * 1000)
+            await persist_macro_brief(
+                session=session,
+                run_id=run_id,
+                brief=macro_brief,
+                wall_clock_ms=wall_clock_ms,
+                mark_succeeded=False,
+                judge=macro_judge,
+            )
+            await session.commit()
 
     async with session_factory() as session:
         _emit_funnel_stage(
@@ -517,6 +549,45 @@ def _all_companies_failed(outcome: CompanyFanoutOutcome) -> bool:
         outcome.selected_count > 0
         and outcome.failed_count == outcome.selected_count
     )
+
+
+async def _load_persisted_macro_brief(
+    *,
+    session: AsyncSession,
+    run_id: uuid.UUID,
+) -> tuple[MacroBrief, JudgePublic] | None:
+    """Hydrate a `MacroBrief` and `JudgePublic` from the persisted row.
+
+    Returns `None` when no row exists. Used by `_run_funnel` to skip
+    ingest/digest/synthesize/verify/persist when a paused run resumes after
+    Stage 1 already completed.
+    """
+    row = (
+        await session.execute(
+            select(MacroBriefRow).where(MacroBriefRow.run_id == run_id)
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        return None
+    brief = MacroBrief(
+        themes=[Theme.model_validate(t) for t in row.themes],
+        sector_calls=[SectorCall.model_validate(c) for c in row.sector_calls],
+        watch_items=[WatchItem.model_validate(w) for w in row.watch_items],
+        cited_claims=[CitedClaim.model_validate(c) for c in row.cited_claims],
+        proposed_hypotheses=[
+            ProposedHypothesis.model_validate(p) for p in row.proposed_hypotheses
+        ],
+        confidence=row.confidence,
+        evidence_ids=[uuid.UUID(e) for e in row.evidence_ids],
+        verifier_status=VerifierStatus(row.verifier_status),
+        regeneration_count=row.regeneration_count,
+    )
+    judge = JudgePublic(
+        status=JudgeStatus(row.judge_status),
+        reasons=list(row.judge_reasons or []),
+        call_id=row.judge_call_id,
+    )
+    return brief, judge
 
 
 async def _run_is_halted(

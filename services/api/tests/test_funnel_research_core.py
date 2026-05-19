@@ -277,6 +277,181 @@ async def test_run_macro_brief_invalid_scope_fails_run(initialized_schema: None)
 
 
 @pytest.mark.asyncio
+async def test_run_macro_brief_resume_with_persisted_macro_skips_synthesis(
+    initialized_schema: None,
+) -> None:
+    """A resumed funnel run with a persisted macro brief must not retry
+    synthesis or duplicate the macro_briefs row.
+    """
+    from app.services.run_orchestrator import RunOrchestrator
+    from app.services.strategies.funnel_research._ingest import SourceFetcher
+    from app.services.strategies.funnel_research.core import run_macro_brief
+    from app.trading_agents.adapter import TradingAgentsAdapter
+
+    run_id = uuid.uuid4()
+    async with session_factory() as setup:
+        run = ResearchRun(
+            id=run_id,
+            ticker=None,
+            trade_date=date(2026, 5, 18),
+            strategy=Strategy.funnel_research.value,
+            status=RunStatus.queued,
+            config={},
+            scope_payload={"kind": "macro", "universe": "us_equities"},
+        )
+        setup.add(run)
+        await setup.flush()
+        macro_row = MacroBriefRow(
+            run_id=run_id,
+            themes=[],
+            sector_calls=[],
+            watch_items=[],
+            cited_claims=[],
+            proposed_hypotheses=[],
+            confidence=0.5,
+            verifier_status="verified",
+            regeneration_count=0,
+            evidence_ids=[],
+            judge_status="passed",
+            judge_reasons=None,
+            judge_call_id=None,
+        )
+        setup.add(macro_row)
+        await setup.commit()
+
+    from app.services.source_clients.fred import (
+        FredObservation,
+        FredSeriesObservations,
+    )
+
+    fred_payload = FredSeriesObservations(
+        series_id="CPIAUCSL",
+        observation_start=date(2025, 1, 1),
+        observation_end=date(2026, 1, 1),
+        count=1,
+        observations=[
+            FredObservation(
+                date=date(2026, 1, 1),
+                value=Decimal("310.0"),
+                realtime_start=date(2026, 1, 15),
+                realtime_end=date(2026, 12, 31),
+            )
+        ],
+    )
+    fetcher = SourceFetcher(
+        fred=lambda client, series_id: (fred_payload, "a" * 64),
+        polymarket=lambda client, limit: ([], "b" * 64),
+        kalshi=lambda client, limit: ([], "c" * 64),
+        congress=lambda client, limit: ([], "d" * 64),
+        tiingo_news=lambda client, limit: ([], "e" * 64),
+    )
+
+    class StubLlm:
+        def __init__(self) -> None:
+            self.synthesis_calls = 0
+            self.judge_calls = 0
+
+        async def complete(self, **kwargs: Any) -> LlmCompletionResult:
+            messages = kwargs.get("messages", [])
+            is_judge = any(
+                "Brief kind:" in getattr(m, "content", "") for m in messages
+            )
+            if not is_judge:
+                self.synthesis_calls += 1
+                raise AssertionError(
+                    "synthesis llm must not be called when macro brief is persisted"
+                )
+            self.judge_calls += 1
+            session = kwargs["session"]
+            log = LlmCallLog(
+                id=uuid.uuid4(),
+                run_id=kwargs.get("run_id"),
+                model=kwargs.get("model", "gpt-5-mini"),
+                prompt_hash="0" * 64,
+                input_hash="0" * 64,
+                input_tokens=10,
+                output_tokens=10,
+                cached_input_tokens=0,
+                reasoning_tokens=0,
+                cost_usd=Decimal("0.001"),
+                latency_ms=10,
+                status=LlmCallStatus.success,
+                evidence_ids=None,
+            )
+            session.add(log)
+            await session.flush()
+            return LlmCompletionResult(
+                content=json.dumps({"status": "passed", "reasons": []}),
+                model=kwargs.get("model", "gpt-5-mini"),
+                usage=TokenUsage(
+                    input_tokens=10,
+                    output_tokens=10,
+                    cached_input_tokens=0,
+                    reasoning_tokens=0,
+                ),
+                cost_usd=Decimal("0.001"),
+                latency_ms=10,
+                log_id=log.id,
+            )
+
+    llm = StubLlm()
+    orchestrator = RunOrchestrator(
+        session_factory=session_factory, adapter=TradingAgentsAdapter()
+    )
+
+    async with httpx.AsyncClient() as http_client:
+        await run_macro_brief(
+            session_factory=session_factory,
+            run_id=run_id,
+            llm_client=llm,
+            orchestrator=orchestrator,
+            http_client=http_client,
+            fetcher=fetcher,
+            sector_constituents={},
+        )
+
+    assert llm.synthesis_calls == 0
+    assert llm.judge_calls == 1
+
+    async with session_factory() as session:
+        loaded = (
+            await session.execute(select(ResearchRun).where(ResearchRun.id == run_id))
+        ).scalar_one()
+        assert loaded.status == RunStatus.succeeded
+
+        macro_count = (
+            await session.execute(
+                select(MacroBriefRow).where(MacroBriefRow.run_id == run_id)
+            )
+        ).scalars().all()
+        assert len(macro_count) == 1
+
+        events = (
+            await session.execute(
+                select(RunEvent).where(RunEvent.run_id == run_id)
+            )
+        ).scalars().all()
+
+    stage_names = [
+        (event.data or {}).get("stage_name")
+        for event in events
+        if (event.data or {}).get("event") == "stage"
+    ]
+    assert "ingest" not in stage_names
+    assert "synthesize" not in stage_names
+    assert "verify" not in stage_names
+    assert "portfolio_brief" in stage_names
+    assert "consolidate" in stage_names
+    assert "succeeded" in stage_names
+
+    assert any(
+        (event.data or {}).get("event") == "run_resumed"
+        and (event.data or {}).get("stage") == "macro_brief"
+        for event in events
+    )
+
+
+@pytest.mark.asyncio
 async def test_run_macro_brief_invalid_llm_json_marks_run_failed(
     initialized_schema: None,
 ) -> None:
