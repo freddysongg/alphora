@@ -38,6 +38,7 @@ from app.db.models_paper import (
     PaperPortfolio,
     PaperPosition,
 )
+from app.db.models_portfolio import PortfolioBrief
 from app.db.models_runs import (
     AnalystKind,
     FinalRating,
@@ -82,6 +83,7 @@ __all__ = [
     "PaperOrder",
     "PaperPortfolio",
     "PaperPosition",
+    "PortfolioBrief",
     "ProposedType",
     "ProposedTypeKind",
     "ProposedTypeStatus",
