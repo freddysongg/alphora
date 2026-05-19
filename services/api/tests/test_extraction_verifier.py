@@ -4,9 +4,13 @@ from app.db.models_graph import EntityType, RelationType
 from app.schemas.extraction import CandidateEntity, CandidateRelation
 
 
-def _candidate_entity(quote: str, *, text_span: str = "X") -> CandidateEntity:
+def _candidate_entity(
+    quote: str,
+    *,
+    text_span: str | None = None,
+) -> CandidateEntity:
     return CandidateEntity(
-        text_span=text_span,
+        text_span=text_span if text_span is not None else quote,
         suggested_type=EntityType.company,
         context_excerpt="...",
         exact_quote=quote,
@@ -15,11 +19,16 @@ def _candidate_entity(quote: str, *, text_span: str = "X") -> CandidateEntity:
     )
 
 
-def _candidate_relation(quote: str, *, subj_span: str = "X") -> CandidateRelation:
+def _candidate_relation(
+    quote: str,
+    *,
+    subj_span: str | None = None,
+    obj_span: str | None = None,
+) -> CandidateRelation:
     return CandidateRelation(
-        subj_span=subj_span,
+        subj_span=subj_span if subj_span is not None else quote,
         predicate=RelationType.affects,
-        obj_span="Y",
+        obj_span=obj_span if obj_span is not None else quote,
         exact_quote=quote,
         chunk_id=uuid.uuid4(),
         is_explicit=True,
@@ -338,11 +347,155 @@ def test_verifier_preserves_order_of_kept_entities() -> None:
     result = verify_candidates(
         chunk_text=chunk_text,
         candidate_entities=[
-            _candidate_entity("alpha", text_span="A"),
-            _candidate_entity("beta", text_span="B"),
-            _candidate_entity("gamma", text_span="C"),
+            _candidate_entity("alpha"),
+            _candidate_entity("beta"),
+            _candidate_entity("gamma"),
         ],
         candidate_relations=[],
     )
 
-    assert [c.text_span for c in result.kept_entities] == ["A", "B", "C"]
+    assert [c.text_span for c in result.kept_entities] == ["alpha", "beta", "gamma"]
+
+
+def test_verifier_rejects_entity_when_text_span_not_in_quote() -> None:
+    from app.services.extraction._verifier import verify_candidates
+
+    chunk_text = "Apple Inc. reported record revenue in Q4."
+    result = verify_candidates(
+        chunk_text=chunk_text,
+        candidate_entities=[
+            _candidate_entity(
+                "Apple Inc. reported record revenue",
+                text_span="Microsoft",
+            )
+        ],
+        candidate_relations=[],
+    )
+
+    assert result.kept_entities == []
+    assert len(result.rejection_reasons) == 1
+    reason = result.rejection_reasons[0]
+    assert "text_span" in reason
+    assert "Microsoft" in reason
+
+
+def test_verifier_rejects_relation_when_subj_span_not_in_quote() -> None:
+    from app.services.extraction._verifier import verify_candidates
+
+    chunk_text = "Apple supplies chips to its data centers."
+    result = verify_candidates(
+        chunk_text=chunk_text,
+        candidate_entities=[],
+        candidate_relations=[
+            _candidate_relation(
+                "Apple supplies chips to its data centers.",
+                subj_span="Microsoft",
+                obj_span="data centers",
+            )
+        ],
+    )
+
+    assert result.kept_relations == []
+    assert len(result.rejection_reasons) == 1
+    reason = result.rejection_reasons[0]
+    assert "subj_span" in reason
+    assert "Microsoft" in reason
+
+
+def test_verifier_rejects_relation_when_obj_span_not_in_quote() -> None:
+    from app.services.extraction._verifier import verify_candidates
+
+    chunk_text = "Apple supplies chips to its data centers."
+    result = verify_candidates(
+        chunk_text=chunk_text,
+        candidate_entities=[],
+        candidate_relations=[
+            _candidate_relation(
+                "Apple supplies chips to its data centers.",
+                subj_span="Apple",
+                obj_span="Foxconn",
+            )
+        ],
+    )
+
+    assert result.kept_relations == []
+    assert len(result.rejection_reasons) == 1
+    reason = result.rejection_reasons[0]
+    assert "obj_span" in reason
+    assert "Foxconn" in reason
+
+
+def test_verifier_keeps_entity_when_text_span_is_partial_match_in_quote() -> None:
+    from app.services.extraction._verifier import verify_candidates
+
+    chunk_text = "Apple Inc. reported record revenue in Q4."
+    result = verify_candidates(
+        chunk_text=chunk_text,
+        candidate_entities=[
+            _candidate_entity(
+                "Apple Inc. reported record revenue",
+                text_span="Apple Inc.",
+            )
+        ],
+        candidate_relations=[],
+    )
+
+    assert len(result.kept_entities) == 1
+
+
+def test_verifier_keeps_relation_when_both_spans_appear_in_quote() -> None:
+    from app.services.extraction._verifier import verify_candidates
+
+    chunk_text = "Apple supplies chips to its data centers."
+    result = verify_candidates(
+        chunk_text=chunk_text,
+        candidate_entities=[],
+        candidate_relations=[
+            _candidate_relation(
+                "Apple supplies chips to its data centers.",
+                subj_span="Apple",
+                obj_span="data centers",
+            )
+        ],
+    )
+
+    assert len(result.kept_relations) == 1
+    assert result.rejection_reasons == []
+
+
+def test_verifier_normalizes_whitespace_when_checking_text_span_in_quote() -> None:
+    from app.services.extraction._verifier import verify_candidates
+
+    chunk_text = "Apple Inc. reported record revenue."
+    result = verify_candidates(
+        chunk_text=chunk_text,
+        candidate_entities=[
+            _candidate_entity(
+                "Apple Inc. reported record revenue.",
+                text_span="Apple   Inc.",
+            )
+        ],
+        candidate_relations=[],
+    )
+
+    assert len(result.kept_entities) == 1
+
+
+def test_verifier_rejects_entity_with_empty_text_span_distinct_from_empty_quote() -> None:
+    from app.services.extraction._verifier import verify_candidates
+
+    chunk_text = "Apple Inc. reported record revenue."
+    result = verify_candidates(
+        chunk_text=chunk_text,
+        candidate_entities=[
+            _candidate_entity(
+                "Apple Inc. reported record revenue.",
+                text_span="   ",
+            )
+        ],
+        candidate_relations=[],
+    )
+
+    assert result.kept_entities == []
+    assert len(result.rejection_reasons) == 1
+    assert "text_span" in result.rejection_reasons[0]
