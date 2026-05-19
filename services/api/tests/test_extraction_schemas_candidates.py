@@ -5,35 +5,35 @@ import pytest
 
 
 def test_candidate_entity_carries_exact_quote() -> None:
-    from app.db.models_graph import EntityType
+    from app.schemas.common import EntityTypeEnum
     from app.schemas.extraction import CandidateEntity
 
     candidate = CandidateEntity(
         text_span="Apple",
-        suggested_type=EntityType.company,
+        suggested_type=EntityTypeEnum.company,
         context_excerpt="Apple unveiled a new product",
         exact_quote="Apple",
         chunk_id=uuid.uuid4(),
         extraction_confidence=0.92,
     )
     assert candidate.exact_quote == "Apple"
-    assert candidate.suggested_type == EntityType.company
+    assert candidate.suggested_type == EntityTypeEnum.company
 
 
 def test_candidate_relation_has_predicate_enum() -> None:
-    from app.db.models_graph import RelationType
+    from app.schemas.common import RelationTypeEnum
     from app.schemas.extraction import CandidateRelation
 
     rel = CandidateRelation(
         subj_span="Apple",
-        predicate=RelationType.regulated_by,
+        predicate=RelationTypeEnum.regulated_by,
         obj_span="SEC",
         exact_quote="Apple files annual reports with the SEC",
         chunk_id=uuid.uuid4(),
         is_explicit=True,
         extraction_confidence=0.88,
     )
-    assert rel.predicate == RelationType.regulated_by
+    assert rel.predicate == RelationTypeEnum.regulated_by
     assert rel.is_explicit is True
 
 
@@ -67,12 +67,12 @@ def test_extraction_module_all_is_sorted() -> None:
 
 
 def test_candidate_entity_is_immutable() -> None:
-    from app.db.models_graph import EntityType
+    from app.schemas.common import EntityTypeEnum
     from app.schemas.extraction import CandidateEntity
 
     candidate = CandidateEntity(
         text_span="Apple",
-        suggested_type=EntityType.company,
+        suggested_type=EntityTypeEnum.company,
         context_excerpt="...",
         exact_quote="Apple",
         chunk_id=uuid.uuid4(),
@@ -83,12 +83,12 @@ def test_candidate_entity_is_immutable() -> None:
 
 
 def test_candidate_relation_is_immutable() -> None:
-    from app.db.models_graph import RelationType
+    from app.schemas.common import RelationTypeEnum
     from app.schemas.extraction import CandidateRelation
 
     rel = CandidateRelation(
         subj_span="Apple",
-        predicate=RelationType.regulated_by,
+        predicate=RelationTypeEnum.regulated_by,
         obj_span="SEC",
         exact_quote="Apple is regulated by the SEC",
         chunk_id=uuid.uuid4(),
@@ -96,7 +96,7 @@ def test_candidate_relation_is_immutable() -> None:
         extraction_confidence=0.9,
     )
     with pytest.raises(pydantic.ValidationError):
-        rel.predicate = RelationType.affects  # type: ignore[misc]
+        rel.predicate = RelationTypeEnum.affects  # type: ignore[misc]
 
 
 def test_extraction_result_is_immutable() -> None:
