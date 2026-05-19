@@ -2,7 +2,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import update
+from sqlalchemy import delete, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models_graph import (
@@ -55,6 +55,14 @@ async def merge_entities(
             f"merged entity {command.merged_id} is already a tombstone"
         )
 
+    await session.execute(
+        delete(Relation).where(
+            or_(
+                (Relation.from_id == merged.id) & (Relation.to_id == surviving.id),
+                (Relation.from_id == surviving.id) & (Relation.to_id == merged.id),
+            )
+        )
+    )
     await session.execute(
         update(Relation)
         .where(Relation.from_id == merged.id)

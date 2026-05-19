@@ -177,6 +177,79 @@ async def test_merge_entities_rewires_relations_and_creates_tombstone(
     assert record.merge_id == merge_log[0].id
 
 
+async def test_merge_entities_does_not_leave_self_loop_for_direct_relations(
+    populated_session: AsyncSession,
+) -> None:
+    from sqlalchemy import select
+
+    from app.db.models_graph import Entity, EntityType, Relation, RelationType
+    from app.schemas.extraction import EntityMergeCommand
+    from app.services.entity_merge import merge_entities
+
+    async with populated_session.begin():
+        survivor_ref = await _seed_entity(
+            populated_session,
+            type=EntityType.company.value,
+            canonical_name="Acme Holdings",
+        )
+        duplicate_ref = await _seed_entity(
+            populated_session,
+            type=EntityType.company.value,
+            canonical_name="Acme",
+        )
+        third_ref = await _seed_entity(
+            populated_session,
+            type=EntityType.company.value,
+            canonical_name="Other Co.",
+        )
+        await _seed_relation(
+            populated_session,
+            from_id=duplicate_ref.id,
+            to_id=survivor_ref.id,
+            type=RelationType.subsidiary_of.value,
+        )
+        await _seed_relation(
+            populated_session,
+            from_id=survivor_ref.id,
+            to_id=duplicate_ref.id,
+            type=RelationType.mentioned_in.value,
+        )
+        await _seed_relation(
+            populated_session,
+            from_id=duplicate_ref.id,
+            to_id=third_ref.id,
+            type=RelationType.competes_with.value,
+        )
+
+    async with populated_session.begin():
+        await merge_entities(
+            session=populated_session,
+            command=EntityMergeCommand(
+                surviving_id=survivor_ref.id,
+                merged_id=duplicate_ref.id,
+                reason="duplicate",
+                merged_by="test",
+                reversible_until=None,
+            ),
+        )
+
+    async with populated_session.begin():
+        relations = (
+            (await populated_session.execute(select(Relation))).scalars().all()
+        )
+        survivor_row = await populated_session.get(Entity, survivor_ref.id)
+
+    assert survivor_row is not None
+    self_loops = [r for r in relations if r.from_id == r.to_id == survivor_ref.id]
+    assert self_loops == []
+    surviving_external = [
+        r for r in relations if survivor_ref.id in (r.from_id, r.to_id)
+    ]
+    assert len(surviving_external) == 1
+    assert surviving_external[0].from_id == survivor_ref.id
+    assert surviving_external[0].to_id == third_ref.id
+
+
 async def test_merge_entities_rejects_same_id(populated_session: AsyncSession) -> None:
     from app.db.models_graph import EntityType
     from app.schemas.extraction import EntityMergeCommand
