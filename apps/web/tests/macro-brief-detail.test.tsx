@@ -13,6 +13,8 @@ const MACRO_THEME_EVIDENCE_ID_1 = "00000000-0000-4000-8000-0000000000d1";
 const MACRO_THEME_EVIDENCE_ID_2 = "00000000-0000-4000-8000-0000000000d2";
 const MACRO_WATCH_EVIDENCE_ID_1 = "00000000-0000-4000-8000-0000000000e1";
 const MACRO_WATCH_EVIDENCE_ID_2 = "00000000-0000-4000-8000-0000000000e2";
+const MACRO_HYPOTHESIS_EVIDENCE_ID_1 = "00000000-0000-4000-8000-0000000000f1";
+const MACRO_HYPOTHESIS_EVIDENCE_ID_2 = "00000000-0000-4000-8000-0000000000f2";
 
 function makeData(
   overrides: Partial<MacroBriefPublic> = {},
@@ -265,6 +267,47 @@ describe("MacroBriefDetail", () => {
       `/research/evidence/${MACRO_WATCH_EVIDENCE_ID_2}`,
     );
     expect(links[1]).toHaveTextContent(MACRO_WATCH_EVIDENCE_ID_2);
+  });
+
+  it("expands the proposed hypothesis evidence list into one trace link per evidence_id", () => {
+    const data = makeData({
+      brief: {
+        themes: [],
+        sector_calls: [],
+        watch_items: [],
+        cited_claims: [],
+        proposed_hypotheses: [
+          {
+            claim_text: "Rate cuts repriced into 2026.",
+            scope_entity_ids: [],
+            evidence_ids: [
+              MACRO_HYPOTHESIS_EVIDENCE_ID_1,
+              MACRO_HYPOTHESIS_EVIDENCE_ID_2,
+            ],
+          },
+        ],
+        confidence: 0.55,
+        evidence_ids: [],
+        verifier_status: "verified",
+        regeneration_count: 0,
+      },
+    });
+    render(<MacroBriefDetail data={data} />);
+    const row = screen.getByTestId("macro-hypothesis-row");
+    const trigger = within(row).getByRole("button");
+    fireEvent.click(trigger);
+    const links = within(row).getAllByTestId("macro-hypothesis-evidence-link");
+    expect(links).toHaveLength(2);
+    expect(links[0]).toHaveAttribute(
+      "href",
+      `/research/evidence/${MACRO_HYPOTHESIS_EVIDENCE_ID_1}`,
+    );
+    expect(links[0]).toHaveTextContent(MACRO_HYPOTHESIS_EVIDENCE_ID_1);
+    expect(links[1]).toHaveAttribute(
+      "href",
+      `/research/evidence/${MACRO_HYPOTHESIS_EVIDENCE_ID_2}`,
+    );
+    expect(links[1]).toHaveTextContent(MACRO_HYPOTHESIS_EVIDENCE_ID_2);
   });
 
   it("renders the evidence link even when the chunk lookup is missing", () => {

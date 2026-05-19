@@ -22,6 +22,7 @@ type CitedClaim = components["schemas"]["CitedClaim"];
 type SectorCall = components["schemas"]["SectorCall"];
 type Theme = components["schemas"]["Theme"];
 type WatchItem = components["schemas"]["WatchItem"];
+type ProposedHypothesis = components["schemas"]["ProposedHypothesis"];
 type VerifierStatus = components["schemas"]["VerifierStatus"];
 type JudgeStatus = components["schemas"]["JudgeStatus"];
 
@@ -166,12 +167,10 @@ export function MacroBriefDetail(props: MacroBriefDetailProps): ReactElement {
         ) : (
           <ul className="flex flex-col gap-2">
             {brief.proposed_hypotheses.map((hypothesis, index) => (
-              <li
+              <HypothesisRow
                 key={`${hypothesis.claim_text}-${index}`}
-                className="text-sm text-fg leading-relaxed border-b border-line/60 pb-2 last:border-0 last:pb-0"
-              >
-                {hypothesis.claim_text}
-              </li>
+                hypothesis={hypothesis}
+              />
             ))}
           </ul>
         )}
@@ -351,6 +350,57 @@ function WatchItemRow(props: WatchItemRowProps): ReactElement {
                     href={`/research/evidence/${evidenceId}` as Route}
                     className="text-accent-text hover:underline"
                     data-testid="macro-watch-item-evidence-link"
+                  >
+                    {evidenceId}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+interface HypothesisRowProps {
+  hypothesis: ProposedHypothesis;
+}
+
+function HypothesisRow(props: HypothesisRowProps): ReactElement {
+  const { hypothesis } = props;
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const evidenceCount = hypothesis.evidence_ids.length;
+  const hasEvidence = evidenceCount > 0;
+
+  const handleToggle = (): void => {
+    setIsOpen((previous) => !previous);
+  };
+
+  return (
+    <li
+      data-testid="macro-hypothesis-row"
+      className="text-sm text-fg leading-relaxed border-b border-line/60 pb-2 last:border-0 last:pb-0"
+    >
+      <p>{hypothesis.claim_text}</p>
+      {hasEvidence ? (
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={handleToggle}
+            aria-expanded={isOpen}
+            className="font-mono text-[11px] tracking-[0.14em] font-medium uppercase text-fg-subtle hover:text-accent-text transition-colors duration-150"
+          >
+            Evidence {evidenceCount}
+          </button>
+          {isOpen ? (
+            <ul className="mt-2 flex flex-col gap-1 text-xs">
+              {hypothesis.evidence_ids.map((evidenceId) => (
+                <li key={evidenceId} className="font-mono">
+                  <Link
+                    href={`/research/evidence/${evidenceId}` as Route}
+                    className="text-accent-text hover:underline"
+                    data-testid="macro-hypothesis-evidence-link"
                   >
                     {evidenceId}
                   </Link>
