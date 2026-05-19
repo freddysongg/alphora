@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from app.schemas.common import EntityTypeEnum
+from app.schemas.common import EntityTypeEnum, RelationTypeEnum
 
 
 class EntityMergeCommand(BaseModel):
@@ -47,9 +47,47 @@ class BootstrappedEntity(BaseModel):
     source_registry: str
 
 
+class CandidateEntity(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    text_span: str
+    suggested_type: EntityTypeEnum
+    context_excerpt: str
+    exact_quote: str
+    chunk_id: uuid.UUID
+    extraction_confidence: float
+
+
+class CandidateRelation(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    subj_span: str
+    predicate: RelationTypeEnum
+    obj_span: str
+    exact_quote: str
+    chunk_id: uuid.UUID
+    is_explicit: bool
+    extraction_confidence: float
+
+
+class ExtractionResult(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    chunk_id: uuid.UUID
+    candidate_entities: list[CandidateEntity]
+    candidate_relations: list[CandidateRelation]
+    model_id: str
+    prompt_version: str
+    verified: bool
+    rejection_reasons: list[str]
+
+
 __all__ = [
     "BootstrappedEntity",
+    "CandidateEntity",
+    "CandidateRelation",
     "EntityMergeCommand",
     "EvidenceChunkRef",
+    "ExtractionResult",
     "IngestedEvidence",
 ]
