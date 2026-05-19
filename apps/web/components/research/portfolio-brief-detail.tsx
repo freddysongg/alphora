@@ -298,15 +298,7 @@ function ThemeList(props: ThemeListProps): ReactElement {
       ) : (
         <ul className="mt-2 flex flex-col gap-2">
           {themes.map((theme) => (
-            <li
-              key={theme.name}
-              className="flex items-center justify-between border-b border-line/60 pb-2 last:border-0 last:pb-0"
-            >
-              <span className="text-fg">{theme.name}</span>
-              <span className="font-mono tabular-nums text-fg-muted text-sm">
-                {theme.confidence.toFixed(2)}
-              </span>
-            </li>
+            <PortfolioMacroThemeRow key={theme.name} theme={theme} />
           ))}
         </ul>
       )}
@@ -328,19 +320,123 @@ function WatchItemList(props: WatchItemListProps): ReactElement {
       ) : (
         <ul className="mt-2 flex flex-col gap-2">
           {items.map((item) => (
-            <li
-              key={item.name}
-              className="border-b border-line/60 pb-2 last:border-0 last:pb-0"
-            >
-              <p className="text-fg font-medium">{item.name}</p>
-              <p className="mt-1 text-sm text-fg-muted leading-relaxed">
-                {item.reason}
-              </p>
-            </li>
+            <PortfolioMacroWatchItemRow key={item.name} item={item} />
           ))}
         </ul>
       )}
     </div>
+  );
+}
+
+interface PortfolioMacroThemeRowProps {
+  theme: Theme;
+}
+
+function PortfolioMacroThemeRow(
+  props: PortfolioMacroThemeRowProps,
+): ReactElement {
+  const { theme } = props;
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const evidenceCount = theme.evidence_ids.length;
+  const hasEvidence = evidenceCount > 0;
+
+  const handleToggle = (): void => {
+    setIsOpen((previous) => !previous);
+  };
+
+  return (
+    <li
+      data-testid="portfolio-macro-theme-row"
+      className="border-b border-line/60 pb-2 last:border-0 last:pb-0"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <span className="text-fg">{theme.name}</span>
+          {hasEvidence ? (
+            <button
+              type="button"
+              onClick={handleToggle}
+              aria-expanded={isOpen}
+              className="font-mono text-[11px] tracking-[0.14em] font-medium uppercase text-fg-subtle hover:text-accent-text transition-colors duration-150"
+            >
+              Evidence {evidenceCount}
+            </button>
+          ) : null}
+        </div>
+        <span className="font-mono tabular-nums text-fg-muted text-sm">
+          {theme.confidence.toFixed(2)}
+        </span>
+      </div>
+      {isOpen && hasEvidence ? (
+        <ul className="mt-2 flex flex-col gap-1 text-xs">
+          {theme.evidence_ids.map((evidenceId) => (
+            <li key={evidenceId} className="font-mono">
+              <Link
+                href={`/research/evidence/${evidenceId}` as Route}
+                className="text-accent-text hover:underline"
+                data-testid="portfolio-macro-theme-evidence-link"
+              >
+                {evidenceId}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </li>
+  );
+}
+
+interface PortfolioMacroWatchItemRowProps {
+  item: WatchItem;
+}
+
+function PortfolioMacroWatchItemRow(
+  props: PortfolioMacroWatchItemRowProps,
+): ReactElement {
+  const { item } = props;
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const evidenceCount = item.evidence_ids.length;
+  const hasEvidence = evidenceCount > 0;
+
+  const handleToggle = (): void => {
+    setIsOpen((previous) => !previous);
+  };
+
+  return (
+    <li
+      data-testid="portfolio-macro-watch-item-row"
+      className="border-b border-line/60 pb-2 last:border-0 last:pb-0"
+    >
+      <p className="text-fg font-medium">{item.name}</p>
+      <p className="mt-1 text-sm text-fg-muted leading-relaxed">{item.reason}</p>
+      {hasEvidence ? (
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={handleToggle}
+            aria-expanded={isOpen}
+            className="font-mono text-[11px] tracking-[0.14em] font-medium uppercase text-fg-subtle hover:text-accent-text transition-colors duration-150"
+          >
+            Evidence {evidenceCount}
+          </button>
+          {isOpen ? (
+            <ul className="mt-2 flex flex-col gap-1 text-xs">
+              {item.evidence_ids.map((evidenceId) => (
+                <li key={evidenceId} className="font-mono">
+                  <Link
+                    href={`/research/evidence/${evidenceId}` as Route}
+                    className="text-accent-text hover:underline"
+                    data-testid="portfolio-macro-watch-item-evidence-link"
+                  >
+                    {evidenceId}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+    </li>
   );
 }
 

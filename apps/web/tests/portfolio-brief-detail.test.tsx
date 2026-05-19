@@ -9,6 +9,10 @@ type PortfolioBriefPublic = components["schemas"]["PortfolioBriefPublic"];
 const SECTOR_ID = "00000000-0000-4000-8000-000000000001";
 const COMPANY_ID = "00000000-0000-4000-8000-000000000010";
 const CHUNK_ID = "00000000-0000-4000-8000-000000000020";
+const MACRO_THEME_EVIDENCE_ID_1 = "00000000-0000-4000-8000-000000000031";
+const MACRO_THEME_EVIDENCE_ID_2 = "00000000-0000-4000-8000-000000000032";
+const MACRO_WATCH_EVIDENCE_ID_1 = "00000000-0000-4000-8000-000000000041";
+const MACRO_WATCH_EVIDENCE_ID_2 = "00000000-0000-4000-8000-000000000042";
 
 function makeData(
   overrides: Partial<PortfolioBriefPublic["brief"]> = {},
@@ -152,5 +156,87 @@ describe("PortfolioBriefDetail", () => {
     const link = within(row).getByTestId("cited-claim-chunk-link");
     expect(link).toHaveAttribute("href", `/research/evidence/${CHUNK_ID}`);
     expect(link).toHaveTextContent(CHUNK_ID);
+  });
+
+  it("expands the macro summary theme evidence list into one trace link per evidence_id", () => {
+    render(
+      <PortfolioBriefDetail
+        data={makeData({
+          macro: {
+            themes: [
+              {
+                name: "AI Capex",
+                evidence_ids: [
+                  MACRO_THEME_EVIDENCE_ID_1,
+                  MACRO_THEME_EVIDENCE_ID_2,
+                ],
+                confidence: 0.8,
+              },
+            ],
+            watch_items: [],
+            confidence: 0.7,
+            judge_status: "passed",
+          },
+        })}
+      />,
+    );
+    const row = screen.getByTestId("portfolio-macro-theme-row");
+    const trigger = within(row).getByRole("button");
+    fireEvent.click(trigger);
+    const links = within(row).getAllByTestId(
+      "portfolio-macro-theme-evidence-link",
+    );
+    expect(links).toHaveLength(2);
+    expect(links[0]).toHaveAttribute(
+      "href",
+      `/research/evidence/${MACRO_THEME_EVIDENCE_ID_1}`,
+    );
+    expect(links[0]).toHaveTextContent(MACRO_THEME_EVIDENCE_ID_1);
+    expect(links[1]).toHaveAttribute(
+      "href",
+      `/research/evidence/${MACRO_THEME_EVIDENCE_ID_2}`,
+    );
+    expect(links[1]).toHaveTextContent(MACRO_THEME_EVIDENCE_ID_2);
+  });
+
+  it("expands the macro summary watch item evidence list into one trace link per evidence_id", () => {
+    render(
+      <PortfolioBriefDetail
+        data={makeData({
+          macro: {
+            themes: [],
+            watch_items: [
+              {
+                name: "10y yields",
+                reason: "Approaching the 5% threshold.",
+                evidence_ids: [
+                  MACRO_WATCH_EVIDENCE_ID_1,
+                  MACRO_WATCH_EVIDENCE_ID_2,
+                ],
+              },
+            ],
+            confidence: 0.6,
+            judge_status: "passed",
+          },
+        })}
+      />,
+    );
+    const row = screen.getByTestId("portfolio-macro-watch-item-row");
+    const trigger = within(row).getByRole("button");
+    fireEvent.click(trigger);
+    const links = within(row).getAllByTestId(
+      "portfolio-macro-watch-item-evidence-link",
+    );
+    expect(links).toHaveLength(2);
+    expect(links[0]).toHaveAttribute(
+      "href",
+      `/research/evidence/${MACRO_WATCH_EVIDENCE_ID_1}`,
+    );
+    expect(links[0]).toHaveTextContent(MACRO_WATCH_EVIDENCE_ID_1);
+    expect(links[1]).toHaveAttribute(
+      "href",
+      `/research/evidence/${MACRO_WATCH_EVIDENCE_ID_2}`,
+    );
+    expect(links[1]).toHaveTextContent(MACRO_WATCH_EVIDENCE_ID_2);
   });
 });
