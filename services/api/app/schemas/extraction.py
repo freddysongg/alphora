@@ -2,6 +2,8 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.common import EntityTypeEnum
+
 
 class IngestedEvidence(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -23,7 +25,19 @@ class EvidenceChunkRef(BaseModel):
     attributes: dict[str, object]
 
 
+class BootstrappedEntity(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    entity_id: uuid.UUID
+    type: EntityTypeEnum
+    canonical_name: str
+    aliases: list[str]
+    external_ids: dict[str, str]
+    source_registry: str
+
+
 __all__ = [
+    "BootstrappedEntity",
     "EvidenceChunkRef",
     "IngestedEvidence",
 ]
