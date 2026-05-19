@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import select
 
 from app.db.models_runs import ResearchRun, RunStatus, Strategy
 from app.db.session import session_factory
@@ -84,6 +85,77 @@ async def test_execute_research_run_dispatches_funnel_research(
 def test_execute_research_run_rejects_invalid_uuid() -> None:
     with pytest.raises(ValueError):
         worker_tasks.execute_research_run("not-a-uuid")
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_dispatch_fails_run_when_openai_client_construction_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id = uuid4()
+    async with session_factory() as session:
+        session.add(
+            ResearchRun(
+                id=run_id,
+                ticker=None,
+                trade_date=date(2026, 5, 19),
+                strategy=Strategy.funnel_research.value,
+                status=RunStatus.queued,
+                config={},
+                scope_payload={"kind": "macro", "universe": "us_equities"},
+            )
+        )
+        await session.commit()
+
+    def boom() -> Any:
+        raise RuntimeError("openai_api_key is not configured")
+
+    monkeypatch.setattr(worker_tasks, "_build_openai_client", boom)
+
+    async def fake_run_macro_brief(**_: Any) -> None:
+        raise AssertionError("run_macro_brief should not be called")
+
+    monkeypatch.setattr(worker_tasks, "run_macro_brief", fake_run_macro_brief)
+
+    await worker_tasks._dispatch(run_id)
+
+    async with session_factory() as session:
+        loaded = (
+            await session.execute(
+                select(ResearchRun).where(ResearchRun.id == run_id)
+            )
+        ).scalar_one()
+        assert loaded.status == RunStatus.failed
+        assert loaded.error_message is not None
+        assert "openai" in loaded.error_message.lower()
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_dispatch_fails_run_for_unknown_strategy() -> None:
+    run_id = uuid4()
+    async with session_factory() as session:
+        session.add(
+            ResearchRun(
+                id=run_id,
+                ticker=None,
+                trade_date=date(2026, 5, 19),
+                strategy="experimental_strategy_v9",
+                status=RunStatus.queued,
+                config={},
+            )
+        )
+        await session.commit()
+
+    await worker_tasks._dispatch(run_id)
+
+    async with session_factory() as session:
+        loaded = (
+            await session.execute(
+                select(ResearchRun).where(ResearchRun.id == run_id)
+            )
+        ).scalar_one()
+        assert loaded.status == RunStatus.failed
+        assert loaded.error_message is not None
+        assert "experimental_strategy_v9" in loaded.error_message
 
 
 def test_get_run_queue_returns_queue_named_constant(monkeypatch: pytest.MonkeyPatch) -> None:

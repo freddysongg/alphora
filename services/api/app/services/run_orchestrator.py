@@ -126,7 +126,10 @@ class RunOrchestrator:
         """Mark a queued or running run as failed with the given reason.
 
         Used when the worker rejects a run at dispatch (e.g., unimplemented
-        strategy) rather than during adapter execution.
+        strategy) rather than during adapter execution. When the run's
+        strategy is unknown to `STAGE_SCHEMES` we still mark the row failed
+        and emit a plain run event — failing to look up a stage position
+        must never block the status transition.
         """
         async with self._session_factory() as session:
             run = await self._load_run(session, run_id)
@@ -135,14 +138,23 @@ class RunOrchestrator:
             run.status = RunStatus.failed
             run.error_message = reason
             run.finished_at = _utcnow()
-            _emit_strategy_stage(
-                session,
-                run_id=run_id,
-                strategy=run.strategy,
-                stage_name="failed",
-                message=f"run failed: {reason}",
-                level=RunEventLevel.err,
-            )
+            try:
+                _emit_strategy_stage(
+                    session,
+                    run_id=run_id,
+                    strategy=run.strategy,
+                    stage_name="failed",
+                    message=f"run failed: {reason}",
+                    level=RunEventLevel.err,
+                )
+            except RunOrchestratorError:
+                emit_run_event(
+                    session,
+                    run_id=run_id,
+                    level=RunEventLevel.err,
+                    message=f"run failed: {reason}",
+                    data={"event": "run_failed", "reason": reason},
+                )
             await session.commit()
 
     async def cancel(self, run_id: UUID) -> None:

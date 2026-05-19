@@ -180,6 +180,7 @@ async def test_run_macro_brief_end_to_end_success(initialized_schema: None) -> N
         assert brief.verifier_status == "verified"
         assert brief.judge_status == "passed"
         assert brief.judge_call_id is not None
+        assert loaded_run.started_at is not None
         hypotheses = (
             (
                 await session.execute(

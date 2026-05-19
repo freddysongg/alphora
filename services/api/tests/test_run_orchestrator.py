@@ -204,6 +204,48 @@ async def test_execute_failure_marks_failed_with_error(
         assert stored.finished_at is not None
 
 
+async def test_fail_handles_unknown_strategy_gracefully(
+    isolated_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    run_id = uuid4()
+    async with isolated_session_factory() as session:
+        session.add(
+            ResearchRun(
+                id=run_id,
+                ticker="AAPL",
+                trade_date=date(2025, 2, 1),
+                strategy="experimental_strategy_v9",
+                status=RunStatus.queued,
+                config={},
+            )
+        )
+        await session.commit()
+
+    orchestrator = RunOrchestrator(
+        session_factory=isolated_session_factory,
+        adapter=TradingAgentsAdapter(factory=SuccessFakeGraph),
+    )
+    await orchestrator.fail(run_id, "strategy not supported")
+
+    async with isolated_session_factory() as session:
+        stored = (
+            await session.execute(
+                select(ResearchRun).where(ResearchRun.id == run_id)
+            )
+        ).scalar_one()
+        assert stored.status == RunStatus.failed
+        assert stored.error_message == "strategy not supported"
+        events = (
+            await session.execute(
+                select(RunEvent).where(RunEvent.run_id == run_id)
+            )
+        ).scalars().all()
+        assert any(
+            isinstance(e.data, dict) and e.data.get("event") == "run_failed"
+            for e in events
+        )
+
+
 async def test_cancel_marks_queued_run_cancelled(
     isolated_session_factory: async_sessionmaker[AsyncSession],
 ) -> None:

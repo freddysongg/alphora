@@ -1,6 +1,7 @@
 import time
 import uuid
 from collections.abc import Awaitable, Callable, MutableMapping
+from datetime import UTC, datetime
 
 import httpx
 from pydantic import ValidationError
@@ -220,6 +221,8 @@ async def _run_funnel(
         if run.status not in {RunStatus.queued, RunStatus.running}:
             return
         run.status = RunStatus.running
+        if run.started_at is None:
+            run.started_at = datetime.now(UTC)
         _emit_funnel_stage(
             session,
             run_id=run_id,
