@@ -10,6 +10,9 @@ _TICKER_PATTERN = re.compile(
     r"(?:\$|Nasdaq:\s*|NYSE:\s*|NYSEMKT:\s*|AMEX:\s*)([A-Z]{1,5})\b"
 )
 _LEI_PATTERN = re.compile(r"\b([A-Z0-9]{20})\b")
+_BIOGUIDE_PATTERN = re.compile(
+    r"\bBioguide(?:\s+ID)?[:\s]+([A-Z]\d{6})\b", re.IGNORECASE
+)
 
 
 def _extract_external_id_candidates(text: str) -> list[tuple[str, str]]:
@@ -22,6 +25,8 @@ def _extract_external_id_candidates(text: str) -> list[tuple[str, str]]:
         value = lei_match.group(1)
         if not value.isdigit():
             candidates.append(("lei", value))
+    for bioguide_match in _BIOGUIDE_PATTERN.finditer(text):
+        candidates.append(("bioguide_id", bioguide_match.group(1).upper()))
     return candidates
 
 

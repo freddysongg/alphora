@@ -177,6 +177,80 @@ async def test_external_id_match_finds_lei(populated_session: AsyncSession) -> N
 
 
 @pytest.mark.asyncio
+async def test_external_id_match_finds_bioguide_id_with_context(
+    populated_session: AsyncSession,
+) -> None:
+    from app.services.entity_resolution._external_id_match import (
+        step_2_external_id_match,
+    )
+
+    async with populated_session.begin():
+        await _seed_entity(
+            populated_session,
+            canonical_name="Nancy Pelosi",
+            external_ids={"bioguide_id": "P000197"},
+            entity_type=EntityType.person,
+        )
+
+    match = await step_2_external_id_match(
+        session=populated_session,
+        context_excerpt="Speaker Pelosi (Bioguide: P000197) addressed the House.",
+    )
+
+    assert match is not None
+    assert match.canonical_name == "Nancy Pelosi"
+
+
+@pytest.mark.asyncio
+async def test_external_id_match_finds_bioguide_id_with_id_keyword(
+    populated_session: AsyncSession,
+) -> None:
+    from app.services.entity_resolution._external_id_match import (
+        step_2_external_id_match,
+    )
+
+    async with populated_session.begin():
+        await _seed_entity(
+            populated_session,
+            canonical_name="Nancy Pelosi",
+            external_ids={"bioguide_id": "P000197"},
+            entity_type=EntityType.person,
+        )
+
+    match = await step_2_external_id_match(
+        session=populated_session,
+        context_excerpt="Member identified by Bioguide ID P000197 voted yes.",
+    )
+
+    assert match is not None
+
+
+@pytest.mark.asyncio
+async def test_external_id_match_rejects_bare_bioguide_pattern(
+    populated_session: AsyncSession,
+) -> None:
+    """A standalone P000197 without 'Bioguide' marker must not match."""
+    from app.services.entity_resolution._external_id_match import (
+        step_2_external_id_match,
+    )
+
+    async with populated_session.begin():
+        await _seed_entity(
+            populated_session,
+            canonical_name="Nancy Pelosi",
+            external_ids={"bioguide_id": "P000197"},
+            entity_type=EntityType.person,
+        )
+
+    match = await step_2_external_id_match(
+        session=populated_session,
+        context_excerpt="Reference catalog code P000197 is unrelated.",
+    )
+
+    assert match is None
+
+
+@pytest.mark.asyncio
 async def test_external_id_match_rejects_ticker_without_context_marker(
     populated_session: AsyncSession,
 ) -> None:
