@@ -22,6 +22,7 @@ from app.db.models_graph import (
     RelationType,
 )
 from app.db.models_llm import LlmCallLog, LlmCallStatus
+from app.db.models_macro import MacroBrief
 from app.db.models_market import (
     ScreenerResult,
     ScreenerRun,
@@ -71,6 +72,7 @@ __all__ = [
     "LlmCallLog",
     "LlmCallStatus",
     "LlmProvider",
+    "MacroBrief",
     "OrderSide",
     "OrderStatus",
     "OrderType",
