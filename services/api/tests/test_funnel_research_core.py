@@ -163,6 +163,7 @@ async def test_run_macro_brief_end_to_end_success(initialized_schema: None) -> N
             orchestrator=orchestrator,
             http_client=http_client,
             fetcher=fetcher,
+            sector_constituents={},
             chunk_id_capture=runtime_state,
         )
 

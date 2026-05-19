@@ -36,6 +36,17 @@ from app.services.strategies.funnel_research._verifier import (
     verify_once,
 )
 from app.services.strategies.funnel_research.config import MAX_REGENERATIONS
+from app.services.strategies.funnel_research.sector import (
+    SectorFanoutOutcome,
+    run_sector_fanout,
+)
+from app.services.strategies.funnel_research.sector.evidence import (
+    SectorSourceFetcher,
+)
+from app.services.strategies.funnel_research.sector_constituents import (
+    SectorConstituents,
+    load_sector_constituents,
+)
 
 _LlmCompleteCallable = Callable[..., Awaitable[LlmCompletionResult]]
 _MacroRegenerateCallable = Callable[[list[str]], Awaitable[MacroBrief]]
@@ -140,16 +151,24 @@ async def run_macro_brief(
     orchestrator: RunOrchestrator,
     http_client: httpx.AsyncClient,
     fetcher: SourceFetcher | None = None,
+    sector_fetcher: SectorSourceFetcher | None = None,
+    sector_constituents: dict[str, SectorConstituents] | None = None,
     chunk_id_capture: MutableMapping[str, uuid.UUID] | None = None,
 ) -> None:
-    """Execute Stage 1 of the funnel_research strategy for one run.
+    """Execute the funnel_research strategy for one run.
 
-    Stages ingest -> digest -> synthesize -> verify -> succeeded. Budget
-    pause/kill is routed through the injected orchestrator. Failures in
-    source clients are isolated to warn-level events; total source failure
-    or invalid scope marks the run as failed via orchestrator.fail.
+    Stages ingest -> digest -> synthesize -> verify -> sector_fanout ->
+    consolidate -> succeeded. Budget pause/kill is routed through the
+    injected orchestrator. Failures in source clients are isolated to
+    warn-level events; total source failure, invalid scope, or all sector
+    fan-outs failing marks the run as failed via orchestrator.fail.
     """
     active_fetcher = fetcher or default_fetcher()
+    constituents = (
+        sector_constituents
+        if sector_constituents is not None
+        else load_sector_constituents()
+    )
     started = time.monotonic()
     try:
         await _run_funnel(
@@ -159,6 +178,8 @@ async def run_macro_brief(
             orchestrator=orchestrator,
             http_client=http_client,
             fetcher=active_fetcher,
+            sector_fetcher=sector_fetcher,
+            sector_constituents=constituents,
             chunk_id_capture=chunk_id_capture,
             started=started,
         )
@@ -178,6 +199,8 @@ async def _run_funnel(
     orchestrator: RunOrchestrator,
     http_client: httpx.AsyncClient,
     fetcher: SourceFetcher,
+    sector_fetcher: SectorSourceFetcher | None,
+    sector_constituents: dict[str, SectorConstituents],
     chunk_id_capture: MutableMapping[str, uuid.UUID] | None,
     started: float,
 ) -> None:
@@ -345,6 +368,24 @@ async def _run_funnel(
         )
         await session.commit()
 
+    fanout_outcome = await run_sector_fanout(
+        session_factory=session_factory,
+        run_id=run_id,
+        macro_brief=macro_brief,
+        digest_markdown=digest_markdown,
+        sector_constituents=sector_constituents,
+        llm_client=llm_client,
+        orchestrator=orchestrator,
+        http_client=http_client,
+        sector_fetcher=sector_fetcher,
+    )
+
+    if _all_sectors_failed(fanout_outcome):
+        await orchestrator.fail(
+            run_id=run_id, reason="all sector fan-outs failed"
+        )
+        return
+
     async with session_factory() as session:
         _emit_funnel_stage(
             session,
@@ -362,6 +403,13 @@ async def _run_funnel(
             wall_clock_ms=wall_clock_ms,
         )
         await session.commit()
+
+
+def _all_sectors_failed(outcome: SectorFanoutOutcome) -> bool:
+    return (
+        outcome.selected_count > 0
+        and outcome.failed_count == outcome.selected_count
+    )
 
 
 __all__ = ["run_macro_brief"]
