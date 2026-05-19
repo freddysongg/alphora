@@ -243,6 +243,10 @@ def _map_final_rating(rating: FinalRating) -> DbFinalRating:
 
 
 def _build_run_config(run: ResearchRun) -> RunConfig:
+    if run.ticker is None:
+        raise RunOrchestratorError(
+            f"run {run.id} has no ticker but was dispatched to the tradingagents adapter"
+        )
     config_blob = run.config or {}
     analysts = _parse_analysts(config_blob.get("analysts"))
     llm_provider = _parse_provider(config_blob.get("llm_provider"))
