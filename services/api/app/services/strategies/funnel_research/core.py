@@ -103,6 +103,8 @@ async def _judge_macro_with_optional_regen(
     allowed_sector_names: list[str],
     llm_complete: _LlmCompleteCallable,
     regenerate: _MacroRegenerateCallable,
+    orchestrator_pause: Callable[..., Awaitable[None]],
+    orchestrator_fail: Callable[..., Awaitable[None]],
 ) -> tuple[MacroBrief, JudgePublic]:
     """Run the LLM judge over the deterministically verified brief.
 
@@ -125,6 +127,8 @@ async def _judge_macro_with_optional_regen(
         brief_kind="macro",
         chunks=chunks,
         llm_complete=llm_complete,
+        orchestrator_pause=orchestrator_pause,
+        orchestrator_fail=orchestrator_fail,
     )
     if (
         judge_outcome.public.status is not JudgeStatus.flagged
@@ -156,6 +160,8 @@ async def _judge_macro_with_optional_regen(
         brief_kind="macro",
         chunks=chunks,
         llm_complete=llm_complete,
+        orchestrator_pause=orchestrator_pause,
+        orchestrator_fail=orchestrator_fail,
     )
     return refreshed, second_outcome.public
 
@@ -362,6 +368,8 @@ async def _run_funnel(
             allowed_sector_names=allowed_sector_names,
             llm_complete=llm_client.complete,
             regenerate=regenerate,
+            orchestrator_pause=orchestrator.pause,
+            orchestrator_fail=orchestrator.fail,
         )
         await session.commit()
 
@@ -410,6 +418,10 @@ async def _run_funnel(
         return
 
     async with session_factory() as session:
+        if await _run_is_halted(session=session, run_id=run_id):
+            return
+
+    async with session_factory() as session:
         _emit_funnel_stage(
             session,
             run_id=run_id,
@@ -445,6 +457,10 @@ async def _run_funnel(
         return
 
     async with session_factory() as session:
+        if await _run_is_halted(session=session, run_id=run_id):
+            return
+
+    async with session_factory() as session:
         _emit_funnel_stage(
             session,
             run_id=run_id,
@@ -476,6 +492,26 @@ def _all_companies_failed(outcome: CompanyFanoutOutcome) -> bool:
         outcome.selected_count > 0
         and outcome.failed_count == outcome.selected_count
     )
+
+
+async def _run_is_halted(
+    *,
+    session: AsyncSession,
+    run_id: uuid.UUID,
+) -> bool:
+    """True when the run row is in a state that should not continue.
+
+    Fan-out items can independently route budget pause/kill through the
+    orchestrator while other items keep persisting. The parent must check
+    the run row at each stage boundary so subsequent stages do not consume
+    further budget after a pause/fail/cancel has already landed.
+    """
+    status = (
+        await session.execute(
+            select(ResearchRun.status).where(ResearchRun.id == run_id)
+        )
+    ).scalar_one()
+    return status not in {RunStatus.queued, RunStatus.running}
 
 
 async def _load_persisted_sector_briefs(

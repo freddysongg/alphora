@@ -254,6 +254,8 @@ async def _run_one_sector(
                         brief_kind="sector",
                         chunks=evidence_result.chunks,
                         llm_complete=llm_client.complete,
+                        orchestrator_pause=orchestrator.pause,
+                        orchestrator_fail=orchestrator.fail,
                     )
                     judge_public = judge_outcome.public
 

@@ -31,6 +31,14 @@ from app.services.llm.client import LlmCompletionResult
 from app.services.strategies.funnel_research._judge import run_judge
 
 
+async def _noop_pause(**_: Any) -> None:
+    return None
+
+
+async def _noop_fail(**_: Any) -> None:
+    return None
+
+
 async def _seed_run(session: AsyncSession) -> uuid.UUID:
     run = ResearchRun(
         id=uuid.uuid4(),
@@ -111,6 +119,8 @@ async def test_run_judge_passes_returns_public(db_session: AsyncSession) -> None
         brief_kind="macro",
         chunks=[],
         llm_complete=llm,
+        orchestrator_pause=_noop_pause,
+        orchestrator_fail=_noop_fail,
     )
     assert outcome.public.status is JudgeStatus.passed
     assert outcome.public.reasons == []
@@ -136,6 +146,8 @@ async def test_run_judge_flagged_includes_reasons(db_session: AsyncSession) -> N
         brief_kind="sector",
         chunks=[],
         llm_complete=llm,
+        orchestrator_pause=_noop_pause,
+        orchestrator_fail=_noop_fail,
     )
     assert outcome.public.status is JudgeStatus.flagged
     assert outcome.public.reasons == ["contradicts cited evidence"]
@@ -158,6 +170,8 @@ async def test_run_judge_llm_error_returns_not_run_and_warns(
         brief_kind="macro",
         chunks=[],
         llm_complete=llm,
+        orchestrator_pause=_noop_pause,
+        orchestrator_fail=_noop_fail,
     )
     assert outcome.public.status is JudgeStatus.not_run
     assert outcome.public.call_id is None
@@ -189,6 +203,8 @@ async def test_run_judge_unparseable_output_returns_not_run(
         brief_kind="macro",
         chunks=[],
         llm_complete=llm,
+        orchestrator_pause=_noop_pause,
+        orchestrator_fail=_noop_fail,
     )
     assert outcome.public.status is JudgeStatus.not_run
 
@@ -209,6 +225,8 @@ async def test_run_judge_rejects_invalid_status(
         brief_kind="macro",
         chunks=[],
         llm_complete=llm,
+        orchestrator_pause=_noop_pause,
+        orchestrator_fail=_noop_fail,
     )
     assert outcome.public.status is JudgeStatus.not_run
 
@@ -241,8 +259,102 @@ async def test_run_judge_with_chunks_includes_them_in_prompt(
         brief_kind="macro",
         chunks=chunks,
         llm_complete=llm,
+        orchestrator_pause=_noop_pause,
+        orchestrator_fail=_noop_fail,
     )
 
     assert received_messages, "judge should call the llm"
     rendered = "".join(m.content for m in received_messages[0])
     assert "distinctive marker string" in rendered
+
+
+@pytest.mark.asyncio
+async def test_run_judge_budget_pause_routes_to_orchestrator_and_raises(
+    db_session: AsyncSession,
+) -> None:
+    from app.schemas.budget import BudgetAction, BudgetDecision
+    from app.services.llm.client import BudgetPausedError
+    from app.services.strategies.funnel_research._errors import FunnelResearchError
+
+    run_id = await _seed_run(db_session)
+    pause_calls: list[dict[str, Any]] = []
+    fail_calls: list[dict[str, Any]] = []
+
+    async def llm(**_: Any) -> LlmCompletionResult:
+        raise BudgetPausedError(
+            BudgetDecision(
+                action=BudgetAction.pause,
+                reason="soft cap",
+                run_cost_usd=Decimal("5"),
+                daily_cost_usd=Decimal("5"),
+                threshold_crossed=None,
+            )
+        )
+
+    async def pause(**kwargs: Any) -> None:
+        pause_calls.append(kwargs)
+
+    async def fail(**kwargs: Any) -> None:
+        fail_calls.append(kwargs)
+
+    with pytest.raises(FunnelResearchError):
+        await run_judge(
+            session=db_session,
+            run_id=run_id,
+            brief=_macro_brief(),
+            brief_kind="macro",
+            chunks=[],
+            llm_complete=llm,
+            orchestrator_pause=pause,
+            orchestrator_fail=fail,
+        )
+
+    assert len(pause_calls) == 1
+    assert pause_calls[0]["run_id"] == run_id
+    assert fail_calls == []
+
+
+@pytest.mark.asyncio
+async def test_run_judge_budget_kill_routes_to_orchestrator_and_raises(
+    db_session: AsyncSession,
+) -> None:
+    from app.schemas.budget import BudgetAction, BudgetDecision
+    from app.services.llm.client import BudgetKilledError
+    from app.services.strategies.funnel_research._errors import FunnelResearchError
+
+    run_id = await _seed_run(db_session)
+    pause_calls: list[dict[str, Any]] = []
+    fail_calls: list[dict[str, Any]] = []
+
+    async def llm(**_: Any) -> LlmCompletionResult:
+        raise BudgetKilledError(
+            BudgetDecision(
+                action=BudgetAction.kill,
+                reason="hard cap",
+                run_cost_usd=Decimal("100"),
+                daily_cost_usd=Decimal("500"),
+                threshold_crossed=None,
+            )
+        )
+
+    async def pause(**kwargs: Any) -> None:
+        pause_calls.append(kwargs)
+
+    async def fail(**kwargs: Any) -> None:
+        fail_calls.append(kwargs)
+
+    with pytest.raises(FunnelResearchError):
+        await run_judge(
+            session=db_session,
+            run_id=run_id,
+            brief=_macro_brief(),
+            brief_kind="macro",
+            chunks=[],
+            llm_complete=llm,
+            orchestrator_pause=pause,
+            orchestrator_fail=fail,
+        )
+
+    assert pause_calls == []
+    assert len(fail_calls) == 1
+    assert fail_calls[0]["run_id"] == run_id

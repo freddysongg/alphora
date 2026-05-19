@@ -24,7 +24,12 @@ from app.schemas.company_thesis import CompanyThesis
 from app.schemas.extraction import EvidenceChunkRef
 from app.schemas.macro_brief import MacroBrief
 from app.schemas.sector_brief import JudgePublic, JudgeStatus, SectorBrief
-from app.services.llm.client import LlmCompletionResult, LlmMessage
+from app.services.llm.client import (
+    BudgetKilledError,
+    BudgetPausedError,
+    LlmCompletionResult,
+    LlmMessage,
+)
 from app.services.run_events import emit_run_event
 from app.services.strategies.funnel_research._errors import FunnelResearchError
 from app.services.strategies.funnel_research.config import SYNTHESIS_MODEL
@@ -116,12 +121,18 @@ async def run_judge(
     brief_kind: BriefKind,
     chunks: list[EvidenceChunkRef],
     llm_complete: Callable[..., Awaitable[LlmCompletionResult]],
+    orchestrator_pause: Callable[..., Awaitable[None]],
+    orchestrator_fail: Callable[..., Awaitable[None]],
 ) -> JudgeOutcome:
     """Run the LLM judge over a verified brief. Returns the judge outcome.
 
     On LLM/parse failure, emits a warn event and returns `status='not_run'`
     rather than failing the run. This makes the judge advisory: a missing
     verdict surfaces in the UI but does not block.
+
+    Budget pause/kill is NOT advisory: it is routed through the orchestrator
+    (pause/fail) and re-raised as `FunnelResearchError` so the caller's
+    halt-on-paused logic engages.
     """
     brief_json = brief.model_dump_json()
     messages = _build_messages(
@@ -135,6 +146,16 @@ async def run_judge(
             messages=messages,
             evidence_ids=None,
         )
+    except BudgetPausedError as exc:
+        await orchestrator_pause(run_id=run_id, reason=str(exc))
+        raise FunnelResearchError(
+            f"judge paused by budget guard: {brief_kind}"
+        ) from exc
+    except BudgetKilledError as exc:
+        await orchestrator_fail(run_id=run_id, reason=str(exc))
+        raise FunnelResearchError(
+            f"judge killed by budget guard: {brief_kind}"
+        ) from exc
     except Exception as exc:
         emit_run_event(
             session,
