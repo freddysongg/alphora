@@ -1,0 +1,9 @@
+[
+  {"gics_code": "10101010", "name": "Oil & Gas Drilling"},
+  {"gics_code": "10102010", "name": "Integrated Oil & Gas"},
+  {"gics_code": "25201010", "name": "Consumer Electronics"},
+  {"gics_code": "45102010", "name": "Internet Software & Services"},
+  {"gics_code": "45202030", "name": "Application Software"},
+  {"gics_code": "35201010", "name": "Biotechnology"},
+  {"gics_code": "40101010", "name": "Diversified Banks"}
+]
