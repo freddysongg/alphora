@@ -400,3 +400,98 @@ def test_aggregate_run_id_preserved() -> None:
     assert brief.run_id == run_id
     assert brief.verifier_status is VerifierStatus.verified
     assert brief.regeneration_count == 0
+
+
+def _unverified_macro() -> MacroBrief:
+    return MacroBrief(
+        themes=[],
+        sector_calls=[],
+        watch_items=[],
+        cited_claims=[],
+        proposed_hypotheses=[],
+        confidence=0.4,
+        evidence_ids=[uuid.uuid4()],
+        verifier_status=VerifierStatus.quote_unverified,
+        regeneration_count=2,
+    )
+
+
+def test_aggregate_verifier_status_degrades_when_macro_unverified() -> None:
+    brief = aggregate_portfolio(
+        run_id=uuid.uuid4(),
+        macro=_unverified_macro(),
+        macro_judge=_macro_judge(JudgeStatus.flagged),
+        sectors=[],
+        companies=[],
+    )
+    assert brief.verifier_status is VerifierStatus.quote_unverified
+
+
+def test_aggregate_verifier_status_degrades_when_any_sector_unverified() -> None:
+    sectors = [
+        _sector_public(
+            sector_name="Energy",
+            direction=SectorCallDirection.overweight,
+            confidence=0.7,
+        ),
+        _sector_public(
+            sector_name="Materials",
+            direction=SectorCallDirection.overweight,
+            confidence=0.5,
+            verifier_status=VerifierStatus.quote_unverified,
+        ),
+    ]
+    brief = aggregate_portfolio(
+        run_id=uuid.uuid4(),
+        macro=_macro_brief(),
+        macro_judge=_macro_judge(),
+        sectors=sectors,
+        companies=[],
+    )
+    assert brief.verifier_status is VerifierStatus.quote_unverified
+
+
+def test_aggregate_verifier_status_degrades_when_any_company_unverified() -> None:
+    companies = [
+        _company_public(
+            company_name="A",
+            sector_name="Energy",
+            direction=SectorCallDirection.overweight,
+            conviction=0.6,
+            verifier_status=VerifierStatus.quote_unverified,
+        ),
+    ]
+    brief = aggregate_portfolio(
+        run_id=uuid.uuid4(),
+        macro=_macro_brief(),
+        macro_judge=_macro_judge(),
+        sectors=[],
+        companies=companies,
+    )
+    assert brief.verifier_status is VerifierStatus.quote_unverified
+
+
+def test_aggregate_verifier_status_stays_verified_when_all_upstream_verified() -> None:
+    sectors = [
+        _sector_public(
+            sector_name="Energy",
+            direction=SectorCallDirection.overweight,
+            confidence=0.7,
+        )
+    ]
+    companies = [
+        _company_public(
+            company_name="A",
+            sector_name="Energy",
+            direction=SectorCallDirection.overweight,
+            conviction=0.6,
+        )
+    ]
+    brief = aggregate_portfolio(
+        run_id=uuid.uuid4(),
+        macro=_macro_brief(),
+        macro_judge=_macro_judge(),
+        sectors=sectors,
+        companies=companies,
+    )
+    assert brief.verifier_status is VerifierStatus.verified

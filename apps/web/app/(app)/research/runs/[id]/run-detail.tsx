@@ -2,8 +2,11 @@
 
 import { useMemo, useState } from "react";
 import type { ReactElement } from "react";
+import type { Route } from "next";
+import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
+  Button,
   CapsLabel,
   Card,
   CardContent,
@@ -282,6 +285,15 @@ export function RunDetail(props: RunDetailProps): ReactElement {
             label={statusToLabel[resolvedStatus]}
           />
           <div className="flex-1" />
+          {isFunnelResearch ? (
+            <Button asChild size="sm" variant="ghost">
+              <Link
+                href={`/research/runs/${detail.id}/portfolio-brief` as Route}
+              >
+                PORTFOLIO BRIEF
+              </Link>
+            </Button>
+          ) : null}
           {isCancellable ? (
             <CancelRunButton
               runId={detail.id}

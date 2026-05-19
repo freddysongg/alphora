@@ -158,6 +158,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/research-runs/{run_id}/portfolio-brief": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Portfolio Brief */
+        get: operations["get_portfolio_brief_api_research_runs__run_id__portfolio_brief_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/research/hypotheses": {
         parameters: {
             query?: never;
@@ -563,7 +580,7 @@ export interface components {
          * HypothesisState
          * @enum {string}
          */
-        HypothesisState: "proposed" | "active";
+        HypothesisState: "proposed" | "active" | "validated" | "falsified" | "expired" | "superseded";
         /**
          * HypothesisStateFilter
          * @enum {string}
@@ -775,6 +792,104 @@ export interface components {
             opened_at: string;
             /** Closed At */
             closed_at: string | null;
+        };
+        /** PortfolioBrief */
+        PortfolioBrief: {
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            macro: components["schemas"]["PortfolioMacroSummary"];
+            /** Sectors */
+            sectors: components["schemas"]["PortfolioSectorEntry"][];
+            /** Companies */
+            companies: components["schemas"]["PortfolioCompanyEntry"][];
+            /** Cited Claims */
+            cited_claims: components["schemas"]["CitedClaim"][];
+            /** Cited Chunk Ids */
+            cited_chunk_ids: string[];
+            coverage: components["schemas"]["PortfolioCoverage"];
+            verifier_status: components["schemas"]["VerifierStatus"];
+            /** Regeneration Count */
+            regeneration_count: number;
+        };
+        /** PortfolioBriefPublic */
+        PortfolioBriefPublic: {
+            brief: components["schemas"]["PortfolioBrief"];
+            judge: components["schemas"]["JudgePublic"];
+        };
+        /** PortfolioCompanyEntry */
+        PortfolioCompanyEntry: {
+            /**
+             * Company Entity Id
+             * Format: uuid
+             */
+            company_entity_id: string;
+            /** Company Name */
+            company_name: string;
+            /** Ticker */
+            ticker?: string | null;
+            /**
+             * Sector Entity Id
+             * Format: uuid
+             */
+            sector_entity_id: string;
+            /** Sector Name */
+            sector_name: string;
+            direction: components["schemas"]["SectorCallDirection"];
+            /** Conviction */
+            conviction: number;
+            verifier_status: components["schemas"]["VerifierStatus"];
+            judge_status: components["schemas"]["JudgeStatus"];
+            /** Rank */
+            rank: number;
+        };
+        /** PortfolioCoverage */
+        PortfolioCoverage: {
+            /** Sectors Selected */
+            sectors_selected: number;
+            /** Sectors Verified */
+            sectors_verified: number;
+            /** Sectors Judge Passed */
+            sectors_judge_passed: number;
+            /** Sectors Judge Flagged */
+            sectors_judge_flagged: number;
+            /** Companies Selected */
+            companies_selected: number;
+            /** Companies Verified */
+            companies_verified: number;
+            /** Companies Judge Passed */
+            companies_judge_passed: number;
+            /** Companies Judge Flagged */
+            companies_judge_flagged: number;
+        };
+        /** PortfolioMacroSummary */
+        PortfolioMacroSummary: {
+            /** Themes */
+            themes: components["schemas"]["Theme"][];
+            /** Watch Items */
+            watch_items: components["schemas"]["WatchItem"][];
+            /** Confidence */
+            confidence: number;
+            judge_status: components["schemas"]["JudgeStatus"];
+        };
+        /** PortfolioSectorEntry */
+        PortfolioSectorEntry: {
+            /**
+             * Sector Entity Id
+             * Format: uuid
+             */
+            sector_entity_id: string;
+            /** Sector Name */
+            sector_name: string;
+            direction: components["schemas"]["SectorCallDirection"];
+            /** Conviction */
+            conviction: number;
+            verifier_status: components["schemas"]["VerifierStatus"];
+            judge_status: components["schemas"]["JudgeStatus"];
+            /** Rank */
+            rank: number;
         };
         /** ProposedHypothesis */
         ProposedHypothesis: {
@@ -1580,6 +1695,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MacroBriefPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_portfolio_brief_api_research_runs__run_id__portfolio_brief_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioBriefPublic"];
                 };
             };
             /** @description Validation Error */

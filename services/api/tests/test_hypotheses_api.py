@@ -139,6 +139,35 @@ async def test_list_hypotheses_paginates_with_cursor(
 
 
 @pytest.mark.asyncio
+async def test_list_hypotheses_returns_terminal_states(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """`state=all` must serialize rows in any model-supported status without
+    raising on construction of the public payload."""
+    run_id = await _seed_run(db_session)
+    terminal_states = [
+        HypothesisStatus.validated.value,
+        HypothesisStatus.falsified.value,
+        HypothesisStatus.expired.value,
+        HypothesisStatus.superseded.value,
+    ]
+    for state_value in terminal_states:
+        await _seed_hypothesis(
+            db_session,
+            claim_text=f"claim {state_value}",
+            proposed_by_run_id=run_id,
+            status_value=state_value,
+        )
+    await db_session.commit()
+
+    response = await async_client.get("/api/research/hypotheses")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    states = {item["state"] for item in body["items"]}
+    assert states == set(terminal_states)
+
+
+@pytest.mark.asyncio
 async def test_list_hypotheses_rejects_invalid_cursor(
     async_client: AsyncClient, db_session: AsyncSession
 ) -> None:

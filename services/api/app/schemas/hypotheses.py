@@ -14,6 +14,10 @@ class HypothesisStateFilter(StrEnum):
 class HypothesisState(StrEnum):
     proposed = "proposed"
     active = "active"
+    validated = "validated"
+    falsified = "falsified"
+    expired = "expired"
+    superseded = "superseded"
 
 
 class HypothesisPublic(BaseModel):

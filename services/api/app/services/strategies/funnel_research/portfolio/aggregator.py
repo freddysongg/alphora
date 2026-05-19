@@ -151,6 +151,29 @@ def _coverage(
     )
 
 
+def _rollup_verifier_status(
+    *,
+    macro: MacroBrief,
+    sectors: list[SectorBriefPublic],
+    companies: list[CompanyThesisPublic],
+) -> VerifierStatus:
+    """Degrade to ``quote_unverified`` if any upstream brief is unverified.
+
+    Cited claims flow up from briefs that may have exhausted regeneration
+    while still carrying ``quote_unverified`` claims; the portfolio rollup
+    must reflect that instead of silently asserting ``verified``.
+    """
+    if macro.verifier_status is VerifierStatus.quote_unverified:
+        return VerifierStatus.quote_unverified
+    for sector in sectors:
+        if sector.brief.verifier_status is VerifierStatus.quote_unverified:
+            return VerifierStatus.quote_unverified
+    for company in companies:
+        if company.thesis.verifier_status is VerifierStatus.quote_unverified:
+            return VerifierStatus.quote_unverified
+    return VerifierStatus.verified
+
+
 def _collate_cited_claims(
     *,
     macro: MacroBrief,
@@ -201,7 +224,9 @@ def aggregate_portfolio(
         cited_claims=cited_claims,
         cited_chunk_ids=cited_chunk_ids,
         coverage=_coverage(sectors=sectors, companies=companies),
-        verifier_status=VerifierStatus.verified,
+        verifier_status=_rollup_verifier_status(
+            macro=macro, sectors=sectors, companies=companies
+        ),
         regeneration_count=0,
     )
 

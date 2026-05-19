@@ -501,6 +501,49 @@
         }
       }
     },
+    "/api/research-runs/{run_id}/portfolio-brief": {
+      "get": {
+        "tags": [
+          "research-runs"
+        ],
+        "summary": "Get Portfolio Brief",
+        "operationId": "get_portfolio_brief_api_research_runs__run_id__portfolio_brief_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioBriefPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/research/hypotheses": {
       "get": {
         "tags": [
@@ -1736,7 +1779,11 @@
         "type": "string",
         "enum": [
           "proposed",
-          "active"
+          "active",
+          "validated",
+          "falsified",
+          "expired",
+          "superseded"
         ],
         "title": "HypothesisState"
       },
@@ -2285,6 +2332,301 @@
           "closed_at"
         ],
         "title": "PaperPositionPublic"
+      },
+      "PortfolioBrief": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "macro": {
+            "$ref": "#/components/schemas/PortfolioMacroSummary"
+          },
+          "sectors": {
+            "items": {
+              "$ref": "#/components/schemas/PortfolioSectorEntry"
+            },
+            "type": "array",
+            "title": "Sectors"
+          },
+          "companies": {
+            "items": {
+              "$ref": "#/components/schemas/PortfolioCompanyEntry"
+            },
+            "type": "array",
+            "title": "Companies"
+          },
+          "cited_claims": {
+            "items": {
+              "$ref": "#/components/schemas/CitedClaim"
+            },
+            "type": "array",
+            "title": "Cited Claims"
+          },
+          "cited_chunk_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Cited Chunk Ids"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/PortfolioCoverage"
+          },
+          "verifier_status": {
+            "$ref": "#/components/schemas/VerifierStatus"
+          },
+          "regeneration_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Regeneration Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "macro",
+          "sectors",
+          "companies",
+          "cited_claims",
+          "cited_chunk_ids",
+          "coverage",
+          "verifier_status",
+          "regeneration_count"
+        ],
+        "title": "PortfolioBrief"
+      },
+      "PortfolioBriefPublic": {
+        "properties": {
+          "brief": {
+            "$ref": "#/components/schemas/PortfolioBrief"
+          },
+          "judge": {
+            "$ref": "#/components/schemas/JudgePublic"
+          }
+        },
+        "type": "object",
+        "required": [
+          "brief",
+          "judge"
+        ],
+        "title": "PortfolioBriefPublic"
+      },
+      "PortfolioCompanyEntry": {
+        "properties": {
+          "company_entity_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Company Entity Id"
+          },
+          "company_name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Company Name"
+          },
+          "ticker": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticker"
+          },
+          "sector_entity_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Sector Entity Id"
+          },
+          "sector_name": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Sector Name"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/SectorCallDirection"
+          },
+          "conviction": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Conviction"
+          },
+          "verifier_status": {
+            "$ref": "#/components/schemas/VerifierStatus"
+          },
+          "judge_status": {
+            "$ref": "#/components/schemas/JudgeStatus"
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Rank"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "company_entity_id",
+          "company_name",
+          "sector_entity_id",
+          "sector_name",
+          "direction",
+          "conviction",
+          "verifier_status",
+          "judge_status",
+          "rank"
+        ],
+        "title": "PortfolioCompanyEntry"
+      },
+      "PortfolioCoverage": {
+        "properties": {
+          "sectors_selected": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Sectors Selected"
+          },
+          "sectors_verified": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Sectors Verified"
+          },
+          "sectors_judge_passed": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Sectors Judge Passed"
+          },
+          "sectors_judge_flagged": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Sectors Judge Flagged"
+          },
+          "companies_selected": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Companies Selected"
+          },
+          "companies_verified": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Companies Verified"
+          },
+          "companies_judge_passed": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Companies Judge Passed"
+          },
+          "companies_judge_flagged": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Companies Judge Flagged"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sectors_selected",
+          "sectors_verified",
+          "sectors_judge_passed",
+          "sectors_judge_flagged",
+          "companies_selected",
+          "companies_verified",
+          "companies_judge_passed",
+          "companies_judge_flagged"
+        ],
+        "title": "PortfolioCoverage"
+      },
+      "PortfolioMacroSummary": {
+        "properties": {
+          "themes": {
+            "items": {
+              "$ref": "#/components/schemas/Theme"
+            },
+            "type": "array",
+            "title": "Themes"
+          },
+          "watch_items": {
+            "items": {
+              "$ref": "#/components/schemas/WatchItem"
+            },
+            "type": "array",
+            "title": "Watch Items"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence"
+          },
+          "judge_status": {
+            "$ref": "#/components/schemas/JudgeStatus"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "themes",
+          "watch_items",
+          "confidence",
+          "judge_status"
+        ],
+        "title": "PortfolioMacroSummary"
+      },
+      "PortfolioSectorEntry": {
+        "properties": {
+          "sector_entity_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Sector Entity Id"
+          },
+          "sector_name": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Sector Name"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/SectorCallDirection"
+          },
+          "conviction": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Conviction"
+          },
+          "verifier_status": {
+            "$ref": "#/components/schemas/VerifierStatus"
+          },
+          "judge_status": {
+            "$ref": "#/components/schemas/JudgeStatus"
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Rank"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sector_entity_id",
+          "sector_name",
+          "direction",
+          "conviction",
+          "verifier_status",
+          "judge_status",
+          "rank"
+        ],
+        "title": "PortfolioSectorEntry"
       },
       "ProposedHypothesis": {
         "properties": {

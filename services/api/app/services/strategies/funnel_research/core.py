@@ -649,8 +649,9 @@ async def _build_company_resolutions(
     """Resolve company entities for selected company ideas.
 
     Looks up each idea's company entity by canonical name + type=company.
-    CIK comes from `entity.external_ids["sec_cik"]` when present. Companies
-    without a resolved entity are omitted; the runner skips them with warn.
+    CIK comes from `entity.external_ids["cik"]` when present (this is the key
+    written by ``bootstrap_from_sec_cik``). Companies without a resolved entity
+    are omitted; the runner skips them with warn.
     """
     from app.db.models_graph import Entity, EntityType
 
@@ -677,7 +678,7 @@ async def _build_company_resolutions(
         entity = by_name.get(idea.company_name)
         if entity is None:
             continue
-        cik_value = (entity.external_ids or {}).get("sec_cik")
+        cik_value = (entity.external_ids or {}).get("cik")
         cik = str(cik_value) if isinstance(cik_value, str) else None
         resolutions[company_resolution_key(idea)] = CompanyResolution(
             company_entity_id=entity.id,
