@@ -9,3 +9,4 @@ __pycache__
 *.pyc
 .turbo
 *.tsbuildinfo
+pnpm-lock.yaml
