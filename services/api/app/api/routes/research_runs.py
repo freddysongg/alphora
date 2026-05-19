@@ -192,6 +192,7 @@ async def get_research_run(run_id: uuid.UUID, session: SessionDep) -> ResearchRu
             "strategy": run.strategy,
             "status": run.status,
             "config": run.config,
+            "scope_payload": run.scope_payload,
             "final_rating": run.final_rating,
             "final_decision_summary": run.final_decision_summary,
             "wall_clock_ms": run.wall_clock_ms,

@@ -97,6 +97,7 @@ class ResearchRunSummary(BaseModel):
     final_rating: FinalRatingEnum | None
     created_at: datetime
     queue_position: int | None = None
+    scope_payload: dict[str, object] | None = None
 
 
 class ResearchRunUpdate(BaseModel):
@@ -120,6 +121,7 @@ class ResearchRunPublic(BaseModel):
     strategy: StrategyEnum
     status: RunStatusEnum
     config: dict[str, object]
+    scope_payload: dict[str, object] | None = None
     final_rating: FinalRatingEnum | None
     final_decision_summary: str | None
     wall_clock_ms: int | None
@@ -176,6 +178,7 @@ class ResearchRunDetail(BaseModel):
     strategy: StrategyEnum
     status: RunStatusEnum
     config: dict[str, object]
+    scope_payload: dict[str, object] | None = None
     final_rating: FinalRatingEnum | None
     final_decision_summary: str | None
     wall_clock_ms: int | None

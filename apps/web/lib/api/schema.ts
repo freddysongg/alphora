@@ -491,6 +491,19 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** JudgePublic */
+        JudgePublic: {
+            status: components["schemas"]["JudgeStatus"];
+            /** Reasons */
+            reasons: string[];
+            /** Call Id */
+            call_id: string | null;
+        };
+        /**
+         * JudgeStatus
+         * @enum {string}
+         */
+        JudgeStatus: "not_run" | "passed" | "flagged";
         /** LlmCallLogPublic */
         LlmCallLogPublic: {
             /**
@@ -562,8 +575,11 @@ export interface components {
         /** MacroBriefPublic */
         MacroBriefPublic: {
             brief: components["schemas"]["MacroBrief"];
+            judge: components["schemas"]["JudgePublic"];
             /** Chunks */
             chunks: components["schemas"]["ChunkLookup"][];
+            /** Sector Briefs */
+            sector_briefs: components["schemas"]["SectorBriefPublic"][];
         };
         /** MacroBriefScope */
         MacroBriefScope: {
@@ -785,6 +801,10 @@ export interface components {
             config: {
                 [key: string]: unknown;
             };
+            /** Scope Payload */
+            scope_payload?: {
+                [key: string]: unknown;
+            } | null;
             final_rating: components["schemas"]["FinalRatingEnum"] | null;
             /** Final Decision Summary */
             final_decision_summary: string | null;
@@ -832,6 +852,10 @@ export interface components {
             created_at: string;
             /** Queue Position */
             queue_position?: number | null;
+            /** Scope Payload */
+            scope_payload?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * RunEventLevelEnum
@@ -959,6 +983,35 @@ export interface components {
          * @enum {string}
          */
         ScreenerUniverseEnum: "sp500" | "nasdaq100" | "watchlist";
+        /** SectorBrief */
+        SectorBrief: {
+            /**
+             * Sector Entity Id
+             * Format: uuid
+             */
+            sector_entity_id: string;
+            /** Sector Name */
+            sector_name: string;
+            direction: components["schemas"]["SectorCallDirection"];
+            /** Themes */
+            themes: components["schemas"]["Theme"][];
+            /** Companies */
+            companies: components["schemas"]["SectorCompanyIdea"][];
+            /** Watch Items */
+            watch_items: components["schemas"]["WatchItem"][];
+            /** Cited Claims */
+            cited_claims: components["schemas"]["CitedClaim"][];
+            /** Confidence */
+            confidence: number;
+            verifier_status: components["schemas"]["VerifierStatus"];
+            /** Regeneration Count */
+            regeneration_count: number;
+        };
+        /** SectorBriefPublic */
+        SectorBriefPublic: {
+            brief: components["schemas"]["SectorBrief"];
+            judge: components["schemas"]["JudgePublic"];
+        };
         /** SectorCall */
         SectorCall: {
             /**
@@ -979,6 +1032,18 @@ export interface components {
          * @enum {string}
          */
         SectorCallDirection: "overweight" | "underweight" | "neutral";
+        /** SectorCompanyIdea */
+        SectorCompanyIdea: {
+            /** Name */
+            name: string;
+            /** Ticker */
+            ticker?: string | null;
+            direction: components["schemas"]["SectorCallDirection"];
+            /** Conviction */
+            conviction: number;
+            /** Evidence Ids */
+            evidence_ids: string[];
+        };
         /** SourceProvenancePublic */
         SourceProvenancePublic: {
             /**

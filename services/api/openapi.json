@@ -1378,7 +1378,9 @@
                 "items": {
                   "type": "string"
                 },
-                "type": "array"
+                "type": "array",
+                "maxItems": 25,
+                "minItems": 1
               },
               {
                 "type": "null"
@@ -1522,6 +1524,49 @@
           "version"
         ],
         "title": "HealthResponse"
+      },
+      "JudgePublic": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/JudgeStatus"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reasons"
+          },
+          "call_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Call Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "reasons",
+          "call_id"
+        ],
+        "title": "JudgePublic"
+      },
+      "JudgeStatus": {
+        "type": "string",
+        "enum": [
+          "not_run",
+          "passed",
+          "flagged"
+        ],
+        "title": "JudgeStatus"
       },
       "LlmCallLogPublic": {
         "properties": {
@@ -1732,18 +1777,30 @@
           "brief": {
             "$ref": "#/components/schemas/MacroBrief"
           },
+          "judge": {
+            "$ref": "#/components/schemas/JudgePublic"
+          },
           "chunks": {
             "items": {
               "$ref": "#/components/schemas/ChunkLookup"
             },
             "type": "array",
             "title": "Chunks"
+          },
+          "sector_briefs": {
+            "items": {
+              "$ref": "#/components/schemas/SectorBriefPublic"
+            },
+            "type": "array",
+            "title": "Sector Briefs"
           }
         },
         "type": "object",
         "required": [
           "brief",
-          "chunks"
+          "judge",
+          "chunks",
+          "sector_briefs"
         ],
         "title": "MacroBriefPublic"
       },
@@ -2267,6 +2324,18 @@
             "type": "object",
             "title": "Config"
           },
+          "scope_payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Payload"
+          },
           "final_rating": {
             "anyOf": [
               {
@@ -2437,6 +2506,18 @@
               }
             ],
             "title": "Queue Position"
+          },
+          "scope_payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Payload"
           }
         },
         "type": "object",
@@ -2718,6 +2799,97 @@
         ],
         "title": "ScreenerUniverseEnum"
       },
+      "SectorBrief": {
+        "properties": {
+          "sector_entity_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Sector Entity Id"
+          },
+          "sector_name": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Sector Name"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/SectorCallDirection"
+          },
+          "themes": {
+            "items": {
+              "$ref": "#/components/schemas/Theme"
+            },
+            "type": "array",
+            "title": "Themes"
+          },
+          "companies": {
+            "items": {
+              "$ref": "#/components/schemas/SectorCompanyIdea"
+            },
+            "type": "array",
+            "title": "Companies"
+          },
+          "watch_items": {
+            "items": {
+              "$ref": "#/components/schemas/WatchItem"
+            },
+            "type": "array",
+            "title": "Watch Items"
+          },
+          "cited_claims": {
+            "items": {
+              "$ref": "#/components/schemas/CitedClaim"
+            },
+            "type": "array",
+            "title": "Cited Claims"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence"
+          },
+          "verifier_status": {
+            "$ref": "#/components/schemas/VerifierStatus"
+          },
+          "regeneration_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Regeneration Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sector_entity_id",
+          "sector_name",
+          "direction",
+          "themes",
+          "companies",
+          "watch_items",
+          "cited_claims",
+          "confidence",
+          "verifier_status",
+          "regeneration_count"
+        ],
+        "title": "SectorBrief"
+      },
+      "SectorBriefPublic": {
+        "properties": {
+          "brief": {
+            "$ref": "#/components/schemas/SectorBrief"
+          },
+          "judge": {
+            "$ref": "#/components/schemas/JudgePublic"
+          }
+        },
+        "type": "object",
+        "required": [
+          "brief",
+          "judge"
+        ],
+        "title": "SectorBriefPublic"
+      },
       "SectorCall": {
         "properties": {
           "sector_entity_id": {
@@ -2768,6 +2940,55 @@
           "neutral"
         ],
         "title": "SectorCallDirection"
+      },
+      "SectorCompanyIdea": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "ticker": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticker"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/SectorCallDirection"
+          },
+          "conviction": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Conviction"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "direction",
+          "conviction",
+          "evidence_ids"
+        ],
+        "title": "SectorCompanyIdea"
       },
       "SourceProvenancePublic": {
         "properties": {
