@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui";
+import { SectorBriefCard } from "@/components/research/sector-brief-card";
 import type { components } from "@/lib/api";
 import { cn } from "@/lib/cn";
 
@@ -17,6 +18,7 @@ type MacroBriefPublic = components["schemas"]["MacroBriefPublic"];
 type ChunkLookup = components["schemas"]["ChunkLookup"];
 type CitedClaim = components["schemas"]["CitedClaim"];
 type VerifierStatus = components["schemas"]["VerifierStatus"];
+type JudgeStatus = components["schemas"]["JudgeStatus"];
 
 const verifierStatusToClass: Record<VerifierStatus, string> = {
   verified: "bg-accent-deep/30 border border-accent-press text-accent-text",
@@ -28,6 +30,18 @@ const verifierStatusToLabel: Record<VerifierStatus, string> = {
   quote_unverified: "QUOTE UNVERIFIED",
 };
 
+const judgeStatusToClass: Record<JudgeStatus, string> = {
+  passed: "bg-success/15 border border-success/40 text-success",
+  flagged: "bg-warn/15 border border-warn/40 text-warn",
+  not_run: "bg-surface-2 border border-line text-fg-subtle",
+};
+
+const judgeStatusToLabel: Record<JudgeStatus, string> = {
+  passed: "JUDGE PASSED",
+  flagged: "JUDGE FLAGGED",
+  not_run: "JUDGE NOT RUN",
+};
+
 const CHUNK_PREVIEW_LENGTH = 200;
 
 export interface MacroBriefDetailProps {
@@ -36,7 +50,7 @@ export interface MacroBriefDetailProps {
 
 export function MacroBriefDetail(props: MacroBriefDetailProps): ReactElement {
   const { data } = props;
-  const { brief, chunks } = data;
+  const { brief, chunks, judge, sector_briefs: sectorBriefs } = data;
 
   const chunkById = useMemo(() => {
     const map = new Map<string, ChunkLookup>();
@@ -48,12 +62,15 @@ export function MacroBriefDetail(props: MacroBriefDetailProps): ReactElement {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex items-center justify-between">
+      <header className="flex items-center justify-between gap-2">
         <CapsLabel as="h2">MACRO BRIEF</CapsLabel>
-        <VerifierBadge
-          status={brief.verifier_status}
-          regenerationCount={brief.regeneration_count}
-        />
+        <div className="flex items-center gap-2">
+          <VerifierBadge
+            status={brief.verifier_status}
+            regenerationCount={brief.regeneration_count}
+          />
+          <JudgeBadge status={judge.status} />
+        </div>
       </header>
 
       <Section title="THEMES">
@@ -184,7 +201,41 @@ export function MacroBriefDetail(props: MacroBriefDetailProps): ReactElement {
           </ul>
         )}
       </Section>
+
+      <Section title="SECTOR BRIEFS">
+        {sectorBriefs.length === 0 ? (
+          <Empty />
+        ) : (
+          <div className="flex flex-col gap-3">
+            {sectorBriefs.map((sectorBrief) => (
+              <SectorBriefCard
+                key={sectorBrief.brief.sector_entity_id}
+                sectorBrief={sectorBrief}
+              />
+            ))}
+          </div>
+        )}
+      </Section>
     </div>
+  );
+}
+
+interface JudgeBadgeProps {
+  status: JudgeStatus;
+}
+
+function JudgeBadge(props: JudgeBadgeProps): ReactElement {
+  const { status } = props;
+  return (
+    <span
+      data-testid="judge-badge"
+      className={cn(
+        "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] tracking-[0.14em] font-medium uppercase font-mono",
+        judgeStatusToClass[status],
+      )}
+    >
+      {judgeStatusToLabel[status]}
+    </span>
   );
 }
 
