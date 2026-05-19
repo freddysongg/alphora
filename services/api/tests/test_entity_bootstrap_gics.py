@@ -21,14 +21,26 @@ async def test_bootstrap_from_gics_creates_sector_entities(
 
     results = await bootstrap_from_gics(session=populated_session)
 
-    assert len(results) >= 5
-    codes = {r.external_ids["gics_code"] for r in results}
-    assert "10101010" in codes
-    consumer_electronics = next(
-        r for r in results if r.canonical_name == "Consumer Electronics"
-    )
-    assert consumer_electronics.external_ids["gics_code"] == "25201010"
-    assert consumer_electronics.source_registry == "gics"
+    assert len(results) == 11
+    names = {bootstrap.canonical_name for bootstrap in results}
+    assert names == {
+        "Energy",
+        "Materials",
+        "Industrials",
+        "Consumer Discretionary",
+        "Consumer Staples",
+        "Health Care",
+        "Financials",
+        "Information Technology",
+        "Communication Services",
+        "Utilities",
+        "Real Estate",
+    }
+    codes = [r.external_ids["gics_code"] for r in results]
+    assert len(codes) == len(set(codes))
+    energy = next(r for r in results if r.canonical_name == "Energy")
+    assert energy.external_ids["gics_code"] == "10"
+    assert energy.source_registry == "gics"
 
 
 async def test_bootstrap_from_gics_is_idempotent(
