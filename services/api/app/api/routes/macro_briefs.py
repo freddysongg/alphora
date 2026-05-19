@@ -2,11 +2,13 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import SessionDep
 from app.db.models_graph import Evidence, EvidenceChunk
 from app.db.models_macro import MacroBrief as MacroBriefRow
 from app.db.models_runs import ResearchRun
+from app.db.models_sector import SectorBrief as SectorBriefRow
 from app.schemas.macro_brief import (
     ChunkLookup,
     CitedClaim,
@@ -18,7 +20,12 @@ from app.schemas.macro_brief import (
     VerifierStatus,
     WatchItem,
 )
-from app.schemas.sector_brief import JudgePublic, JudgeStatus
+from app.schemas.sector_brief import (
+    JudgePublic,
+    JudgeStatus,
+    SectorBrief,
+    SectorBriefPublic,
+)
 
 router = APIRouter()
 
@@ -37,6 +44,55 @@ def _hydrate_brief(row: MacroBriefRow) -> MacroBrief:
         verifier_status=VerifierStatus(row.verifier_status),
         regeneration_count=row.regeneration_count,
     )
+
+
+def _hydrate_judge(
+    *,
+    status_value: str,
+    reasons: list[str] | None,
+    call_id: uuid.UUID | None,
+) -> JudgePublic:
+    return JudgePublic(
+        status=JudgeStatus(status_value),
+        reasons=list(reasons or []),
+        call_id=call_id,
+    )
+
+
+def _hydrate_sector_brief_row(row: SectorBriefRow) -> SectorBriefPublic:
+    brief = SectorBrief.model_validate(row.payload)
+    judge = _hydrate_judge(
+        status_value=row.judge_status,
+        reasons=row.judge_reasons,
+        call_id=row.judge_call_id,
+    )
+    return SectorBriefPublic(brief=brief, judge=judge)
+
+
+async def _load_chunks(
+    *,
+    session: AsyncSession,
+    chunk_ids: list[uuid.UUID],
+) -> list[ChunkLookup]:
+    if not chunk_ids:
+        return []
+    chunk_rows = (
+        await session.execute(
+            select(EvidenceChunk, Evidence.source)
+            .join(Evidence, Evidence.id == EvidenceChunk.evidence_id)
+            .where(EvidenceChunk.id.in_(chunk_ids))
+        )
+    ).all()
+    return [
+        ChunkLookup(
+            chunk_id=chunk_row.id,
+            evidence_id=chunk_row.evidence_id,
+            source=source,
+            text=chunk_row.text,
+            attributes=chunk_row.attributes or {},
+        )
+        for chunk_row, source in chunk_rows
+    ]
 
 
 @router.get("/{run_id}/macro-brief", response_model=MacroBriefPublic)
@@ -65,34 +121,34 @@ async def get_macro_brief(run_id: uuid.UUID, session: SessionDep) -> MacroBriefP
         )
 
     brief = _hydrate_brief(row)
-    chunk_ids = list({claim.chunk_id for claim in brief.cited_claims})
-    chunks: list[ChunkLookup] = []
-    if chunk_ids:
-        chunk_rows = (
-            await session.execute(
-                select(EvidenceChunk, Evidence.source)
-                .join(Evidence, Evidence.id == EvidenceChunk.evidence_id)
-                .where(EvidenceChunk.id.in_(chunk_ids))
-            )
-        ).all()
-        for chunk_row, source in chunk_rows:
-            chunks.append(
-                ChunkLookup(
-                    chunk_id=chunk_row.id,
-                    evidence_id=chunk_row.evidence_id,
-                    source=source,
-                    text=chunk_row.text,
-                    attributes=chunk_row.attributes or {},
-                )
-            )
 
-    judge = JudgePublic(
-        status=JudgeStatus(row.judge_status),
-        reasons=list(row.judge_reasons or []),
+    sector_rows = (
+        (
+            await session.execute(
+                select(SectorBriefRow)
+                .where(SectorBriefRow.run_id == run_id)
+                .order_by(SectorBriefRow.created_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    sector_briefs = [_hydrate_sector_brief_row(row) for row in sector_rows]
+
+    chunk_id_set: set[uuid.UUID] = {claim.chunk_id for claim in brief.cited_claims}
+    for sector_public in sector_briefs:
+        chunk_id_set.update(
+            claim.chunk_id for claim in sector_public.brief.cited_claims
+        )
+    chunks = await _load_chunks(session=session, chunk_ids=list(chunk_id_set))
+
+    judge = _hydrate_judge(
+        status_value=row.judge_status,
+        reasons=row.judge_reasons,
         call_id=row.judge_call_id,
     )
     return MacroBriefPublic(
-        brief=brief, judge=judge, chunks=chunks, sector_briefs=[]
+        brief=brief, judge=judge, chunks=chunks, sector_briefs=sector_briefs
     )
 
 
