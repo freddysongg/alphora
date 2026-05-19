@@ -38,6 +38,7 @@ async def insert_or_get_entity(
     primary_external_id_key: str,
     source_registry: str,
     existing_by_primary_value: dict[str, Entity] | None = None,
+    extra_attributes: dict[str, object] | None = None,
 ) -> tuple[Entity, bool]:
     primary_value = external_ids.get(primary_external_id_key)
     if primary_value is None:
@@ -62,15 +63,24 @@ async def insert_or_get_entity(
         }
         existing.aliases = merged_aliases
         existing.external_ids = merged_external_ids
+        if extra_attributes is not None:
+            merged_attributes: dict[str, object] = {
+                **(existing.attributes or {}),
+                **extra_attributes,
+            }
+            existing.attributes = merged_attributes
         await session.flush()
         return existing, False
 
+    new_attributes: dict[str, object] = {"source_registry": source_registry}
+    if extra_attributes is not None:
+        new_attributes.update(extra_attributes)
     new_entity = Entity(
         type=entity_type.value,
         canonical_name=canonical_name,
         aliases=list(aliases),
         external_ids=dict(external_ids),
-        attributes={"source_registry": source_registry},
+        attributes=new_attributes,
         confidence=1.0,
         needs_review=False,
     )

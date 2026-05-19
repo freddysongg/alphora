@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.db.models_runs import ResearchRun, RunStatus
 from app.schemas.extraction import BootstrappedEntity
 from app.schemas.macro_brief import MacroBrief, MacroBriefScope
+from app.services.entity_bootstrap.gics_sectors import load_top_level_sector_names
 from app.services.llm.client import LlmClient
 from app.services.run_events import emit_stage_event
 from app.services.run_orchestrator import RunOrchestrator, resolve_stage_position
@@ -146,6 +147,9 @@ async def _run_funnel(
             return
         await session.commit()
 
+    async with session_factory() as session:
+        allowed_sector_names = await load_top_level_sector_names(session=session)
+
     if chunk_id_capture is not None and ingest_result.chunks:
         chunk_id_capture["__chunk_id__"] = ingest_result.chunks[0].chunk_id
         for name, entity_id in sector_entity_ids.items():
@@ -220,6 +224,7 @@ async def _run_funnel(
             chunks=ingest_result.chunks,
             sector_entity_ids=sector_entity_ids,
             regenerate=regenerate,
+            allowed_sector_names=allowed_sector_names,
         )
         await session.commit()
 

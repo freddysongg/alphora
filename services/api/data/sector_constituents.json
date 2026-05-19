@@ -1,0 +1,50 @@
+{
+  "_comment": "Bounded sector evidence selectors for Phase 5 sector fan-out. Each top-level GICS sector maps to a proxy ETF ticker (for aggregate price/volume evidence) and a bounded set of representative constituent tickers (for news + filings). Full constituent coverage is future work.",
+  "_version": "2026-05-19",
+  "sectors": {
+    "Energy": {
+      "proxy_ticker": "XLE",
+      "representative_tickers": ["XOM", "CVX", "COP", "EOG", "SLB"]
+    },
+    "Materials": {
+      "proxy_ticker": "XLB",
+      "representative_tickers": ["LIN", "FCX", "NEM", "APD", "SHW"]
+    },
+    "Industrials": {
+      "proxy_ticker": "XLI",
+      "representative_tickers": ["CAT", "BA", "HON", "UNP", "GE"]
+    },
+    "Consumer Discretionary": {
+      "proxy_ticker": "XLY",
+      "representative_tickers": ["AMZN", "TSLA", "HD", "MCD", "NKE"]
+    },
+    "Consumer Staples": {
+      "proxy_ticker": "XLP",
+      "representative_tickers": ["PG", "KO", "PEP", "WMT", "COST"]
+    },
+    "Health Care": {
+      "proxy_ticker": "XLV",
+      "representative_tickers": ["JNJ", "LLY", "UNH", "PFE", "MRK"]
+    },
+    "Financials": {
+      "proxy_ticker": "XLF",
+      "representative_tickers": ["JPM", "BAC", "WFC", "GS", "BLK"]
+    },
+    "Information Technology": {
+      "proxy_ticker": "XLK",
+      "representative_tickers": ["AAPL", "MSFT", "NVDA", "AVGO", "ORCL"]
+    },
+    "Communication Services": {
+      "proxy_ticker": "XLC",
+      "representative_tickers": ["GOOGL", "META", "DIS", "NFLX", "T"]
+    },
+    "Utilities": {
+      "proxy_ticker": "XLU",
+      "representative_tickers": ["NEE", "DUK", "SO", "AEP", "EXC"]
+    },
+    "Real Estate": {
+      "proxy_ticker": "XLRE",
+      "representative_tickers": ["PLD", "AMT", "EQIX", "WELL", "PSA"]
+    }
+  }
+}

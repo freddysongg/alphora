@@ -1,6 +1,6 @@
 import re
 import uuid
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Iterable, Mapping
 from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,9 +39,15 @@ def verify_once(
     brief: MacroBrief,
     chunks: list[EvidenceChunkRef],
     sector_entity_ids: Mapping[str, uuid.UUID],
+    allowed_sector_names: Iterable[str] | None = None,
 ) -> VerificationResult:
     chunk_lookup: dict[uuid.UUID, EvidenceChunkRef] = {c.chunk_id: c for c in chunks}
     reasons: list[str] = []
+    allowlist: frozenset[str] = (
+        frozenset(allowed_sector_names)
+        if allowed_sector_names is not None
+        else ALLOWED_SECTOR_NAMES
+    )
 
     for claim in brief.cited_claims:
         chunk = chunk_lookup.get(claim.chunk_id)
@@ -52,7 +58,7 @@ def verify_once(
             reasons.append(f"quote not in chunk: {claim.exact_quote!r} (chunk_id={chunk.chunk_id})")
 
     for call in brief.sector_calls:
-        if call.sector_name not in ALLOWED_SECTOR_NAMES:
+        if call.sector_name not in allowlist:
             reasons.append(f"sector name not in allowlist: {call.sector_name!r}")
             continue
         expected = sector_entity_ids.get(call.sector_name)
@@ -73,11 +79,20 @@ async def run_regen_loop(
     chunks: list[EvidenceChunkRef],
     sector_entity_ids: Mapping[str, uuid.UUID],
     regenerate: Callable[[list[str]], Awaitable[MacroBrief]],
+    allowed_sector_names: Iterable[str] | None = None,
 ) -> RegenLoopResult:
     current = initial_brief
     last_reasons: list[str] = []
+    allowlist_tuple = (
+        tuple(allowed_sector_names) if allowed_sector_names is not None else None
+    )
     for attempt in range(MAX_REGENERATIONS + 1):
-        result = verify_once(brief=current, chunks=chunks, sector_entity_ids=sector_entity_ids)
+        result = verify_once(
+            brief=current,
+            chunks=chunks,
+            sector_entity_ids=sector_entity_ids,
+            allowed_sector_names=allowlist_tuple,
+        )
         if result.is_valid:
             verified = current.model_copy(
                 update={
