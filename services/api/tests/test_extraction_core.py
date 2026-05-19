@@ -228,6 +228,111 @@ async def test_extract_from_chunk_raises_on_invalid_json(
         )
 
 
+async def test_extract_from_chunk_raises_on_null_candidate_arrays(
+    populated_session: AsyncSession,
+) -> None:
+    from app.services.extraction._llm_call import ExtractionError
+    from app.services.extraction.core import extract_from_chunk
+
+    chunk = _chunk("text")
+
+    async def fake_complete(**_: Any) -> LlmCompletionResult:
+        return _completion({"candidate_entities": None, "candidate_relations": []})
+
+    with pytest.raises(ExtractionError, match="candidate_entities"):
+        await extract_from_chunk(
+            session=populated_session,
+            run_id=uuid.uuid4(),
+            chunk=chunk,
+            llm_complete=fake_complete,
+            orchestrator_pause=_noop,
+            orchestrator_fail=_noop,
+        )
+
+
+async def test_extract_from_chunk_raises_on_non_list_candidate_arrays(
+    populated_session: AsyncSession,
+) -> None:
+    from app.services.extraction._llm_call import ExtractionError
+    from app.services.extraction.core import extract_from_chunk
+
+    chunk = _chunk("text")
+
+    async def fake_complete(**_: Any) -> LlmCompletionResult:
+        return _completion(
+            {"candidate_entities": [], "candidate_relations": "not a list"}
+        )
+
+    with pytest.raises(ExtractionError, match="candidate_relations"):
+        await extract_from_chunk(
+            session=populated_session,
+            run_id=uuid.uuid4(),
+            chunk=chunk,
+            llm_complete=fake_complete,
+            orchestrator_pause=_noop,
+            orchestrator_fail=_noop,
+        )
+
+
+async def test_extract_from_chunk_raises_on_non_object_candidate_item(
+    populated_session: AsyncSession,
+) -> None:
+    from app.services.extraction._llm_call import ExtractionError
+    from app.services.extraction.core import extract_from_chunk
+
+    chunk = _chunk("text")
+
+    async def fake_complete(**_: Any) -> LlmCompletionResult:
+        return _completion(
+            {"candidate_entities": ["not a dict"], "candidate_relations": []}
+        )
+
+    with pytest.raises(ExtractionError, match="candidate_entities"):
+        await extract_from_chunk(
+            session=populated_session,
+            run_id=uuid.uuid4(),
+            chunk=chunk,
+            llm_complete=fake_complete,
+            orchestrator_pause=_noop,
+            orchestrator_fail=_noop,
+        )
+
+
+async def test_extract_from_chunk_raises_on_candidate_with_invalid_fields(
+    populated_session: AsyncSession,
+) -> None:
+    from app.services.extraction._llm_call import ExtractionError
+    from app.services.extraction.core import extract_from_chunk
+
+    chunk = _chunk("Apple released a new phone today.")
+
+    async def fake_complete(**_: Any) -> LlmCompletionResult:
+        return _completion(
+            {
+                "candidate_entities": [
+                    {
+                        "text_span": "Apple",
+                        "suggested_type": "not_a_real_type",
+                        "context_excerpt": "...",
+                        "exact_quote": "Apple",
+                        "extraction_confidence": 0.9,
+                    }
+                ],
+                "candidate_relations": [],
+            }
+        )
+
+    with pytest.raises(ExtractionError, match="candidate_entities"):
+        await extract_from_chunk(
+            session=populated_session,
+            run_id=uuid.uuid4(),
+            chunk=chunk,
+            llm_complete=fake_complete,
+            orchestrator_pause=_noop,
+            orchestrator_fail=_noop,
+        )
+
+
 async def test_extract_from_chunk_routes_budget_paused_through_orchestrator(
     populated_session: AsyncSession,
 ) -> None:

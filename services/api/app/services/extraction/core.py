@@ -3,6 +3,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.extraction import (
@@ -45,17 +46,21 @@ async def extract_from_chunk(
     if not isinstance(payload, dict):
         raise ExtractionError("LLM JSON payload was not an object")
 
-    raw_entities = payload.get("candidate_entities", [])
-    raw_relations = payload.get("candidate_relations", [])
+    raw_entities = _require_candidate_list(payload, key="candidate_entities")
+    raw_relations = _require_candidate_list(payload, key="candidate_relations")
 
-    candidate_entities = [
-        CandidateEntity.model_validate(_with_chunk_id(row, chunk.chunk_id))
-        for row in raw_entities
-    ]
-    candidate_relations = [
-        CandidateRelation.model_validate(_with_chunk_id(row, chunk.chunk_id))
-        for row in raw_relations
-    ]
+    candidate_entities = _validate_candidates(
+        raw_entities,
+        model=CandidateEntity,
+        chunk_id=chunk.chunk_id,
+        key="candidate_entities",
+    )
+    candidate_relations = _validate_candidates(
+        raw_relations,
+        model=CandidateRelation,
+        chunk_id=chunk.chunk_id,
+        key="candidate_relations",
+    )
 
     verifier_result = verify_candidates(
         chunk_text=chunk.text,
@@ -74,8 +79,36 @@ async def extract_from_chunk(
     )
 
 
-def _with_chunk_id(row: dict[str, Any], chunk_id: uuid.UUID) -> dict[str, Any]:
-    return {**row, "chunk_id": chunk_id}
+def _require_candidate_list(payload: dict[str, Any], *, key: str) -> list[Any]:
+    value = payload.get(key, [])
+    if not isinstance(value, list):
+        raise ExtractionError(
+            f"LLM JSON payload {key!r} must be a list, got {type(value).__name__}"
+        )
+    return value
+
+
+def _validate_candidates[T: BaseModel](
+    rows: list[Any],
+    *,
+    model: type[T],
+    chunk_id: uuid.UUID,
+    key: str,
+) -> list[T]:
+    candidates: list[T] = []
+    for index, row in enumerate(rows):
+        if not isinstance(row, dict):
+            raise ExtractionError(
+                f"LLM JSON payload {key!r}[{index}] must be an object, "
+                f"got {type(row).__name__}"
+            )
+        try:
+            candidates.append(model.model_validate({**row, "chunk_id": chunk_id}))
+        except ValidationError as exc:
+            raise ExtractionError(
+                f"LLM JSON payload {key!r}[{index}] failed validation: {exc}"
+            ) from exc
+    return candidates
 
 
 __all__ = ["extract_from_chunk"]
