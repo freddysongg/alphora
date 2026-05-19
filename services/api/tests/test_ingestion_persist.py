@@ -64,10 +64,16 @@ async def test_insert_or_get_evidence_returns_existing_on_content_hash_match(
     assert second.id == first.id
 
 
-async def test_insert_or_get_evidence_returns_existing_on_source_document_match(
+async def test_insert_or_get_evidence_raises_on_source_document_collision_with_different_hash(
     populated_session: AsyncSession,
 ) -> None:
-    from app.services.ingestion._persist import insert_or_get_evidence
+    from sqlalchemy import select
+
+    from app.db.models_graph import Evidence
+    from app.services.ingestion._persist import (
+        EvidenceUpdateConflictError,
+        insert_or_get_evidence,
+    )
 
     async with populated_session.begin():
         first, _ = await insert_or_get_evidence(
@@ -76,21 +82,45 @@ async def test_insert_or_get_evidence_returns_existing_on_source_document_match(
             document_id="company_tickers",
             raw_url=None,
             content_hash="1" * 64,
-            structured=None,
+            structured={"v": 1},
         )
+        first_id = first.id
 
-    async with populated_session.begin():
-        second, was_inserted = await insert_or_get_evidence(
-            session=populated_session,
-            source="sec_edgar",
-            document_id="company_tickers",
-            raw_url=None,
-            content_hash="2" * 64,
-            structured=None,
+    with pytest.raises(EvidenceUpdateConflictError) as excinfo:
+        async with populated_session.begin():
+            await insert_or_get_evidence(
+                session=populated_session,
+                source="sec_edgar",
+                document_id="company_tickers",
+                raw_url=None,
+                content_hash="2" * 64,
+                structured={"v": 2},
+            )
+
+    message = str(excinfo.value)
+    assert "sec_edgar" in message
+    assert "company_tickers" in message
+
+    preserved = (
+        (
+            await populated_session.execute(
+                select(Evidence).where(Evidence.id == first_id)
+            )
         )
+        .scalars()
+        .one()
+    )
+    assert preserved.content_hash == "1" * 64
+    assert preserved.structured == {"v": 1}
 
-    assert was_inserted is False
-    assert second.id == first.id
+
+async def test_evidence_update_conflict_error_is_an_ingestion_error() -> None:
+    from app.services.ingestion._persist import (
+        EvidenceUpdateConflictError,
+        IngestionError,
+    )
+
+    assert issubclass(EvidenceUpdateConflictError, IngestionError)
 
 
 async def test_insert_chunks_writes_all_drafts(

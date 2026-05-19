@@ -193,6 +193,46 @@ async def test_ingest_sec_company_tickers_stores_structured_payload(
     assert persisted.raw_url == "https://www.sec.gov/files/company_tickers.json"
 
 
+async def test_ingest_sec_company_tickers_raises_on_payload_change(
+    populated_session: AsyncSession,
+) -> None:
+    from app.services.ingestion import EvidenceUpdateConflictError
+    from app.services.ingestion.sec_filings import ingest_sec_company_tickers
+    from app.services.source_clients.sec_edgar import (
+        SecCompanyTicker,
+        SecCompanyTickersResponse,
+    )
+
+    first_payload = SecCompanyTickersResponse(
+        companies=[
+            SecCompanyTicker(cik_str=320193, ticker="AAPL", title="Apple Inc."),
+        ]
+    )
+    first_hash = hashlib.sha256(b"first").hexdigest()
+    await ingest_sec_company_tickers(
+        session=populated_session,
+        payload=first_payload,
+        content_hash=first_hash,
+        raw_url=None,
+    )
+
+    updated_payload = SecCompanyTickersResponse(
+        companies=[
+            SecCompanyTicker(cik_str=320193, ticker="AAPL", title="Apple Inc."),
+            SecCompanyTicker(cik_str=789019, ticker="MSFT", title="Microsoft"),
+        ]
+    )
+    updated_hash = hashlib.sha256(b"second").hexdigest()
+
+    with pytest.raises(EvidenceUpdateConflictError):
+        await ingest_sec_company_tickers(
+            session=populated_session,
+            payload=updated_payload,
+            content_hash=updated_hash,
+            raw_url=None,
+        )
+
+
 async def test_ingest_sec_submissions_writes_chunks_with_form_attributes(
     populated_session: AsyncSession,
 ) -> None:

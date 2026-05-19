@@ -2,6 +2,7 @@ def test_public_ingestion_exports() -> None:
     from app.services import ingestion
 
     expected = {
+        "EvidenceUpdateConflictError",
         "IngestionError",
         "ingest_fred_series_observations",
         "ingest_sec_company_tickers",
