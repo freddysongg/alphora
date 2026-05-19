@@ -1,5 +1,4 @@
 import uuid
-from collections.abc import AsyncIterator
 
 import pytest
 from sqlalchemy import select
@@ -8,14 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models_macro import MacroBrief
 from app.db.models_runs import ResearchRun, RunStatus, Strategy
-
-
-@pytest.fixture()
-async def db_session(initialized_schema: None) -> AsyncIterator[AsyncSession]:
-    from app.db.session import session_factory
-
-    async with session_factory() as session:
-        yield session
 
 
 @pytest.mark.asyncio
