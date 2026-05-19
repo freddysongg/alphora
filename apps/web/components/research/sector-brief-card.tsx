@@ -1,9 +1,15 @@
+"use client";
+
+import { useState } from "react";
 import type { ReactElement } from "react";
+import type { Route } from "next";
+import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle, CapsLabel } from "@/components/ui";
 import type { components } from "@/lib/api";
 
 type SectorBriefPublic = components["schemas"]["SectorBriefPublic"];
+type CitedClaim = components["schemas"]["CitedClaim"];
 
 const DIRECTION_TONE: Record<string, string> = {
   overweight: "text-success",
@@ -66,7 +72,73 @@ export function SectorBriefCard(props: SectorBriefCardProps): ReactElement {
             ))}
           </ul>
         ) : null}
+        {brief.cited_claims.length > 0 ? (
+          <div className="space-y-2" data-testid="sector-cited-claims">
+            <CapsLabel className="text-fg-subtle">CITED CLAIMS</CapsLabel>
+            <ul className="flex flex-col gap-2">
+              {brief.cited_claims.map((claim) => (
+                <SectorCitedClaimRow
+                  key={`${claim.chunk_id}-${claim.exact_quote.slice(0, 32)}`}
+                  claim={claim}
+                />
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+interface SectorCitedClaimRowProps {
+  claim: CitedClaim;
+}
+
+function SectorCitedClaimRow(props: SectorCitedClaimRowProps): ReactElement {
+  const { claim } = props;
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+
+  const handleToggle = (): void => {
+    setIsOpen((previous) => !previous);
+  };
+
+  return (
+    <li
+      className="rounded-md border border-line bg-surface-2/40 p-3"
+      data-testid="sector-cited-claim-row"
+    >
+      <button
+        type="button"
+        onClick={handleToggle}
+        aria-expanded={isOpen}
+        className="flex w-full items-start justify-between gap-3 text-left transition-colors duration-150 hover:text-accent-text"
+      >
+        <span className="text-sm text-fg leading-relaxed">
+          {claim.claim_text}
+        </span>
+        <span className="shrink-0 text-[11px] tracking-[0.14em] font-medium uppercase text-fg-muted">
+          {claim.source}
+        </span>
+      </button>
+      {isOpen ? (
+        <div className="mt-3 flex flex-col gap-2">
+          <p className="rounded-md bg-canvas border border-line p-3 text-sm text-fg italic leading-relaxed">
+            &ldquo;{claim.exact_quote}&rdquo;
+          </p>
+          <p className="text-xs text-fg-muted leading-relaxed font-mono">
+            <span className="uppercase tracking-[0.14em] text-fg-subtle">
+              Evidence:
+            </span>{" "}
+            <Link
+              href={`/research/evidence/${claim.chunk_id}` as Route}
+              className="text-accent-text hover:underline"
+              data-testid="sector-cited-claim-chunk-link"
+            >
+              {claim.chunk_id}
+            </Link>
+          </p>
+        </div>
+      ) : null}
+    </li>
   );
 }

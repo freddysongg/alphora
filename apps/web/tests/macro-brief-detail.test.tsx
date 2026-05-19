@@ -1,10 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 
 import { MacroBriefDetail } from "@/app/(app)/research/runs/[id]/macro-brief-detail";
 import type { components } from "@/lib/api";
 
 type MacroBriefPublic = components["schemas"]["MacroBriefPublic"];
+
+const MACRO_CHUNK_ID = "00000000-0000-4000-8000-0000000000aa";
 
 function makeData(
   overrides: Partial<MacroBriefPublic> = {},
@@ -87,5 +89,80 @@ describe("MacroBriefDetail", () => {
       />,
     );
     expect(screen.queryByTestId("sector-brief-card")).not.toBeInTheDocument();
+  });
+
+  it("links the expanded cited claim chunk_id to the evidence trace page and preserves the chunk preview", () => {
+    const data = makeData({
+      brief: {
+        themes: [],
+        sector_calls: [],
+        watch_items: [],
+        cited_claims: [
+          {
+            claim_text: "AI capex remains a multi-year tailwind.",
+            exact_quote: "AI capex is forecast to grow 30% in 2026.",
+            chunk_id: MACRO_CHUNK_ID,
+            source: "10-Q",
+          },
+        ],
+        proposed_hypotheses: [],
+        confidence: 0.7,
+        evidence_ids: [],
+        verifier_status: "verified",
+        regeneration_count: 0,
+      },
+      chunks: [
+        {
+          chunk_id: MACRO_CHUNK_ID,
+          evidence_id: "00000000-0000-4000-8000-0000000000bb",
+          source: "10-Q",
+          text: "AI capex is forecast to grow 30% in 2026 as hyperscalers ramp.",
+          attributes: {},
+        },
+      ],
+    });
+    render(<MacroBriefDetail data={data} />);
+    const row = screen.getByTestId("macro-cited-claim-row");
+    const trigger = within(row).getByRole("button");
+    fireEvent.click(trigger);
+    const link = within(row).getByTestId("macro-cited-claim-chunk-link");
+    expect(link).toHaveAttribute("href", `/research/evidence/${MACRO_CHUNK_ID}`);
+    expect(link).toHaveTextContent(MACRO_CHUNK_ID);
+    expect(
+      within(row).getByText(/AI capex is forecast to grow 30% in 2026\./),
+    ).toBeInTheDocument();
+    expect(
+      within(row).getByText(/hyperscalers ramp/),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the evidence link even when the chunk lookup is missing", () => {
+    const data = makeData({
+      brief: {
+        themes: [],
+        sector_calls: [],
+        watch_items: [],
+        cited_claims: [
+          {
+            claim_text: "Inflation surprises are skewed hotter.",
+            exact_quote: "CPI prints have run hotter than consensus.",
+            chunk_id: MACRO_CHUNK_ID,
+            source: "BLS",
+          },
+        ],
+        proposed_hypotheses: [],
+        confidence: 0.6,
+        evidence_ids: [],
+        verifier_status: "verified",
+        regeneration_count: 0,
+      },
+      chunks: [],
+    });
+    render(<MacroBriefDetail data={data} />);
+    const row = screen.getByTestId("macro-cited-claim-row");
+    const trigger = within(row).getByRole("button");
+    fireEvent.click(trigger);
+    const link = within(row).getByTestId("macro-cited-claim-chunk-link");
+    expect(link).toHaveAttribute("href", `/research/evidence/${MACRO_CHUNK_ID}`);
   });
 });

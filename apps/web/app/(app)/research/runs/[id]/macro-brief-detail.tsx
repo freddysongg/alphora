@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
+import type { Route } from "next";
+import Link from "next/link";
 
 import {
   CapsLabel,
@@ -300,7 +302,10 @@ function CitedClaimRow(props: CitedClaimRowProps): ReactElement {
       : (chunk?.text ?? "");
 
   return (
-    <li className="rounded-md border border-line bg-surface-2/40 p-3">
+    <li
+      className="rounded-md border border-line bg-surface-2/40 p-3"
+      data-testid="macro-cited-claim-row"
+    >
       <button
         type="button"
         onClick={handleToggle}
@@ -326,9 +331,19 @@ function CitedClaimRow(props: CitedClaimRowProps): ReactElement {
               </span>{" "}
               {chunkPreview}
             </p>
-          ) : (
-            <p className="text-xs text-warn">Source chunk not found.</p>
-          )}
+          ) : null}
+          <p className="text-xs text-fg-muted leading-relaxed font-mono">
+            <span className="uppercase tracking-[0.14em] text-fg-subtle">
+              Evidence:
+            </span>{" "}
+            <Link
+              href={`/research/evidence/${claim.chunk_id}` as Route}
+              className="text-accent-text hover:underline"
+              data-testid="macro-cited-claim-chunk-link"
+            >
+              {claim.chunk_id}
+            </Link>
+          </p>
         </div>
       ) : null}
     </li>

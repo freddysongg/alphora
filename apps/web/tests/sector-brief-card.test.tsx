@@ -1,10 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 
 import { SectorBriefCard } from "@/components/research/sector-brief-card";
 import type { components } from "@/lib/api";
 
 type SectorBriefPublic = components["schemas"]["SectorBriefPublic"];
+
+const SECTOR_CHUNK_ID = "00000000-0000-4000-8000-0000000000cc";
 
 function makeSectorBrief(
   overrides: Partial<SectorBriefPublic["brief"]> = {},
@@ -74,5 +76,49 @@ describe("SectorBriefCard", () => {
     );
     const bar = screen.getByRole("progressbar", { name: "conviction" });
     expect(bar).toHaveAttribute("aria-valuenow", "100");
+  });
+
+  it("omits the cited claims section when there are no claims", () => {
+    render(<SectorBriefCard sectorBrief={makeSectorBrief()} />);
+    expect(
+      screen.queryByTestId("sector-cited-claim-row"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("collapses each cited claim by default and expands to show quote, source, and evidence link", () => {
+    render(
+      <SectorBriefCard
+        sectorBrief={makeSectorBrief({
+          cited_claims: [
+            {
+              claim_text: "Hyperscaler capex remains strong.",
+              exact_quote: "Capex guidance was raised across the board.",
+              chunk_id: SECTOR_CHUNK_ID,
+              source: "10-Q",
+            },
+          ],
+        })}
+      />,
+    );
+    const row = screen.getByTestId("sector-cited-claim-row");
+    const trigger = within(row).getByRole("button");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(
+      within(row).queryByTestId("sector-cited-claim-chunk-link"),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(
+      within(row).getByText(/Capex guidance was raised across the board\./),
+    ).toBeInTheDocument();
+    expect(within(row).getByText("10-Q")).toBeInTheDocument();
+
+    const link = within(row).getByTestId("sector-cited-claim-chunk-link");
+    expect(link).toHaveAttribute(
+      "href",
+      `/research/evidence/${SECTOR_CHUNK_ID}`,
+    );
+    expect(link).toHaveTextContent(SECTOR_CHUNK_ID);
   });
 });
