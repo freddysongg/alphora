@@ -90,6 +90,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/research-runs/{run_id}/llm-calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Research Run Llm Calls */
+        get: operations["list_research_run_llm_calls_api_research_runs__run_id__llm_calls_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/research-runs/{run_id}/cancel": {
         parameters: {
             query?: never;
@@ -101,6 +118,40 @@ export interface paths {
         put?: never;
         /** Cancel Research Run */
         post: operations["cancel_research_run_api_research_runs__run_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research-runs/{run_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume Research Run */
+        post: operations["resume_research_run_api_research_runs__run_id__resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research-runs/{run_id}/macro-brief": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Macro Brief */
+        get: operations["get_macro_brief_api_research_runs__run_id__macro_brief_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -334,6 +385,41 @@ export interface components {
              */
             has_alpha_vantage_key: boolean;
         };
+        /** ChunkLookup */
+        ChunkLookup: {
+            /**
+             * Chunk Id
+             * Format: uuid
+             */
+            chunk_id: string;
+            /**
+             * Evidence Id
+             * Format: uuid
+             */
+            evidence_id: string;
+            /** Source */
+            source: string;
+            /** Text */
+            text: string;
+            /** Attributes */
+            attributes: {
+                [key: string]: unknown;
+            };
+        };
+        /** CitedClaim */
+        CitedClaim: {
+            /** Claim Text */
+            claim_text: string;
+            /** Exact Quote */
+            exact_quote: string;
+            /**
+             * Chunk Id
+             * Format: uuid
+             */
+            chunk_id: string;
+            /** Source */
+            source: string;
+        };
         /** CreatePaperOrderRequest */
         CreatePaperOrderRequest: {
             /**
@@ -353,18 +439,21 @@ export interface components {
         };
         /** CreateResearchRunsRequest */
         CreateResearchRunsRequest: {
-            /** Tickers */
-            tickers: string[];
+            /** @default tradingagents */
+            strategy: components["schemas"]["StrategyEnum"];
             /**
              * Trade Date
              * Format: date
              */
             trade_date: string;
+            /** Tickers */
+            tickers?: string[] | null;
+            scope_payload?: components["schemas"]["MacroBriefScope"] | null;
             /** Analysts */
             analysts?: components["schemas"]["AnalystKindEnum"][];
-            llm_provider: components["schemas"]["LlmProviderEnum"];
+            llm_provider?: components["schemas"]["LlmProviderEnum"] | null;
             /** Llm Model */
-            llm_model: string;
+            llm_model?: string | null;
             /**
              * Debate Depth
              * @default 3
@@ -402,11 +491,93 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** LlmCallLogPublic */
+        LlmCallLogPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Run Id */
+            run_id: string | null;
+            /** Model */
+            model: string;
+            /** Prompt Hash */
+            prompt_hash: string;
+            /** Input Hash */
+            input_hash: string;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Cached Input Tokens */
+            cached_input_tokens: number;
+            /** Reasoning Tokens */
+            reasoning_tokens: number;
+            /** Cost Usd */
+            cost_usd: string;
+            /** Latency Ms */
+            latency_ms: number;
+            status: components["schemas"]["LlmCallStatusEnum"];
+            /** Error Message */
+            error_message: string | null;
+            /** Evidence Ids */
+            evidence_ids: string[] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * LlmCallStatusEnum
+         * @enum {string}
+         */
+        LlmCallStatusEnum: "success" | "error" | "budget_paused" | "budget_killed";
         /**
          * LlmProviderEnum
          * @enum {string}
          */
         LlmProviderEnum: "openai" | "anthropic" | "together";
+        /** MacroBrief */
+        MacroBrief: {
+            /** Themes */
+            themes: components["schemas"]["Theme"][];
+            /** Sector Calls */
+            sector_calls: components["schemas"]["SectorCall"][];
+            /** Watch Items */
+            watch_items: components["schemas"]["WatchItem"][];
+            /** Cited Claims */
+            cited_claims: components["schemas"]["CitedClaim"][];
+            /** Proposed Hypotheses */
+            proposed_hypotheses: components["schemas"]["ProposedHypothesis"][];
+            /** Confidence */
+            confidence: number;
+            /** Evidence Ids */
+            evidence_ids: string[];
+            verifier_status: components["schemas"]["VerifierStatus"];
+            /** Regeneration Count */
+            regeneration_count: number;
+        };
+        /** MacroBriefPublic */
+        MacroBriefPublic: {
+            brief: components["schemas"]["MacroBrief"];
+            /** Chunks */
+            chunks: components["schemas"]["ChunkLookup"][];
+        };
+        /** MacroBriefScope */
+        MacroBriefScope: {
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "macro";
+            /**
+             * Universe
+             * @constant
+             */
+            universe: "us_equities";
+        };
         /** NotReadyResponse */
         NotReadyResponse: {
             /**
@@ -511,6 +682,15 @@ export interface components {
             /** Closed At */
             closed_at: string | null;
         };
+        /** ProposedHypothesis */
+        ProposedHypothesis: {
+            /** Claim Text */
+            claim_text: string;
+            /** Scope Entity Ids */
+            scope_entity_ids: string[];
+            /** Evidence Ids */
+            evidence_ids: string[];
+        };
         /**
          * ProvenanceStatusEnum
          * @enum {string}
@@ -593,12 +773,13 @@ export interface components {
              */
             id: string;
             /** Ticker */
-            ticker: string;
+            ticker: string | null;
             /**
              * Trade Date
              * Format: date
              */
             trade_date: string;
+            strategy: components["schemas"]["StrategyEnum"];
             status: components["schemas"]["RunStatusEnum"];
             /** Config */
             config: {
@@ -640,7 +821,8 @@ export interface components {
              */
             id: string;
             /** Ticker */
-            ticker: string;
+            ticker: string | null;
+            strategy: components["schemas"]["StrategyEnum"];
             status: components["schemas"]["RunStatusEnum"];
             final_rating: components["schemas"]["FinalRatingEnum"] | null;
             /**
@@ -706,7 +888,7 @@ export interface components {
          * RunStatusEnum
          * @enum {string}
          */
-        RunStatusEnum: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+        RunStatusEnum: "queued" | "running" | "succeeded" | "failed" | "cancelled" | "paused";
         /** ScreenerResultPublic */
         ScreenerResultPublic: {
             /**
@@ -777,6 +959,26 @@ export interface components {
          * @enum {string}
          */
         ScreenerUniverseEnum: "sp500" | "nasdaq100" | "watchlist";
+        /** SectorCall */
+        SectorCall: {
+            /**
+             * Sector Entity Id
+             * Format: uuid
+             */
+            sector_entity_id: string;
+            /** Sector Name */
+            sector_name: string;
+            direction: components["schemas"]["SectorCallDirection"];
+            /** Conviction */
+            conviction: number;
+            /** Evidence Ids */
+            evidence_ids: string[];
+        };
+        /**
+         * SectorCallDirection
+         * @enum {string}
+         */
+        SectorCallDirection: "overweight" | "underweight" | "neutral";
         /** SourceProvenancePublic */
         SourceProvenancePublic: {
             /**
@@ -810,6 +1012,20 @@ export interface components {
             /** Error Message */
             error_message: string | null;
         };
+        /**
+         * StrategyEnum
+         * @enum {string}
+         */
+        StrategyEnum: "tradingagents" | "funnel_research";
+        /** Theme */
+        Theme: {
+            /** Name */
+            name: string;
+            /** Evidence Ids */
+            evidence_ids: string[];
+            /** Confidence */
+            confidence: number;
+        };
         /** UpdateApplicationSettingsRequest */
         UpdateApplicationSettingsRequest: {
             llm_provider?: components["schemas"]["LlmProviderEnum"] | null;
@@ -838,6 +1054,20 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /**
+         * VerifierStatus
+         * @enum {string}
+         */
+        VerifierStatus: "verified" | "quote_unverified";
+        /** WatchItem */
+        WatchItem: {
+            /** Name */
+            name: string;
+            /** Reason */
+            reason: string;
+            /** Evidence Ids */
+            evidence_ids: string[];
         };
         /** WatchlistCreate */
         WatchlistCreate: {
@@ -1093,6 +1323,40 @@ export interface operations {
             };
         };
     };
+    list_research_run_llm_calls_api_research_runs__run_id__llm_calls_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmCallLogPublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     cancel_research_run_api_research_runs__run_id__cancel_post: {
         parameters: {
             query?: never;
@@ -1111,6 +1375,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResearchRunSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resume_research_run_api_research_runs__run_id__resume_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchRunSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_macro_brief_api_research_runs__run_id__macro_brief_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MacroBriefPublic"];
                 };
             };
             /** @description Validation Error */
