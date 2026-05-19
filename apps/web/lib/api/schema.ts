@@ -158,6 +158,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/research/hypotheses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Hypotheses */
+        get: operations["list_hypotheses_api_research_hypotheses_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research/hypotheses/{hypothesis_id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Activate Hypothesis */
+        post: operations["activate_hypothesis_api_research_hypotheses__hypothesis_id__activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/screeners/run": {
         parameters: {
             query?: never;
@@ -491,6 +525,50 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** HypothesisListResponse */
+        HypothesisListResponse: {
+            /** Items */
+            items: components["schemas"]["HypothesisPublic"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
+        /** HypothesisPublic */
+        HypothesisPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Claim Text */
+            claim_text: string;
+            state: components["schemas"]["HypothesisState"];
+            /** Scope Entity Ids */
+            scope_entity_ids: string[];
+            /** Scope Theme Ids */
+            scope_theme_ids: string[];
+            /** Source Run Id */
+            source_run_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * HypothesisState
+         * @enum {string}
+         */
+        HypothesisState: "proposed" | "active";
+        /**
+         * HypothesisStateFilter
+         * @enum {string}
+         */
+        HypothesisStateFilter: "proposed" | "active" | "all";
         /** JudgePublic */
         JudgePublic: {
             status: components["schemas"]["JudgeStatus"];
@@ -1502,6 +1580,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MacroBriefPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_hypotheses_api_research_hypotheses_get: {
+        parameters: {
+            query?: {
+                state?: components["schemas"]["HypothesisStateFilter"];
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HypothesisListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activate_hypothesis_api_research_hypotheses__hypothesis_id__activate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hypothesis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HypothesisPublic"];
                 };
             };
             /** @description Validation Error */

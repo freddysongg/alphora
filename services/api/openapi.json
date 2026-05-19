@@ -501,6 +501,119 @@
         }
       }
     },
+    "/api/research/hypotheses": {
+      "get": {
+        "tags": [
+          "research"
+        ],
+        "summary": "List Hypotheses",
+        "operationId": "list_hypotheses_api_research_hypotheses_get",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/HypothesisStateFilter",
+              "default": "all"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 25,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HypothesisListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/research/hypotheses/{hypothesis_id}/activate": {
+      "post": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Activate Hypothesis",
+        "operationId": "activate_hypothesis_api_research_hypotheses__hypothesis_id__activate_post",
+        "parameters": [
+          {
+            "name": "hypothesis_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Hypothesis Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HypothesisPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/screeners/run": {
       "post": {
         "tags": [
@@ -1524,6 +1637,117 @@
           "version"
         ],
         "title": "HealthResponse"
+      },
+      "HypothesisListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/HypothesisPublic"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "HypothesisListResponse"
+      },
+      "HypothesisPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "claim_text": {
+            "type": "string",
+            "title": "Claim Text"
+          },
+          "state": {
+            "$ref": "#/components/schemas/HypothesisState"
+          },
+          "scope_entity_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Scope Entity Ids"
+          },
+          "scope_theme_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Scope Theme Ids"
+          },
+          "source_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Run Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "claim_text",
+          "state",
+          "scope_entity_ids",
+          "scope_theme_ids",
+          "source_run_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "HypothesisPublic"
+      },
+      "HypothesisState": {
+        "type": "string",
+        "enum": [
+          "proposed",
+          "active"
+        ],
+        "title": "HypothesisState"
+      },
+      "HypothesisStateFilter": {
+        "type": "string",
+        "enum": [
+          "proposed",
+          "active",
+          "all"
+        ],
+        "title": "HypothesisStateFilter"
       },
       "JudgePublic": {
         "properties": {
