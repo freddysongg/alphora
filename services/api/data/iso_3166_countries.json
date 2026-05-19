@@ -1,0 +1,10 @@
+[
+  {"iso_alpha2": "US", "iso_alpha3": "USA", "name": "United States"},
+  {"iso_alpha2": "GB", "iso_alpha3": "GBR", "name": "United Kingdom"},
+  {"iso_alpha2": "DE", "iso_alpha3": "DEU", "name": "Germany"},
+  {"iso_alpha2": "JP", "iso_alpha3": "JPN", "name": "Japan"},
+  {"iso_alpha2": "CN", "iso_alpha3": "CHN", "name": "China"},
+  {"iso_alpha2": "CA", "iso_alpha3": "CAN", "name": "Canada"},
+  {"iso_alpha2": "FR", "iso_alpha3": "FRA", "name": "France"},
+  {"iso_alpha2": "IN", "iso_alpha3": "IND", "name": "India"}
+]

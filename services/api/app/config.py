@@ -33,6 +33,13 @@ class Settings(BaseSettings):
 
     fred_api_key: SecretStr | None = None
     sec_edgar_user_agent: str = _DEFAULT_SEC_EDGAR_USER_AGENT
+    polygon_api_key: SecretStr | None = None
+    tiingo_api_key: SecretStr | None = None
+    ainvest_api_key: SecretStr | None = None
+    kalshi_api_key_id: SecretStr | None = None
+    kalshi_api_key: SecretStr | None = None
+    congress_api_key: SecretStr | None = None
+    openfigi_api_key: SecretStr | None = None
 
 
 @lru_cache
