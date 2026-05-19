@@ -5,6 +5,7 @@ from typing import Any
 from app.services.source_clients.congress_gov import CongressBill
 from app.services.source_clients.fred import FredSeriesObservations
 from app.services.source_clients.kalshi import KalshiMarket
+from app.services.source_clients.polygon import PolygonAggregatesResponse
 from app.services.source_clients.polymarket import PolymarketEvent
 from app.services.source_clients.sec_edgar import (
     SecCompanyTickersResponse,
@@ -224,6 +225,38 @@ def chunk_congress_bills(bills: list[CongressBill]) -> list[ChunkDraft]:
     return drafts
 
 
+def chunk_polygon_aggregates(payload: PolygonAggregatesResponse) -> list[ChunkDraft]:
+    drafts: list[ChunkDraft] = []
+    for index, bar in enumerate(payload.results):
+        text = (
+            f"Polygon aggregate ticker={payload.ticker} "
+            f"timestamp_ms={bar.timestamp_ms} "
+            f"open={bar.open} high={bar.high} low={bar.low} "
+            f"close={bar.close} volume={bar.volume}"
+        )
+        attributes: dict[str, Any] = {
+            "source": "polygon_aggregates",
+            "ticker": payload.ticker,
+            "timestamp_ms": bar.timestamp_ms,
+            "open": bar.open,
+            "high": bar.high,
+            "low": bar.low,
+            "close": bar.close,
+            "volume": bar.volume,
+        }
+        drafts.append(
+            ChunkDraft(
+                chunk_index=index,
+                text=text,
+                start_offset=None,
+                end_offset=None,
+                attributes=attributes,
+                content_hash=_hash_text(text),
+            )
+        )
+    return drafts
+
+
 def chunk_tiingo_news_items(items: list[TiingoNewsItem]) -> list[ChunkDraft]:
     drafts: list[ChunkDraft] = []
     for index, item in enumerate(items):
@@ -261,6 +294,7 @@ __all__ = [
     "chunk_congress_bills",
     "chunk_fred_observations",
     "chunk_kalshi_markets",
+    "chunk_polygon_aggregates",
     "chunk_polymarket_events",
     "chunk_sec_submissions",
     "chunk_sec_tickers",
