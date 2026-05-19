@@ -4,7 +4,7 @@ import httpx
 import pytest
 import respx
 
-_AINVEST_URL = "https://api.ainvest.com/v1/congress/transactions"
+_AINVEST_URL = "https://api.openledger.com/api/v1/ownership/congress"
 
 
 @pytest.fixture(autouse=True)
@@ -18,7 +18,7 @@ def _set_ainvest_key(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 
 @respx.mock
-async def test_fetch_ainvest_congress_transactions_parses_results() -> None:
+async def test_fetch_ainvest_congress_transactions_parses_nested_data_envelope() -> None:
     from app.services.source_clients.ainvest import (
         fetch_ainvest_congress_transactions,
     )
@@ -27,24 +27,28 @@ async def test_fetch_ainvest_congress_transactions_parses_results() -> None:
         return_value=httpx.Response(
             200,
             json={
-                "transactions": [
-                    {
-                        "member_name": "Nancy Pelosi",
-                        "bioguide_id": "P000197",
-                        "transaction_date": "2024-01-15",
-                        "asset_ticker": "NVDA",
-                        "asset_name": "Nvidia Corp",
-                        "transaction_type": "buy",
-                        "amount_range": "$1,000,001 - $5,000,000",
-                    }
-                ],
-                "count": 1,
+                "data": {
+                    "data": [
+                        {
+                            "member_name": "Nancy Pelosi",
+                            "bioguide_id": "P000197",
+                            "transaction_date": "2024-01-15",
+                            "asset_ticker": "NVDA",
+                            "asset_name": "Nvidia Corp",
+                            "transaction_type": "buy",
+                            "amount_range": "$1,000,001 - $5,000,000",
+                        }
+                    ],
+                    "count": 1,
+                }
             },
         )
     )
 
     async with httpx.AsyncClient() as client:
-        result, content_hash = await fetch_ainvest_congress_transactions(client=client)
+        result, content_hash = await fetch_ainvest_congress_transactions(
+            client=client, ticker="NVDA"
+        )
 
     assert result.count == 1
     assert result.transactions[0].member_name == "Nancy Pelosi"
@@ -54,19 +58,24 @@ async def test_fetch_ainvest_congress_transactions_parses_results() -> None:
 
 
 @respx.mock
-async def test_fetch_ainvest_congress_transactions_sends_api_key_header() -> None:
+async def test_fetch_ainvest_congress_transactions_uses_bearer_auth_and_ticker_param() -> None:
     from app.services.source_clients.ainvest import (
         fetch_ainvest_congress_transactions,
     )
 
     route = respx.get(_AINVEST_URL).mock(
-        return_value=httpx.Response(200, json={"transactions": [], "count": 0})
+        return_value=httpx.Response(
+            200, json={"data": {"data": [], "count": 0}}
+        )
     )
 
     async with httpx.AsyncClient() as client:
-        await fetch_ainvest_congress_transactions(client=client)
+        await fetch_ainvest_congress_transactions(client=client, ticker="AAPL")
 
-    assert route.calls.last.request.headers["X-API-KEY"] == "ainvest-test-key"
+    sent = route.calls.last.request
+    assert sent.headers["Authorization"] == "Bearer ainvest-test-key"
+    assert "X-API-KEY" not in sent.headers
+    assert sent.url.params["ticker"] == "AAPL"
 
 
 @respx.mock
@@ -78,12 +87,15 @@ async def test_fetch_ainvest_congress_transactions_passes_date_filters() -> None
     )
 
     route = respx.get(_AINVEST_URL).mock(
-        return_value=httpx.Response(200, json={"transactions": [], "count": 0})
+        return_value=httpx.Response(
+            200, json={"data": {"data": [], "count": 0}}
+        )
     )
 
     async with httpx.AsyncClient() as client:
         await fetch_ainvest_congress_transactions(
             client=client,
+            ticker="MSFT",
             start_date=date(2024, 1, 1),
             end_date=date(2024, 3, 31),
         )
@@ -107,7 +119,7 @@ async def test_fetch_ainvest_congress_transactions_raises_without_key(
 
     async with httpx.AsyncClient() as client:
         with pytest.raises(SourceClientConfigError) as exc_info:
-            await fetch_ainvest_congress_transactions(client=client)
+            await fetch_ainvest_congress_transactions(client=client, ticker="AAPL")
 
     assert exc_info.value.setting_name == "ainvest_api_key"
 
@@ -123,7 +135,7 @@ async def test_fetch_ainvest_congress_transactions_401_does_not_retry() -> None:
 
     async with httpx.AsyncClient() as client:
         with pytest.raises(SourceClientHTTPError):
-            await fetch_ainvest_congress_transactions(client=client)
+            await fetch_ainvest_congress_transactions(client=client, ticker="AAPL")
 
     assert route.call_count == 1
 
