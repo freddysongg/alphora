@@ -4,10 +4,14 @@ from app.db.models_graph import EntityType
 from app.schemas.common import EntityTypeEnum
 from app.schemas.extraction import BootstrappedEntity
 from app.services.entity_bootstrap._normalize import normalize_alias_set
-from app.services.entity_bootstrap._persist import insert_or_get_entity
+from app.services.entity_bootstrap._persist import (
+    fetch_existing_by_primary_value,
+    insert_or_get_entity,
+)
 from app.services.source_clients.sec_edgar import SecCompanyTickersResponse
 
 _SOURCE_REGISTRY = "sec_cik"
+_PRIMARY_KEY = "cik"
 
 
 async def bootstrap_from_sec_cik(
@@ -17,6 +21,11 @@ async def bootstrap_from_sec_cik(
 ) -> list[BootstrappedEntity]:
     results: list[BootstrappedEntity] = []
     async with session.begin():
+        cache = await fetch_existing_by_primary_value(
+            session=session,
+            entity_type=EntityType.company,
+            primary_external_id_key=_PRIMARY_KEY,
+        )
         for company in payload.companies:
             padded_cik = str(company.cik_str).zfill(10)
             aliases = normalize_alias_set(company.title)
@@ -26,8 +35,9 @@ async def bootstrap_from_sec_cik(
                 canonical_name=company.title,
                 aliases=aliases,
                 external_ids={"cik": padded_cik, "ticker": company.ticker},
-                primary_external_id_key="cik",
+                primary_external_id_key=_PRIMARY_KEY,
                 source_registry=_SOURCE_REGISTRY,
+                existing_by_primary_value=cache,
             )
             results.append(
                 BootstrappedEntity(

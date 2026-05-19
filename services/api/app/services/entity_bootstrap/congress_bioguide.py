@@ -6,9 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models_graph import EntityType
 from app.schemas.common import EntityTypeEnum
 from app.schemas.extraction import BootstrappedEntity
-from app.services.entity_bootstrap._persist import insert_or_get_entity
+from app.services.entity_bootstrap._persist import (
+    fetch_existing_by_primary_value,
+    insert_or_get_entity,
+)
 
 _SOURCE_REGISTRY = "congress_bioguide"
+_PRIMARY_KEY = "bioguide_id"
 
 
 class CongressMemberRecord(BaseModel):
@@ -44,6 +48,11 @@ async def bootstrap_from_congress_bioguide(
     records = await fetcher()
     results: list[BootstrappedEntity] = []
     async with session.begin():
+        cache = await fetch_existing_by_primary_value(
+            session=session,
+            entity_type=EntityType.person,
+            primary_external_id_key=_PRIMARY_KEY,
+        )
         for record in records:
             aliases = _build_person_aliases(record.full_name)
             entity, _ = await insert_or_get_entity(
@@ -57,8 +66,9 @@ async def bootstrap_from_congress_bioguide(
                     "state": record.state,
                     "chamber": record.chamber,
                 },
-                primary_external_id_key="bioguide_id",
+                primary_external_id_key=_PRIMARY_KEY,
                 source_registry=_SOURCE_REGISTRY,
+                existing_by_primary_value=cache,
             )
             results.append(
                 BootstrappedEntity(

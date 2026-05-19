@@ -7,9 +7,13 @@ from app.db.models_graph import EntityType
 from app.schemas.common import EntityTypeEnum
 from app.schemas.extraction import BootstrappedEntity
 from app.services.entity_bootstrap._normalize import normalize_alias_set
-from app.services.entity_bootstrap._persist import insert_or_get_entity
+from app.services.entity_bootstrap._persist import (
+    fetch_existing_by_primary_value,
+    insert_or_get_entity,
+)
 
 _SOURCE_REGISTRY = "polygon_tickers"
+_PRIMARY_KEY = "polygon_id"
 
 
 class PolygonTickerRecord(BaseModel):
@@ -29,6 +33,11 @@ async def bootstrap_from_polygon_tickers(
     records = await fetcher()
     results: list[BootstrappedEntity] = []
     async with session.begin():
+        cache = await fetch_existing_by_primary_value(
+            session=session,
+            entity_type=EntityType.company,
+            primary_external_id_key=_PRIMARY_KEY,
+        )
         for record in records:
             aliases = normalize_alias_set(record.name)
             entity, _ = await insert_or_get_entity(
@@ -41,8 +50,9 @@ async def bootstrap_from_polygon_tickers(
                     "ticker": record.ticker,
                     "market": record.market,
                 },
-                primary_external_id_key="polygon_id",
+                primary_external_id_key=_PRIMARY_KEY,
                 source_registry=_SOURCE_REGISTRY,
+                existing_by_primary_value=cache,
             )
             results.append(
                 BootstrappedEntity(

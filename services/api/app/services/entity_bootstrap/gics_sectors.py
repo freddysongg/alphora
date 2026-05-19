@@ -7,9 +7,13 @@ from app.db.models_graph import EntityType
 from app.schemas.common import EntityTypeEnum
 from app.schemas.extraction import BootstrappedEntity
 from app.services.entity_bootstrap._normalize import normalize_alias_set
-from app.services.entity_bootstrap._persist import insert_or_get_entity
+from app.services.entity_bootstrap._persist import (
+    fetch_existing_by_primary_value,
+    insert_or_get_entity,
+)
 
 _SOURCE_REGISTRY = "gics"
+_PRIMARY_KEY = "gics_code"
 _GICS_PATH = Path(__file__).resolve().parents[3] / "data" / "gics_industries.json"
 
 
@@ -22,6 +26,11 @@ async def bootstrap_from_gics(
 
     results: list[BootstrappedEntity] = []
     async with session.begin():
+        cache = await fetch_existing_by_primary_value(
+            session=session,
+            entity_type=EntityType.sector,
+            primary_external_id_key=_PRIMARY_KEY,
+        )
         for row in rows:
             entity, _ = await insert_or_get_entity(
                 session=session,
@@ -29,8 +38,9 @@ async def bootstrap_from_gics(
                 canonical_name=row["name"],
                 aliases=normalize_alias_set(row["name"]),
                 external_ids={"gics_code": row["gics_code"]},
-                primary_external_id_key="gics_code",
+                primary_external_id_key=_PRIMARY_KEY,
                 source_registry=_SOURCE_REGISTRY,
+                existing_by_primary_value=cache,
             )
             results.append(
                 BootstrappedEntity(

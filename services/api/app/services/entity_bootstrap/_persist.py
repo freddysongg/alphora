@@ -8,6 +8,26 @@ class BootstrapError(Exception):
     """Raised when bootstrap inputs are malformed or persistence cannot proceed."""
 
 
+async def fetch_existing_by_primary_value(
+    *,
+    session: AsyncSession,
+    entity_type: EntityType,
+    primary_external_id_key: str,
+) -> dict[str, Entity]:
+    result = await session.execute(
+        select(Entity).where(Entity.type == entity_type.value)
+    )
+    cache: dict[str, Entity] = {}
+    for row in result.scalars():
+        external_ids = row.external_ids
+        if not isinstance(external_ids, dict):
+            continue
+        value = external_ids.get(primary_external_id_key)
+        if isinstance(value, str):
+            cache[value] = row
+    return cache
+
+
 async def insert_or_get_entity(
     *,
     session: AsyncSession,
@@ -17,6 +37,7 @@ async def insert_or_get_entity(
     external_ids: dict[str, str],
     primary_external_id_key: str,
     source_registry: str,
+    existing_by_primary_value: dict[str, Entity] | None = None,
 ) -> tuple[Entity, bool]:
     primary_value = external_ids.get(primary_external_id_key)
     if primary_value is None:
@@ -24,20 +45,15 @@ async def insert_or_get_entity(
             f"missing primary_external_id_key={primary_external_id_key!r} in external_ids"
         )
 
-    candidates_result = await session.execute(
-        select(Entity).where(Entity.type == entity_type.value)
-    )
-    candidates = candidates_result.scalars().all()
-    existing = next(
-        (
-            row
-            for row in candidates
-            if isinstance(row.external_ids, dict)
-            and row.external_ids.get(primary_external_id_key) == primary_value
-        ),
-        None,
-    )
+    cache = existing_by_primary_value
+    if cache is None:
+        cache = await fetch_existing_by_primary_value(
+            session=session,
+            entity_type=entity_type,
+            primary_external_id_key=primary_external_id_key,
+        )
 
+    existing = cache.get(primary_value)
     if existing is not None:
         merged_aliases = sorted(set(existing.aliases or []) | set(aliases))
         merged_external_ids: dict[str, object] = {
@@ -60,7 +76,12 @@ async def insert_or_get_entity(
     )
     session.add(new_entity)
     await session.flush()
+    cache[primary_value] = new_entity
     return new_entity, True
 
 
-__all__ = ["BootstrapError", "insert_or_get_entity"]
+__all__ = [
+    "BootstrapError",
+    "fetch_existing_by_primary_value",
+    "insert_or_get_entity",
+]
