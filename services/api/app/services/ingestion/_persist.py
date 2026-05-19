@@ -52,26 +52,28 @@ async def insert_or_get_evidence(
             session.add(new_evidence)
             await session.flush()
     except IntegrityError:
-        by_hash = await session.execute(
-            select(Evidence).where(Evidence.content_hash == content_hash)
-        )
-        row = by_hash.scalar_one_or_none()
-        if row is not None:
-            return row, False
         by_doc = await session.execute(
             select(Evidence)
             .where(Evidence.source == source)
             .where(Evidence.document_id == document_id)
         )
-        conflict = by_doc.scalar_one_or_none()
-        if conflict is not None:
+        existing_doc = by_doc.scalar_one_or_none()
+        if existing_doc is not None:
+            if existing_doc.content_hash == content_hash:
+                return existing_doc, False
             raise EvidenceUpdateConflictError(
                 f"evidence (source={source!r}, document_id={document_id!r}) "
-                f"exists with content_hash={conflict.content_hash!r} but "
+                f"exists with content_hash={existing_doc.content_hash!r} but "
                 f"ingestion was attempted with content_hash={content_hash!r}; "
                 f"upstream payload has changed and v0 does not support "
                 f"automatic re-ingestion"
             ) from None
+        by_hash = await session.execute(
+            select(Evidence).where(Evidence.content_hash == content_hash)
+        )
+        existing_hash = by_hash.scalar_one_or_none()
+        if existing_hash is not None:
+            return existing_hash, False
         raise IngestionError(
             f"IntegrityError without matching evidence row for "
             f"content_hash={content_hash!r} or "

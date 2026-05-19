@@ -114,6 +114,48 @@ async def test_insert_or_get_evidence_raises_on_source_document_collision_with_d
     assert preserved.structured == {"v": 1}
 
 
+async def test_insert_or_get_evidence_raises_conflict_when_new_hash_collides_with_other_row(
+    populated_session: AsyncSession,
+) -> None:
+    from app.services.ingestion._persist import (
+        EvidenceUpdateConflictError,
+        insert_or_get_evidence,
+    )
+
+    async with populated_session.begin():
+        await insert_or_get_evidence(
+            session=populated_session,
+            source="fred",
+            document_id="DOC-A",
+            raw_url=None,
+            content_hash="3" * 64,
+            structured={"v": 1},
+        )
+        await insert_or_get_evidence(
+            session=populated_session,
+            source="sec_edgar",
+            document_id="DOC-B",
+            raw_url=None,
+            content_hash="4" * 64,
+            structured={"v": 1},
+        )
+
+    with pytest.raises(EvidenceUpdateConflictError) as excinfo:
+        async with populated_session.begin():
+            await insert_or_get_evidence(
+                session=populated_session,
+                source="fred",
+                document_id="DOC-A",
+                raw_url=None,
+                content_hash="4" * 64,
+                structured={"v": 2},
+            )
+
+    message = str(excinfo.value)
+    assert "fred" in message
+    assert "DOC-A" in message
+
+
 async def test_evidence_update_conflict_error_is_an_ingestion_error() -> None:
     from app.services.ingestion._persist import (
         EvidenceUpdateConflictError,
