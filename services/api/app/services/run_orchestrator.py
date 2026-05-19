@@ -209,7 +209,7 @@ class RunOrchestrator:
                         markdown=report.markdown,
                     )
                 )
-            persist_provenance(session, run.id, run.ticker, result.provenance)
+            persist_provenance(session, run.id, run.ticker or "", result.provenance)
             emit_stage_event(
                 session,
                 run_id=run_id,
