@@ -2,8 +2,9 @@ def test_public_exports_include_fetch_functions_and_models_and_errors() -> None:
     from app.services import source_clients
 
     expected = {
+        "AinvestCongressData",
+        "AinvestCongressResponse",
         "AinvestCongressTransaction",
-        "AinvestCongressTransactionsResponse",
         "CongressBill",
         "CongressBillsResponse",
         "CongressMember",

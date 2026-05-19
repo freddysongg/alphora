@@ -6,8 +6,9 @@ from app.services.source_clients._http import (
     SourceClientTimeoutError,
 )
 from app.services.source_clients.ainvest import (
+    AinvestCongressData,
+    AinvestCongressResponse,
     AinvestCongressTransaction,
-    AinvestCongressTransactionsResponse,
     fetch_ainvest_congress_transactions,
 )
 from app.services.source_clients.congress_gov import (
@@ -71,8 +72,9 @@ from app.services.source_clients.tiingo import (
 )
 
 __all__ = [
+    "AinvestCongressData",
+    "AinvestCongressResponse",
     "AinvestCongressTransaction",
-    "AinvestCongressTransactionsResponse",
     "CongressBill",
     "CongressBillsResponse",
     "CongressMember",

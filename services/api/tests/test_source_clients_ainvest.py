@@ -4,7 +4,7 @@ import httpx
 import pytest
 import respx
 
-_AINVEST_URL = "https://api.openledger.com/api/v1/ownership/congress"
+_AINVEST_URL = "https://openapi.ainvest.com/open/ownership/congress"
 
 
 @pytest.fixture(autouse=True)
@@ -18,7 +18,9 @@ def _set_ainvest_key(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 
 @respx.mock
-async def test_fetch_ainvest_congress_transactions_parses_nested_data_envelope() -> None:
+async def test_fetch_ainvest_congress_transactions_parses_documented_envelope() -> None:
+    from datetime import date
+
     from app.services.source_clients.ainvest import (
         fetch_ainvest_congress_transactions,
     )
@@ -30,17 +32,19 @@ async def test_fetch_ainvest_congress_transactions_parses_nested_data_envelope()
                 "data": {
                     "data": [
                         {
-                            "member_name": "Nancy Pelosi",
-                            "bioguide_id": "P000197",
-                            "transaction_date": "2024-01-15",
-                            "asset_ticker": "NVDA",
-                            "asset_name": "Nvidia Corp",
-                            "transaction_type": "buy",
-                            "amount_range": "$1,000,001 - $5,000,000",
+                            "name": "Nancy Pelosi",
+                            "party": "D",
+                            "state": "CA",
+                            "trade_date": "2024-01-15",
+                            "filing_date": "2024-02-10",
+                            "reporting_gap": "26 days",
+                            "trade_type": "buy",
+                            "size": "$1,000,001 - $5,000,000",
                         }
                     ],
-                    "count": 1,
-                }
+                },
+                "status_code": 0,
+                "status_msg": "ok",
             },
         )
     )
@@ -50,10 +54,18 @@ async def test_fetch_ainvest_congress_transactions_parses_nested_data_envelope()
             client=client, ticker="NVDA"
         )
 
-    assert result.count == 1
-    assert result.transactions[0].member_name == "Nancy Pelosi"
-    assert result.transactions[0].asset_ticker == "NVDA"
-    assert result.transactions[0].transaction_type == "buy"
+    assert result.status_code == 0
+    assert result.status_msg == "ok"
+    assert len(result.data.data) == 1
+    row = result.data.data[0]
+    assert row.name == "Nancy Pelosi"
+    assert row.party == "D"
+    assert row.state == "CA"
+    assert row.trade_date == date(2024, 1, 15)
+    assert row.filing_date == date(2024, 2, 10)
+    assert row.reporting_gap == "26 days"
+    assert row.trade_type == "buy"
+    assert row.size == "$1,000,001 - $5,000,000"
     assert len(content_hash) == 64
 
 
@@ -65,7 +77,8 @@ async def test_fetch_ainvest_congress_transactions_uses_bearer_auth_and_ticker_p
 
     route = respx.get(_AINVEST_URL).mock(
         return_value=httpx.Response(
-            200, json={"data": {"data": [], "count": 0}}
+            200,
+            json={"data": {"data": []}, "status_code": 0, "status_msg": "ok"},
         )
     )
 
@@ -76,19 +89,20 @@ async def test_fetch_ainvest_congress_transactions_uses_bearer_auth_and_ticker_p
     assert sent.headers["Authorization"] == "Bearer ainvest-test-key"
     assert "X-API-KEY" not in sent.headers
     assert sent.url.params["ticker"] == "AAPL"
+    assert "page" not in sent.url.params
+    assert "size" not in sent.url.params
 
 
 @respx.mock
-async def test_fetch_ainvest_congress_transactions_passes_date_filters() -> None:
-    from datetime import date
-
+async def test_fetch_ainvest_congress_transactions_passes_pagination_params() -> None:
     from app.services.source_clients.ainvest import (
         fetch_ainvest_congress_transactions,
     )
 
     route = respx.get(_AINVEST_URL).mock(
         return_value=httpx.Response(
-            200, json={"data": {"data": [], "count": 0}}
+            200,
+            json={"data": {"data": []}, "status_code": 0, "status_msg": "ok"},
         )
     )
 
@@ -96,13 +110,13 @@ async def test_fetch_ainvest_congress_transactions_passes_date_filters() -> None
         await fetch_ainvest_congress_transactions(
             client=client,
             ticker="MSFT",
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 3, 31),
+            page=2,
+            size=50,
         )
 
     sent = route.calls.last.request
-    assert sent.url.params["start_date"] == "2024-01-01"
-    assert sent.url.params["end_date"] == "2024-03-31"
+    assert sent.url.params["page"] == "2"
+    assert sent.url.params["size"] == "50"
 
 
 async def test_fetch_ainvest_congress_transactions_raises_without_key(
