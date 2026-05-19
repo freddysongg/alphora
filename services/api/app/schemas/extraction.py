@@ -1,6 +1,17 @@
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
+
+
+class EntityMergeCommand(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    surviving_id: uuid.UUID
+    merged_id: uuid.UUID
+    reason: str
+    merged_by: str
+    reversible_until: datetime | None
 
 
 class IngestedEvidence(BaseModel):
@@ -24,6 +35,7 @@ class EvidenceChunkRef(BaseModel):
 
 
 __all__ = [
+    "EntityMergeCommand",
     "EvidenceChunkRef",
     "IngestedEvidence",
 ]
