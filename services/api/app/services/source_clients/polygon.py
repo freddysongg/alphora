@@ -9,11 +9,11 @@ from app.services.source_clients._http import (
     SourceClientConfigError,
     request,
 )
-from app.services.source_clients._rate_limit import RateLimiter
+from app.services.source_clients._rate_limit import make_rate_limiter
 
 _POLYGON_BASE = "https://api.polygon.io"
 
-_RATE_LIMITER = RateLimiter(rate_per_second=4.0, burst=5)
+_RATE_LIMITER = make_rate_limiter(name="polygon", rate_per_second=4.0, burst=5)
 
 
 class PolygonTicker(BaseModel):

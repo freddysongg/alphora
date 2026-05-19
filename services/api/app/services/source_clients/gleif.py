@@ -5,11 +5,11 @@ import httpx
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.services.source_clients._http import HttpRequestConfig, request
-from app.services.source_clients._rate_limit import RateLimiter
+from app.services.source_clients._rate_limit import make_rate_limiter
 
 _GLEIF_BASE = "https://api.gleif.org/api/v1"
 
-_RATE_LIMITER = RateLimiter(rate_per_second=5.0, burst=10)
+_RATE_LIMITER = make_rate_limiter(name="gleif", rate_per_second=5.0, burst=10)
 
 
 class GleifLeiRecord(BaseModel):

@@ -12,12 +12,12 @@ from app.services.source_clients._http import (
     SourceClientConfigError,
     request,
 )
-from app.services.source_clients._rate_limit import RateLimiter
+from app.services.source_clients._rate_limit import make_rate_limiter
 
 _FRED_OBSERVATIONS_URL = "https://api.stlouisfed.org/fred/series/observations"
 _FRED_MISSING_VALUE_SENTINEL = "."
 
-_RATE_LIMITER = RateLimiter(rate_per_second=2.0, burst=10)
+_RATE_LIMITER = make_rate_limiter(name="fred", rate_per_second=2.0, burst=10)
 
 
 class FredObservation(BaseModel):

@@ -9,12 +9,12 @@ from app.services.source_clients._http import (
     SourceClientHTTPError,
     SourceClientTimeoutError,
 )
-from app.services.source_clients._rate_limit import RateLimiter
+from app.services.source_clients._rate_limit import make_rate_limiter
 
 _OPENFIGI_URL = "https://api.openfigi.com/v3/mapping"
 _DEFAULT_TIMEOUT_SECONDS = 30.0
 
-_RATE_LIMITER = RateLimiter(rate_per_second=4.0, burst=5)
+_RATE_LIMITER = make_rate_limiter(name="openfigi", rate_per_second=4.0, burst=5)
 
 
 class OpenFigiResult(BaseModel):

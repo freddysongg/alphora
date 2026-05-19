@@ -6,12 +6,12 @@ from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.config import get_settings
 from app.services.source_clients._http import HttpRequestConfig, request
-from app.services.source_clients._rate_limit import RateLimiter
+from app.services.source_clients._rate_limit import make_rate_limiter
 
 _COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 _SUBMISSIONS_URL_TEMPLATE = "https://data.sec.gov/submissions/CIK{padded_cik}.json"
 
-_RATE_LIMITER = RateLimiter(rate_per_second=8.0, burst=5)
+_RATE_LIMITER = make_rate_limiter(name="sec_edgar", rate_per_second=8.0, burst=5)
 
 
 def _user_agent_headers() -> dict[str, str]:

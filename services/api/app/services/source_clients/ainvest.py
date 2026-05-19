@@ -9,11 +9,11 @@ from app.services.source_clients._http import (
     SourceClientConfigError,
     request,
 )
-from app.services.source_clients._rate_limit import RateLimiter
+from app.services.source_clients._rate_limit import make_rate_limiter
 
 _AINVEST_BASE = "https://openapi.ainvest.com/open"
 
-_RATE_LIMITER = RateLimiter(rate_per_second=2.0, burst=5)
+_RATE_LIMITER = make_rate_limiter(name="ainvest", rate_per_second=2.0, burst=5)
 
 
 class AinvestCongressTransaction(BaseModel):
