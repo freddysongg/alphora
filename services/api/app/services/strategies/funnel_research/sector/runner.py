@@ -18,9 +18,11 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 import httpx
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.models_runs import RunEventLevel
+from app.db.models_sector import SectorBrief as SectorBriefRow
 from app.schemas.macro_brief import MacroBrief, SectorCall, VerifierStatus
 from app.schemas.sector_brief import JudgePublic, JudgeStatus, SectorBrief
 from app.services.llm.client import LlmClient
@@ -158,6 +160,19 @@ async def _run_one_sector(
     async with semaphore:
         sector_started = time.monotonic()
         async with session_factory() as session:
+            if await _sector_brief_persisted(
+                session=session,
+                run_id=run_id,
+                sector_entity_id=sector_call.sector_entity_id,
+            ):
+                _emit_resume(
+                    session,
+                    run_id=run_id,
+                    sector=sector_call.sector_name,
+                )
+                await session.commit()
+                return _SectorOutcome.persisted
+
             if constituents is None:
                 _emit_skip(
                     session,
@@ -278,6 +293,37 @@ async def _run_one_sector(
                 )
                 await session.commit()
                 return _SectorOutcome.failed
+
+
+async def _sector_brief_persisted(
+    *,
+    session: AsyncSession,
+    run_id: uuid.UUID,
+    sector_entity_id: uuid.UUID,
+) -> bool:
+    row_id = (
+        await session.execute(
+            select(SectorBriefRow.id)
+            .where(SectorBriefRow.run_id == run_id)
+            .where(SectorBriefRow.sector_entity_id == sector_entity_id)
+        )
+    ).scalar_one_or_none()
+    return row_id is not None
+
+
+def _emit_resume(
+    session: AsyncSession,
+    *,
+    run_id: uuid.UUID,
+    sector: str,
+) -> None:
+    emit_run_event(
+        session,
+        run_id=run_id,
+        level=RunEventLevel.info,
+        message=f"sector {sector!r} resumed from persisted brief",
+        data={"event": "sector_resumed", "sector": sector},
+    )
 
 
 def _emit_skip(

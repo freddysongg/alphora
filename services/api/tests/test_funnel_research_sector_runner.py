@@ -8,7 +8,9 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.models_graph import Entity, EntityType
 from app.db.models_runs import ResearchRun, RunEvent, RunStatus, Strategy
+from app.db.models_sector import SectorBrief as SectorBriefRow
 from app.db.session import session_factory
 from app.schemas.macro_brief import (
     MacroBrief,
@@ -82,6 +84,122 @@ def _empty_sector_fetcher() -> SectorSourceFetcher:
 class _UnusedLlm:
     async def complete(self, **kwargs: Any) -> LlmCompletionResult:
         raise AssertionError("llm should not be invoked when no sectors persist")
+
+
+@pytest.mark.asyncio
+async def test_run_sector_fanout_short_circuits_when_sector_brief_already_persisted(
+    initialized_schema: None,
+) -> None:
+    """A resumed funnel run with a sector_brief row already persisted must
+    skip evidence fetch, extraction, synthesis, and judge for that sector.
+    """
+    from app.schemas.sector_brief import (
+        JudgePublic,
+        JudgeStatus,
+        SectorBrief,
+    )
+
+    sector_entity_id = uuid.uuid4()
+    async with session_factory() as session:
+        run_id = await _seed_run(session)
+        sector_entity = Entity(
+            id=sector_entity_id,
+            type=EntityType.sector.value,
+            canonical_name="Energy",
+            aliases=[],
+            external_ids={},
+            attributes={},
+        )
+        session.add(sector_entity)
+        await session.flush()
+
+        prior_brief = SectorBrief(
+            sector_entity_id=sector_entity_id,
+            sector_name="Energy",
+            direction=SectorCallDirection.overweight,
+            themes=[],
+            companies=[],
+            watch_items=[],
+            cited_claims=[],
+            confidence=0.7,
+            verifier_status=VerifierStatus.verified,
+            regeneration_count=0,
+        )
+        prior_judge = JudgePublic(
+            status=JudgeStatus.passed, reasons=[], call_id=None
+        )
+        session.add(
+            SectorBriefRow(
+                run_id=run_id,
+                sector_entity_id=sector_entity_id,
+                direction="overweight",
+                payload=prior_brief.model_dump(mode="json"),
+                verifier_status="verified",
+                regeneration_count=0,
+                judge_status=prior_judge.status.value,
+                judge_reasons=None,
+                judge_call_id=None,
+                wall_clock_ms=100,
+            )
+        )
+        await session.commit()
+
+    macro = _macro_brief(
+        sector_calls=[
+            SectorCall(
+                sector_entity_id=sector_entity_id,
+                sector_name="Energy",
+                direction=SectorCallDirection.overweight,
+                conviction=0.8,
+                evidence_ids=[],
+            )
+        ]
+    )
+
+    orchestrator = AsyncMock()
+    constituents = {
+        "Energy": SectorConstituents(
+            proxy_ticker="XLE", representative_tickers=("XOM",)
+        )
+    }
+
+    async with httpx.AsyncClient() as http_client:
+        outcome = await run_sector_fanout(
+            session_factory=session_factory,
+            run_id=run_id,
+            macro_brief=macro,
+            digest_markdown="",
+            sector_constituents=constituents,
+            llm_client=_UnusedLlm(),
+            orchestrator=orchestrator,
+            http_client=http_client,
+            sector_fetcher=_empty_sector_fetcher(),
+        )
+
+    assert outcome.selected_count == 1
+    assert outcome.persisted_count == 1
+    assert outcome.skipped_count == 0
+    assert outcome.failed_count == 0
+
+    async with session_factory() as session:
+        sector_rows = (
+            await session.execute(
+                select(SectorBriefRow).where(SectorBriefRow.run_id == run_id)
+            )
+        ).scalars().all()
+        events = (
+            await session.execute(
+                select(RunEvent).where(RunEvent.run_id == run_id)
+            )
+        ).scalars().all()
+
+    assert len(sector_rows) == 1
+    assert any(
+        isinstance(event.data, dict)
+        and event.data.get("event") == "sector_resumed"
+        and event.data.get("sector") == "Energy"
+        for event in events
+    )
 
 
 @pytest.mark.asyncio
