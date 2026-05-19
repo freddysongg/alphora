@@ -9,6 +9,10 @@ type MacroBriefPublic = components["schemas"]["MacroBriefPublic"];
 const MACRO_CHUNK_ID = "00000000-0000-4000-8000-0000000000aa";
 const SECTOR_CALL_EVIDENCE_ID_1 = "00000000-0000-4000-8000-0000000000c1";
 const SECTOR_CALL_EVIDENCE_ID_2 = "00000000-0000-4000-8000-0000000000c2";
+const MACRO_THEME_EVIDENCE_ID_1 = "00000000-0000-4000-8000-0000000000d1";
+const MACRO_THEME_EVIDENCE_ID_2 = "00000000-0000-4000-8000-0000000000d2";
+const MACRO_WATCH_EVIDENCE_ID_1 = "00000000-0000-4000-8000-0000000000e1";
+const MACRO_WATCH_EVIDENCE_ID_2 = "00000000-0000-4000-8000-0000000000e2";
 
 function makeData(
   overrides: Partial<MacroBriefPublic> = {},
@@ -179,6 +183,88 @@ describe("MacroBriefDetail", () => {
       `/research/evidence/${SECTOR_CALL_EVIDENCE_ID_2}`,
     );
     expect(links[1]).toHaveTextContent(SECTOR_CALL_EVIDENCE_ID_2);
+  });
+
+  it("expands the theme evidence list into one trace link per evidence_id", () => {
+    const data = makeData({
+      brief: {
+        themes: [
+          {
+            name: "AI Capex",
+            evidence_ids: [
+              MACRO_THEME_EVIDENCE_ID_1,
+              MACRO_THEME_EVIDENCE_ID_2,
+            ],
+            confidence: 0.8,
+          },
+        ],
+        sector_calls: [],
+        watch_items: [],
+        cited_claims: [],
+        proposed_hypotheses: [],
+        confidence: 0.7,
+        evidence_ids: [],
+        verifier_status: "verified",
+        regeneration_count: 0,
+      },
+    });
+    render(<MacroBriefDetail data={data} />);
+    const row = screen.getByTestId("macro-theme-row");
+    const trigger = within(row).getByRole("button");
+    fireEvent.click(trigger);
+    const links = within(row).getAllByTestId("macro-theme-evidence-link");
+    expect(links).toHaveLength(2);
+    expect(links[0]).toHaveAttribute(
+      "href",
+      `/research/evidence/${MACRO_THEME_EVIDENCE_ID_1}`,
+    );
+    expect(links[0]).toHaveTextContent(MACRO_THEME_EVIDENCE_ID_1);
+    expect(links[1]).toHaveAttribute(
+      "href",
+      `/research/evidence/${MACRO_THEME_EVIDENCE_ID_2}`,
+    );
+    expect(links[1]).toHaveTextContent(MACRO_THEME_EVIDENCE_ID_2);
+  });
+
+  it("expands the watch item evidence list into one trace link per evidence_id", () => {
+    const data = makeData({
+      brief: {
+        themes: [],
+        sector_calls: [],
+        watch_items: [
+          {
+            name: "10y yields",
+            reason: "Approaching the 5% threshold.",
+            evidence_ids: [
+              MACRO_WATCH_EVIDENCE_ID_1,
+              MACRO_WATCH_EVIDENCE_ID_2,
+            ],
+          },
+        ],
+        cited_claims: [],
+        proposed_hypotheses: [],
+        confidence: 0.6,
+        evidence_ids: [],
+        verifier_status: "verified",
+        regeneration_count: 0,
+      },
+    });
+    render(<MacroBriefDetail data={data} />);
+    const row = screen.getByTestId("macro-watch-item-row");
+    const trigger = within(row).getByRole("button");
+    fireEvent.click(trigger);
+    const links = within(row).getAllByTestId("macro-watch-item-evidence-link");
+    expect(links).toHaveLength(2);
+    expect(links[0]).toHaveAttribute(
+      "href",
+      `/research/evidence/${MACRO_WATCH_EVIDENCE_ID_1}`,
+    );
+    expect(links[0]).toHaveTextContent(MACRO_WATCH_EVIDENCE_ID_1);
+    expect(links[1]).toHaveAttribute(
+      "href",
+      `/research/evidence/${MACRO_WATCH_EVIDENCE_ID_2}`,
+    );
+    expect(links[1]).toHaveTextContent(MACRO_WATCH_EVIDENCE_ID_2);
   });
 
   it("renders the evidence link even when the chunk lookup is missing", () => {

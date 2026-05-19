@@ -20,6 +20,8 @@ type MacroBriefPublic = components["schemas"]["MacroBriefPublic"];
 type ChunkLookup = components["schemas"]["ChunkLookup"];
 type CitedClaim = components["schemas"]["CitedClaim"];
 type SectorCall = components["schemas"]["SectorCall"];
+type Theme = components["schemas"]["Theme"];
+type WatchItem = components["schemas"]["WatchItem"];
 type VerifierStatus = components["schemas"]["VerifierStatus"];
 type JudgeStatus = components["schemas"]["JudgeStatus"];
 
@@ -82,15 +84,7 @@ export function MacroBriefDetail(props: MacroBriefDetailProps): ReactElement {
         ) : (
           <ul className="flex flex-col gap-2">
             {brief.themes.map((theme) => (
-              <li
-                key={theme.name}
-                className="flex items-center justify-between border-b border-line/60 pb-2 last:border-0 last:pb-0"
-              >
-                <span className="text-fg">{theme.name}</span>
-                <span className="font-mono tabular-nums text-fg-muted text-sm">
-                  {theme.confidence.toFixed(2)}
-                </span>
-              </li>
+              <ThemeRow key={theme.name} theme={theme} />
             ))}
           </ul>
         )}
@@ -144,15 +138,7 @@ export function MacroBriefDetail(props: MacroBriefDetailProps): ReactElement {
         ) : (
           <ul className="flex flex-col gap-2">
             {brief.watch_items.map((item) => (
-              <li
-                key={item.name}
-                className="border-b border-line/60 pb-2 last:border-0 last:pb-0"
-              >
-                <p className="text-fg font-medium">{item.name}</p>
-                <p className="mt-1 text-sm text-fg-muted leading-relaxed">
-                  {item.reason}
-                </p>
-              </li>
+              <WatchItemRow key={item.name} item={item} />
             ))}
           </ul>
         )}
@@ -268,6 +254,114 @@ function Section(props: SectionProps): ReactElement {
 
 function Empty(): ReactElement {
   return <p className="text-sm text-fg-subtle">No data.</p>;
+}
+
+interface ThemeRowProps {
+  theme: Theme;
+}
+
+function ThemeRow(props: ThemeRowProps): ReactElement {
+  const { theme } = props;
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const evidenceCount = theme.evidence_ids.length;
+  const hasEvidence = evidenceCount > 0;
+
+  const handleToggle = (): void => {
+    setIsOpen((previous) => !previous);
+  };
+
+  return (
+    <li
+      data-testid="macro-theme-row"
+      className="border-b border-line/60 pb-2 last:border-0 last:pb-0"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <span className="text-fg">{theme.name}</span>
+          {hasEvidence ? (
+            <button
+              type="button"
+              onClick={handleToggle}
+              aria-expanded={isOpen}
+              className="font-mono text-[11px] tracking-[0.14em] font-medium uppercase text-fg-subtle hover:text-accent-text transition-colors duration-150"
+            >
+              Evidence {evidenceCount}
+            </button>
+          ) : null}
+        </div>
+        <span className="font-mono tabular-nums text-fg-muted text-sm">
+          {theme.confidence.toFixed(2)}
+        </span>
+      </div>
+      {isOpen && hasEvidence ? (
+        <ul className="mt-2 flex flex-col gap-1 text-xs">
+          {theme.evidence_ids.map((evidenceId) => (
+            <li key={evidenceId} className="font-mono">
+              <Link
+                href={`/research/evidence/${evidenceId}` as Route}
+                className="text-accent-text hover:underline"
+                data-testid="macro-theme-evidence-link"
+              >
+                {evidenceId}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </li>
+  );
+}
+
+interface WatchItemRowProps {
+  item: WatchItem;
+}
+
+function WatchItemRow(props: WatchItemRowProps): ReactElement {
+  const { item } = props;
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const evidenceCount = item.evidence_ids.length;
+  const hasEvidence = evidenceCount > 0;
+
+  const handleToggle = (): void => {
+    setIsOpen((previous) => !previous);
+  };
+
+  return (
+    <li
+      data-testid="macro-watch-item-row"
+      className="border-b border-line/60 pb-2 last:border-0 last:pb-0"
+    >
+      <p className="text-fg font-medium">{item.name}</p>
+      <p className="mt-1 text-sm text-fg-muted leading-relaxed">{item.reason}</p>
+      {hasEvidence ? (
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={handleToggle}
+            aria-expanded={isOpen}
+            className="font-mono text-[11px] tracking-[0.14em] font-medium uppercase text-fg-subtle hover:text-accent-text transition-colors duration-150"
+          >
+            Evidence {evidenceCount}
+          </button>
+          {isOpen ? (
+            <ul className="mt-2 flex flex-col gap-1 text-xs">
+              {item.evidence_ids.map((evidenceId) => (
+                <li key={evidenceId} className="font-mono">
+                  <Link
+                    href={`/research/evidence/${evidenceId}` as Route}
+                    className="text-accent-text hover:underline"
+                    data-testid="macro-watch-item-evidence-link"
+                  >
+                    {evidenceId}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+    </li>
+  );
 }
 
 interface SectorCallRowProps {
