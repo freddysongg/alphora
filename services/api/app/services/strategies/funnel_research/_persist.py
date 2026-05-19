@@ -34,18 +34,19 @@ async def persist_macro_brief(
     await session.flush()
 
     run = (await session.execute(select(ResearchRun).where(ResearchRun.id == run_id))).scalar_one()
-    run.status = RunStatus.succeeded
-    run.finished_at = datetime.now(UTC)
-    run.wall_clock_ms = wall_clock_ms
+    if run.status == RunStatus.running:
+        run.status = RunStatus.succeeded
+        run.finished_at = datetime.now(UTC)
+        run.wall_clock_ms = wall_clock_ms
 
-    index, total = resolve_stage_position(strategy=run.strategy, stage_name="succeeded")
-    emit_stage_event(
-        session,
-        run_id=run_id,
-        stage_name="succeeded",
-        stage_index=index,
-        total_stages=total,
-    )
+        index, total = resolve_stage_position(strategy=run.strategy, stage_name="succeeded")
+        emit_stage_event(
+            session,
+            run_id=run_id,
+            stage_name="succeeded",
+            stage_index=index,
+            total_stages=total,
+        )
     return row.id
 
 

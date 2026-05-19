@@ -93,3 +93,33 @@ async def test_persist_writes_macro_brief_and_terminal_event(db_session: AsyncSe
     assert terminal.data.get("stage_name") == "succeeded"
     assert terminal.data.get("stage_index") == 5
     assert terminal.data.get("total_stages") == 5
+
+
+@pytest.mark.asyncio
+async def test_persist_does_not_overwrite_cancelled_status(db_session: AsyncSession) -> None:
+    """If a run was cancelled while the strategy was finishing, persist the brief but don't reanimate."""
+    from app.services.strategies.funnel_research._persist import persist_macro_brief
+
+    run_id = await _make_run(db_session)
+    run = (await db_session.execute(select(ResearchRun).where(ResearchRun.id == run_id))).scalar_one()
+    run.status = RunStatus.cancelled
+    await db_session.commit()
+
+    brief = MacroBrief(
+        themes=[],
+        sector_calls=[],
+        watch_items=[],
+        cited_claims=[],
+        proposed_hypotheses=[],
+        confidence=0.5,
+        evidence_ids=[],
+        verifier_status=VerifierStatus.verified,
+        regeneration_count=0,
+    )
+    await persist_macro_brief(session=db_session, run_id=run_id, brief=brief, wall_clock_ms=100)
+    await db_session.commit()
+
+    loaded = (await db_session.execute(select(ResearchRun).where(ResearchRun.id == run_id))).scalar_one()
+    assert loaded.status == RunStatus.cancelled
+    row = (await db_session.execute(select(MacroBriefRow).where(MacroBriefRow.run_id == run_id))).scalar_one()
+    assert row.verifier_status == "verified"

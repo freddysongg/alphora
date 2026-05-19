@@ -4,7 +4,6 @@ def test_constants_are_pinned() -> None:
     assert config.SYNTHESIS_MODEL == "gpt-5-mini"
     assert config.MAX_REGENERATIONS == 2
     assert config.PROMPT_VERSION == "macro-brief-v1"
-    assert config.MAX_RESPONSE_TOKENS == 8000
     assert config.FRED_SERIES == (
         "CPIAUCSL",
         "UNRATE",

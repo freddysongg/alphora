@@ -37,6 +37,7 @@ def chunk_fred_observations(payload: FredSeriesObservations) -> list[ChunkDraft]
             f"value={value_text}"
         )
         attributes: dict[str, Any] = {
+            "source": "fred",
             "series_id": payload.series_id,
             "date": observation.date.isoformat(),
             "value": value_text if observation.value is not None else None,
@@ -65,6 +66,7 @@ def chunk_sec_tickers(payload: SecCompanyTickersResponse) -> list[ChunkDraft]:
             f"title={company.title} cik={padded_cik}"
         )
         attributes: dict[str, Any] = {
+            "source": "sec_edgar",
             "cik": padded_cik,
             "ticker": company.ticker,
             "title": company.title,
@@ -96,6 +98,7 @@ def chunk_sec_submissions(payload: SecSubmissionsResponse) -> list[ChunkDraft]:
             f"primary_document={submission.primary_document}"
         )
         attributes: dict[str, Any] = {
+            "source": "sec_edgar",
             "cik": payload.cik,
             "name": payload.name,
             "form": submission.form,
@@ -130,6 +133,7 @@ def chunk_polymarket_events(events: list[PolymarketEvent]) -> list[ChunkDraft]:
             f"active={event.active} closed={event.closed}"
         )
         attributes: dict[str, Any] = {
+            "source": "polymarket_events",
             "event_id": event.id,
             "slug": event.slug,
             "title": event.title,
@@ -162,6 +166,7 @@ def chunk_kalshi_markets(markets: list[KalshiMarket]) -> list[ChunkDraft]:
             f"yes_bid={market.yes_bid} yes_ask={market.yes_ask}"
         )
         attributes: dict[str, Any] = {
+            "source": "kalshi_markets",
             "ticker": market.ticker,
             "event_ticker": market.event_ticker,
             "title": market.title,
@@ -197,6 +202,7 @@ def chunk_congress_bills(bills: list[CongressBill]) -> list[ChunkDraft]:
             f"title={title_text} update_date={update_text}"
         )
         attributes: dict[str, Any] = {
+            "source": "congress_bills",
             "congress": bill.congress,
             "type": bill.type,
             "number": bill.number,
@@ -228,9 +234,10 @@ def chunk_tiingo_news_items(items: list[TiingoNewsItem]) -> list[ChunkDraft]:
             f"tickers={tickers_text}"
         )
         attributes: dict[str, Any] = {
+            "source": "tiingo_news",
             "news_id": item.id,
             "title": item.title,
-            "source": item.source,
+            "outlet": item.source,
             "published_date": item.publishedDate.isoformat(),
             "url": item.url,
             "tickers": list(item.tickers),

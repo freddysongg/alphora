@@ -3,7 +3,6 @@ from typing import Final
 SYNTHESIS_MODEL: Final[str] = "gpt-5-mini"
 MAX_REGENERATIONS: Final[int] = 2
 PROMPT_VERSION: Final[str] = "macro-brief-v1"
-MAX_RESPONSE_TOKENS: Final[int] = 8000
 
 FRED_SERIES: Final[tuple[str, ...]] = (
     "CPIAUCSL",
@@ -41,7 +40,6 @@ __all__ = [
     "FRED_SERIES",
     "KALSHI_FETCH_LIMIT",
     "MAX_REGENERATIONS",
-    "MAX_RESPONSE_TOKENS",
     "POLYMARKET_FETCH_LIMIT",
     "PROMPT_VERSION",
     "SYNTHESIS_MODEL",

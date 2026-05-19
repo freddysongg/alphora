@@ -70,6 +70,36 @@ async def run_macro_brief(
     """
     active_fetcher = fetcher or default_fetcher()
     started = time.monotonic()
+    try:
+        await _run_funnel(
+            session_factory=session_factory,
+            run_id=run_id,
+            llm_client=llm_client,
+            orchestrator=orchestrator,
+            http_client=http_client,
+            fetcher=active_fetcher,
+            chunk_id_capture=chunk_id_capture,
+            started=started,
+        )
+    except FunnelResearchError:
+        raise
+    except Exception as exc:
+        await orchestrator.fail(run_id=run_id, reason=f"unexpected failure: {exc}")
+        raise
+
+
+async def _run_funnel(
+    *,
+    session_factory: async_sessionmaker[AsyncSession],
+    run_id: uuid.UUID,
+    llm_client: LlmClient,
+    orchestrator: RunOrchestrator,
+    http_client: httpx.AsyncClient,
+    fetcher: SourceFetcher,
+    chunk_id_capture: MutableMapping[str, uuid.UUID] | None,
+    started: float,
+) -> None:
+    active_fetcher = fetcher
 
     async with session_factory() as session:
         run = (
@@ -81,6 +111,8 @@ async def run_macro_brief(
             await orchestrator.fail(run_id=run_id, reason=f"invalid scope: {exc}")
             return
 
+        if run.status not in {RunStatus.queued, RunStatus.running}:
+            return
         run.status = RunStatus.running
         _emit_funnel_stage(
             session,

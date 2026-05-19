@@ -315,5 +315,6 @@ def test_chunk_tiingo_news_items_emits_one_chunk_per_article() -> None:
     ]
     chunks = chunk_tiingo_news_items(items)
     assert len(chunks) == 1
-    assert chunks[0].attributes["source"] == "Reuters"
+    assert chunks[0].attributes["source"] == "tiingo_news"
+    assert chunks[0].attributes["outlet"] == "Reuters"
     assert chunks[0].attributes["tickers"] == ["spy"]
