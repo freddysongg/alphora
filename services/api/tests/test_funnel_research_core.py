@@ -11,6 +11,7 @@ from sqlalchemy import select
 from app.db.models_graph import Hypothesis
 from app.db.models_llm import LlmCallLog, LlmCallStatus
 from app.db.models_macro import MacroBrief as MacroBriefRow
+from app.db.models_portfolio import PortfolioBrief as PortfolioBriefRow
 from app.db.models_runs import ResearchRun, RunEvent, RunStatus, Strategy
 from app.db.session import session_factory
 from app.schemas.budget import TokenUsage
@@ -206,7 +207,18 @@ async def test_run_macro_brief_end_to_end_success(initialized_schema: None) -> N
             for event in stage_events
             if (event.data or {}).get("event") == "stage"
         ]
-        assert "ingest" in stage_names and "succeeded" in stage_names
+        assert "ingest" in stage_names
+        assert "portfolio_brief" in stage_names
+        assert "consolidate" in stage_names
+        assert "succeeded" in stage_names
+
+        portfolio_row = (
+            await session.execute(
+                select(PortfolioBriefRow).where(PortfolioBriefRow.run_id == run_id)
+            )
+        ).scalar_one()
+        assert portfolio_row.judge_status == "passed"
+        assert portfolio_row.verifier_status == "verified"
 
 
 @pytest.mark.asyncio

@@ -53,6 +53,9 @@ from app.services.strategies.funnel_research.company.evidence import (
     CompanySourceFetcher,
 )
 from app.services.strategies.funnel_research.config import MAX_REGENERATIONS
+from app.services.strategies.funnel_research.portfolio.runner import (
+    run_portfolio_brief,
+)
 from app.services.strategies.funnel_research.sector import (
     SectorFanoutOutcome,
     run_sector_fanout,
@@ -182,11 +185,11 @@ async def run_macro_brief(
     """Execute the funnel_research strategy for one run.
 
     Stages ingest -> digest -> synthesize -> verify -> sector_fanout ->
-    company_fanout -> consolidate -> succeeded. Budget pause/kill is routed
-    through the injected orchestrator. Failures in source clients are
-    isolated to warn-level events; total source failure, invalid scope, all
-    sector fan-outs failing, or all company fan-outs failing marks the run
-    as failed via orchestrator.fail.
+    company_fanout -> portfolio_brief -> consolidate -> succeeded. Budget
+    pause/kill is routed through the injected orchestrator. Failures in
+    source clients are isolated to warn-level events; total source failure,
+    invalid scope, all sector fan-outs failing, or all company fan-outs
+    failing marks the run as failed via orchestrator.fail.
     """
     active_fetcher = fetcher or default_fetcher()
     constituents = (
@@ -455,6 +458,28 @@ async def _run_funnel(
             run_id=run_id, reason="all company fan-outs failed"
         )
         return
+
+    async with session_factory() as session:
+        if await _run_is_halted(session=session, run_id=run_id):
+            return
+
+    async with session_factory() as session:
+        _emit_funnel_stage(
+            session,
+            run_id=run_id,
+            stage_name="portfolio_brief",
+            message="stage 7/9: portfolio_brief",
+        )
+        await session.commit()
+
+    await run_portfolio_brief(
+        session_factory=session_factory,
+        run_id=run_id,
+        macro_brief=macro_brief,
+        macro_judge=macro_judge,
+        llm_client=llm_client,
+        orchestrator=orchestrator,
+    )
 
     async with session_factory() as session:
         if await _run_is_halted(session=session, run_id=run_id):
