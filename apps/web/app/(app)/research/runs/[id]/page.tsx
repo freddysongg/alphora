@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { getServerApi, isApiError } from "@/lib/api";
 import type { components } from "@/lib/api";
+import { getMacroBrief } from "./actions";
 import { RunDetail } from "./run-detail";
 
 export const metadata: Metadata = {
@@ -13,6 +14,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 type ResearchRunDetail = components["schemas"]["ResearchRunDetail"];
+type MacroBriefPublic = components["schemas"]["MacroBriefPublic"];
 
 interface RunDetailPageProps {
   params: Promise<{ id: string }>;
@@ -41,6 +43,16 @@ async function loadRunDetail(
   }
 }
 
+async function loadMacroBrief(
+  runId: string,
+): Promise<MacroBriefPublic | null> {
+  try {
+    return await getMacroBrief(runId);
+  } catch {
+    return null;
+  }
+}
+
 export default async function RunDetailPage(
   props: RunDetailPageProps,
 ): Promise<ReactElement> {
@@ -49,5 +61,7 @@ export default async function RunDetailPage(
   if (detail === null) {
     notFound();
   }
-  return <RunDetail detail={detail} />;
+  const macroBrief =
+    detail.strategy === "funnel_research" ? await loadMacroBrief(id) : null;
+  return <RunDetail detail={detail} macroBrief={macroBrief} />;
 }
