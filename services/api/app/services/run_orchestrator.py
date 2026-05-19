@@ -38,6 +38,8 @@ STAGE_SCHEMES: dict[str, StageScheme] = {
         "synthesize",
         "verify",
         "sector_fanout",
+        "company_fanout",
+        "portfolio_brief",
         "consolidate",
     ),
 }

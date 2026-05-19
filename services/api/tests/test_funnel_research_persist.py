@@ -94,8 +94,8 @@ async def test_persist_writes_macro_brief_and_terminal_event(db_session: AsyncSe
     assert terminal is not None
     assert terminal.data is not None
     assert terminal.data.get("stage_name") == "succeeded"
-    assert terminal.data.get("stage_index") == 7
-    assert terminal.data.get("total_stages") == 7
+    assert terminal.data.get("stage_index") == 9
+    assert terminal.data.get("total_stages") == 9
 
 
 @pytest.mark.asyncio

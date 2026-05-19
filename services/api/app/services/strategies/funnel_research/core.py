@@ -11,7 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.db.models_runs import ResearchRun, RunStatus
 from app.schemas.extraction import BootstrappedEntity, EvidenceChunkRef
 from app.schemas.macro_brief import MacroBrief, MacroBriefScope, VerifierStatus
-from app.schemas.sector_brief import JudgePublic, JudgeStatus
+from app.schemas.sector_brief import (
+    JudgePublic,
+    JudgeStatus,
+    SectorBrief,
+    SectorBriefPublic,
+)
 from app.services.entity_bootstrap.gics_sectors import load_top_level_sector_names
 from app.services.llm.client import LlmClient, LlmCompletionResult
 from app.services.run_events import emit_stage_event
@@ -36,6 +41,16 @@ from app.services.strategies.funnel_research._verifier import (
     RegenLoopResult,
     run_regen_loop,
     verify_once,
+)
+from app.services.strategies.funnel_research.company import (
+    CompanyFanoutOutcome,
+    CompanyResolution,
+    company_resolution_key,
+    run_company_fanout,
+    select_companies,
+)
+from app.services.strategies.funnel_research.company.evidence import (
+    CompanySourceFetcher,
 )
 from app.services.strategies.funnel_research.config import MAX_REGENERATIONS
 from app.services.strategies.funnel_research.sector import (
@@ -155,15 +170,17 @@ async def run_macro_brief(
     fetcher: SourceFetcher | None = None,
     sector_fetcher: SectorSourceFetcher | None = None,
     sector_constituents: dict[str, SectorConstituents] | None = None,
+    company_fetcher: CompanySourceFetcher | None = None,
     chunk_id_capture: MutableMapping[str, uuid.UUID] | None = None,
 ) -> None:
     """Execute the funnel_research strategy for one run.
 
     Stages ingest -> digest -> synthesize -> verify -> sector_fanout ->
-    consolidate -> succeeded. Budget pause/kill is routed through the
-    injected orchestrator. Failures in source clients are isolated to
-    warn-level events; total source failure, invalid scope, or all sector
-    fan-outs failing marks the run as failed via orchestrator.fail.
+    company_fanout -> consolidate -> succeeded. Budget pause/kill is routed
+    through the injected orchestrator. Failures in source clients are
+    isolated to warn-level events; total source failure, invalid scope, all
+    sector fan-outs failing, or all company fan-outs failing marks the run
+    as failed via orchestrator.fail.
     """
     active_fetcher = fetcher or default_fetcher()
     constituents = (
@@ -182,6 +199,7 @@ async def run_macro_brief(
             fetcher=active_fetcher,
             sector_fetcher=sector_fetcher,
             sector_constituents=constituents,
+            company_fetcher=company_fetcher,
             chunk_id_capture=chunk_id_capture,
             started=started,
         )
@@ -202,6 +220,7 @@ async def _run_funnel(
     http_client: httpx.AsyncClient,
     fetcher: SourceFetcher,
     sector_fetcher: SectorSourceFetcher | None,
+    company_fetcher: CompanySourceFetcher | None,
     sector_constituents: dict[str, SectorConstituents],
     chunk_id_capture: MutableMapping[str, uuid.UUID] | None,
     started: float,
@@ -227,7 +246,7 @@ async def _run_funnel(
             session,
             run_id=run_id,
             stage_name="ingest",
-            message="stage 1/7: ingest",
+            message="stage 1/9: ingest",
         )
         await session.commit()
 
@@ -267,7 +286,7 @@ async def _run_funnel(
             session,
             run_id=run_id,
             stage_name="digest",
-            message="stage 2/7: digest",
+            message="stage 2/9: digest",
         )
         await session.commit()
 
@@ -279,7 +298,7 @@ async def _run_funnel(
             session,
             run_id=run_id,
             stage_name="synthesize",
-            message="stage 3/7: synthesize",
+            message="stage 3/9: synthesize",
         )
         await session.commit()
 
@@ -306,7 +325,7 @@ async def _run_funnel(
             session,
             run_id=run_id,
             stage_name="verify",
-            message="stage 4/7: verify",
+            message="stage 4/9: verify",
         )
 
         async def regenerate(reasons: list[str]) -> MacroBrief:
@@ -368,7 +387,7 @@ async def _run_funnel(
             session,
             run_id=run_id,
             stage_name="sector_fanout",
-            message="stage 5/7: sector_fanout",
+            message="stage 5/9: sector_fanout",
         )
         await session.commit()
 
@@ -394,8 +413,43 @@ async def _run_funnel(
         _emit_funnel_stage(
             session,
             run_id=run_id,
+            stage_name="company_fanout",
+            message="stage 6/9: company_fanout",
+        )
+        await session.commit()
+
+    async with session_factory() as session:
+        sector_briefs = await _load_persisted_sector_briefs(
+            session=session, run_id=run_id
+        )
+        company_resolutions = await _build_company_resolutions(
+            session=session, sector_briefs=sector_briefs
+        )
+
+    company_outcome = await run_company_fanout(
+        session_factory=session_factory,
+        run_id=run_id,
+        sector_briefs=sector_briefs,
+        digest_markdown=digest_markdown,
+        company_resolutions=company_resolutions,
+        llm_client=llm_client,
+        orchestrator=orchestrator,
+        http_client=http_client,
+        company_fetcher=company_fetcher,
+    )
+
+    if _all_companies_failed(company_outcome):
+        await orchestrator.fail(
+            run_id=run_id, reason="all company fan-outs failed"
+        )
+        return
+
+    async with session_factory() as session:
+        _emit_funnel_stage(
+            session,
+            run_id=run_id,
             stage_name="consolidate",
-            message="stage 6/7: consolidate",
+            message="stage 8/9: consolidate",
         )
         await promote_themes(session=session, run_id=run_id)
         await session.commit()
@@ -415,6 +469,89 @@ def _all_sectors_failed(outcome: SectorFanoutOutcome) -> bool:
         outcome.selected_count > 0
         and outcome.failed_count == outcome.selected_count
     )
+
+
+def _all_companies_failed(outcome: CompanyFanoutOutcome) -> bool:
+    return (
+        outcome.selected_count > 0
+        and outcome.failed_count == outcome.selected_count
+    )
+
+
+async def _load_persisted_sector_briefs(
+    *,
+    session: AsyncSession,
+    run_id: uuid.UUID,
+) -> list[SectorBriefPublic]:
+    from app.db.models_sector import SectorBrief as SectorBriefRow
+
+    rows = (
+        (
+            await session.execute(
+                select(SectorBriefRow)
+                .where(SectorBriefRow.run_id == run_id)
+                .order_by(SectorBriefRow.created_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    briefs: list[SectorBriefPublic] = []
+    for row in rows:
+        brief = SectorBrief.model_validate(row.payload)
+        judge = JudgePublic(
+            status=JudgeStatus(row.judge_status),
+            reasons=list(row.judge_reasons or []),
+            call_id=row.judge_call_id,
+        )
+        briefs.append(SectorBriefPublic(brief=brief, judge=judge))
+    return briefs
+
+
+async def _build_company_resolutions(
+    *,
+    session: AsyncSession,
+    sector_briefs: list[SectorBriefPublic],
+) -> dict[str, CompanyResolution]:
+    """Resolve company entities for selected company ideas.
+
+    Looks up each idea's company entity by canonical name + type=company.
+    CIK comes from `entity.external_ids["sec_cik"]` when present. Companies
+    without a resolved entity are omitted; the runner skips them with warn.
+    """
+    from app.db.models_graph import Entity, EntityType
+
+    selected = select_companies(sector_briefs)
+    if not selected:
+        return {}
+
+    names = sorted({idea.company_name for idea in selected})
+    rows = (
+        (
+            await session.execute(
+                select(Entity)
+                .where(Entity.type == EntityType.company.value)
+                .where(Entity.canonical_name.in_(names))
+            )
+        )
+        .scalars()
+        .all()
+    )
+    by_name: dict[str, Entity] = {row.canonical_name: row for row in rows}
+
+    resolutions: dict[str, CompanyResolution] = {}
+    for idea in selected:
+        entity = by_name.get(idea.company_name)
+        if entity is None:
+            continue
+        cik_value = (entity.external_ids or {}).get("sec_cik")
+        cik = str(cik_value) if isinstance(cik_value, str) else None
+        resolutions[company_resolution_key(idea)] = CompanyResolution(
+            company_entity_id=entity.id,
+            cik=cik,
+        )
+    return resolutions
 
 
 __all__ = ["run_macro_brief"]
