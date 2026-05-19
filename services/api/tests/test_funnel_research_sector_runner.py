@@ -1,5 +1,7 @@
+import hashlib
+import json
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -8,7 +10,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models_graph import Entity, EntityType
+from app.db.models_graph import Entity, EntityType, Evidence
 from app.db.models_runs import ResearchRun, RunEvent, RunStatus, Strategy
 from app.db.models_sector import SectorBrief as SectorBriefRow
 from app.db.session import session_factory
@@ -20,6 +22,7 @@ from app.schemas.macro_brief import (
 )
 from app.services.llm.client import LlmCompletionResult
 from app.services.source_clients.polygon import (
+    PolygonAggregateBar,
     PolygonAggregatesResponse,
 )
 from app.services.source_clients.tiingo_news import TiingoNewsItem
@@ -379,3 +382,116 @@ async def test_run_sector_fanout_respects_max_sectors_cap(
 
     assert outcome.selected_count == 3
     assert outcome.skipped_count == 3
+
+
+def _populated_sector_fetcher() -> SectorSourceFetcher:
+    aggs_payload = PolygonAggregatesResponse(
+        ticker="XLE",
+        queryCount=1,
+        resultsCount=1,
+        adjusted=True,
+        status="OK",
+        results=[
+            PolygonAggregateBar(
+                o=100.0, c=101.0, h=102.0, l=99.5, v=1000.0, t=1715040000000
+            ),
+        ],
+    )
+    aggs_body = json.dumps(
+        aggs_payload.model_dump(mode="json"), sort_keys=True
+    ).encode("utf-8")
+    aggs_hash = hashlib.sha256(aggs_body).hexdigest()
+
+    news_items = [
+        TiingoNewsItem(
+            id=1,
+            title="energy headline",
+            description="...",
+            url="https://example.com/1",
+            publishedDate=datetime(2026, 5, 18, tzinfo=UTC),
+            source="news.example.com",
+            tickers=["XOM"],
+            tags=["energy"],
+        ),
+    ]
+    news_body = json.dumps(
+        [item.model_dump(mode="json") for item in news_items], sort_keys=True
+    ).encode("utf-8")
+    news_hash = hashlib.sha256(news_body).hexdigest()
+
+    async def fetch_aggs(*_: Any) -> tuple[PolygonAggregatesResponse, str]:
+        return aggs_payload, aggs_hash
+
+    async def fetch_news(*_: Any) -> tuple[list[TiingoNewsItem], str]:
+        return news_items, news_hash
+
+    return SectorSourceFetcher(polygon_aggregates=fetch_aggs, tiingo_news=fetch_news)
+
+
+class _AssertionLlm:
+    async def complete(self, **kwargs: Any) -> LlmCompletionResult:
+        raise AssertionError("llm call not relevant for this test")
+
+
+@pytest.mark.asyncio
+async def test_run_sector_fanout_ingests_polygon_evidence_when_unpersisted(
+    initialized_schema: None,
+) -> None:
+    """Regression: the persisted check leaves the session in an implicit
+    transaction; without releasing it, polygon ingest's `session.begin()` raises
+    and the aggregate is silently dropped.
+    """
+    sector_entity_id = uuid.uuid4()
+    async with session_factory() as session:
+        run_id = await _seed_run(session)
+        session.add(
+            Entity(
+                id=sector_entity_id,
+                type=EntityType.sector.value,
+                canonical_name="Energy",
+                aliases=[],
+                external_ids={},
+                attributes={},
+            )
+        )
+        await session.commit()
+
+    macro = _macro_brief(
+        sector_calls=[
+            SectorCall(
+                sector_entity_id=sector_entity_id,
+                sector_name="Energy",
+                direction=SectorCallDirection.overweight,
+                conviction=0.8,
+                evidence_ids=[],
+            )
+        ]
+    )
+
+    orchestrator = AsyncMock()
+    constituents = {
+        "Energy": SectorConstituents(
+            proxy_ticker="XLE", representative_tickers=("XOM",)
+        )
+    }
+
+    async with httpx.AsyncClient() as http_client:
+        await run_sector_fanout(
+            session_factory=session_factory,
+            run_id=run_id,
+            macro_brief=macro,
+            digest_markdown="",
+            sector_constituents=constituents,
+            llm_client=_AssertionLlm(),
+            orchestrator=orchestrator,
+            http_client=http_client,
+            sector_fetcher=_populated_sector_fetcher(),
+        )
+
+    async with session_factory() as session:
+        polygon_rows = (
+            await session.execute(
+                select(Evidence).where(Evidence.source == "polygon_aggregates")
+            )
+        ).scalars().all()
+    assert len(polygon_rows) == 1

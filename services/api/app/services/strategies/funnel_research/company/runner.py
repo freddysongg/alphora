@@ -223,6 +223,11 @@ async def _run_one_company(
                 await session.commit()
                 return _CompanyOutcome.skipped
 
+            # The persisted-check SELECT opens an implicit transaction; the
+            # ingestion helpers reached from fetch_company_evidence require no
+            # active transaction because they each open their own.
+            await session.rollback()
+
             evidence_result = await fetch_company_evidence(
                 session=session,
                 run_id=run_id,

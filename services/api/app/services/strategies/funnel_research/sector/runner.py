@@ -183,6 +183,11 @@ async def _run_one_sector(
                 await session.commit()
                 return _SectorOutcome.skipped
 
+            # The persisted-check SELECT opens an implicit transaction; the
+            # ingestion helpers reached from fetch_sector_evidence require no
+            # active transaction because they each open their own.
+            await session.rollback()
+
             evidence_result = await fetch_sector_evidence(
                 session=session,
                 run_id=run_id,

@@ -1,5 +1,7 @@
+import hashlib
+import json
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -9,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models_company import CompanyThesis as CompanyThesisRow
-from app.db.models_graph import Entity, EntityType
+from app.db.models_graph import Entity, EntityType, Evidence
 from app.db.models_runs import ResearchRun, RunEvent, RunStatus, Strategy
 from app.db.session import session_factory
 from app.schemas.macro_brief import SectorCallDirection, VerifierStatus
@@ -22,7 +24,10 @@ from app.schemas.sector_brief import (
 )
 from app.services.llm.client import LlmCompletionResult
 from app.services.source_clients.ainvest import AinvestCongressResponse
-from app.services.source_clients.polygon import PolygonAggregatesResponse
+from app.services.source_clients.polygon import (
+    PolygonAggregateBar,
+    PolygonAggregatesResponse,
+)
 from app.services.source_clients.sec_edgar import SecSubmissionsResponse
 from app.services.source_clients.tiingo_news import TiingoNewsItem
 from app.services.strategies.funnel_research.company.evidence import (
@@ -474,3 +479,160 @@ async def test_run_company_fanout_respects_max_companies_cap(
 
     assert outcome.selected_count == 5
     assert outcome.skipped_count == 5
+
+
+def _populated_company_fetcher() -> CompanySourceFetcher:
+    aggs_payload = PolygonAggregatesResponse(
+        ticker="AAPL",
+        queryCount=1,
+        resultsCount=1,
+        adjusted=True,
+        status="OK",
+        results=[
+            PolygonAggregateBar(
+                o=190.0, c=192.0, h=193.0, l=189.0, v=10_000_000.0, t=1715040000000
+            ),
+        ],
+    )
+    aggs_body = json.dumps(
+        aggs_payload.model_dump(mode="json"), sort_keys=True
+    ).encode("utf-8")
+    aggs_hash = hashlib.sha256(aggs_body).hexdigest()
+
+    news_items = [
+        TiingoNewsItem(
+            id=1,
+            title="apple headline",
+            description="...",
+            url="https://example.com/aapl",
+            publishedDate=datetime(2026, 5, 18, tzinfo=UTC),
+            source="news.example.com",
+            tickers=["AAPL"],
+            tags=["tech"],
+        ),
+    ]
+    news_body = json.dumps(
+        [item.model_dump(mode="json") for item in news_items], sort_keys=True
+    ).encode("utf-8")
+    news_hash = hashlib.sha256(news_body).hexdigest()
+
+    async def fetch_aggs(*_: Any) -> tuple[PolygonAggregatesResponse, str]:
+        return aggs_payload, aggs_hash
+
+    async def fetch_news(*_: Any) -> tuple[list[TiingoNewsItem], str]:
+        return news_items, news_hash
+
+    async def fetch_ainvest(*_: Any) -> tuple[AinvestCongressResponse, str]:
+        from app.services.source_clients.ainvest import AinvestCongressData
+
+        return (
+            AinvestCongressResponse(
+                data=AinvestCongressData(data=[]),
+                status_code=200,
+                status_msg="ok",
+            ),
+            "0" * 64,
+        )
+
+    async def fetch_sec(*_: Any) -> tuple[SecSubmissionsResponse, str]:
+        return (
+            SecSubmissionsResponse(
+                cik="0000320193",
+                name="Apple Inc.",
+                sic=None,
+                tickers=["AAPL"],
+                recent=[],
+            ),
+            "0" * 64,
+        )
+
+    return CompanySourceFetcher(
+        polygon_aggregates=fetch_aggs,
+        tiingo_news=fetch_news,
+        ainvest_congress=fetch_ainvest,
+        sec_submissions=fetch_sec,
+    )
+
+
+class _AssertionLlm:
+    async def complete(self, **kwargs: Any) -> LlmCompletionResult:
+        raise AssertionError("llm call not relevant for this test")
+
+
+@pytest.mark.asyncio
+async def test_run_company_fanout_ingests_polygon_evidence_when_unpersisted(
+    initialized_schema: None,
+) -> None:
+    """Regression: the persisted check leaves the session in an implicit
+    transaction; without releasing it, polygon ingest's `session.begin()` raises
+    and the aggregate is silently dropped.
+    """
+    sector_entity_id = uuid.uuid4()
+    company_entity_id = uuid.uuid4()
+    async with session_factory() as session:
+        run_id = await _seed_run(session)
+        session.add_all(
+            [
+                Entity(
+                    id=sector_entity_id,
+                    type=EntityType.sector.value,
+                    canonical_name="Information Technology",
+                    aliases=[],
+                    external_ids={},
+                    attributes={},
+                ),
+                Entity(
+                    id=company_entity_id,
+                    type=EntityType.company.value,
+                    canonical_name="Apple Inc.",
+                    aliases=[],
+                    external_ids={},
+                    attributes={},
+                ),
+            ]
+        )
+        await session.commit()
+
+    sector_briefs = [
+        _sector_brief_public(
+            sector_entity_id=sector_entity_id,
+            sector_name="Information Technology",
+            companies=[
+                SectorCompanyIdea(
+                    name="Apple Inc.",
+                    ticker="AAPL",
+                    direction=SectorCallDirection.overweight,
+                    conviction=0.85,
+                    evidence_ids=[],
+                ),
+            ],
+        )
+    ]
+    resolutions = {
+        "ticker:AAPL": CompanyResolution(
+            company_entity_id=company_entity_id, cik="0000320193"
+        )
+    }
+
+    orchestrator = AsyncMock()
+
+    async with httpx.AsyncClient() as http_client:
+        await run_company_fanout(
+            session_factory=session_factory,
+            run_id=run_id,
+            sector_briefs=sector_briefs,
+            digest_markdown="",
+            company_resolutions=resolutions,
+            llm_client=_AssertionLlm(),
+            orchestrator=orchestrator,
+            http_client=http_client,
+            company_fetcher=_populated_company_fetcher(),
+        )
+
+    async with session_factory() as session:
+        polygon_rows = (
+            await session.execute(
+                select(Evidence).where(Evidence.source == "polygon_aggregates")
+            )
+        ).scalars().all()
+    assert len(polygon_rows) == 1
