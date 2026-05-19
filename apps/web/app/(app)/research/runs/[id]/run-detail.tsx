@@ -295,14 +295,15 @@ export function RunDetail(props: RunDetailProps): ReactElement {
       </header>
 
       <div className="px-6 pt-4 pb-12">
-        {isFunnelResearch ? (
-          macroBrief !== null ? (
-            <MacroBriefDetail data={macroBrief} />
-          ) : (
-            <p className="text-sm text-fg-muted">
-              Macro brief is generating…
-            </p>
-          )
+        {isFunnelResearch && macroBrief !== null ? (
+          <MacroBriefDetail data={macroBrief} />
+        ) : isFunnelResearch &&
+          (resolvedStatus === "failed" || resolvedStatus === "cancelled") ? (
+          <p className="text-sm text-fg-muted">
+            Macro brief was not produced because the run was {resolvedStatus}.
+          </p>
+        ) : isFunnelResearch ? (
+          <p className="text-sm text-fg-muted">Macro brief is generating…</p>
         ) : (
           <Tabs
             value={activeTab}

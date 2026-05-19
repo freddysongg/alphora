@@ -39,7 +39,7 @@ class CreateResearchRunsRequest(BaseModel):
 
     strategy: StrategyEnum = StrategyEnum.tradingagents
     trade_date: date
-    tickers: list[str] | None = None
+    tickers: list[str] | None = Field(default=None, min_length=1, max_length=25)
     scope_payload: MacroBriefScope | None = None
     analysts: list[AnalystKindEnum] = Field(default_factory=lambda: list(_DEFAULT_ANALYSTS))
     llm_provider: LlmProviderEnum | None = None

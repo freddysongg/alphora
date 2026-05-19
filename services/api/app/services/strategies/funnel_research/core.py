@@ -81,7 +81,8 @@ async def run_macro_brief(
             chunk_id_capture=chunk_id_capture,
             started=started,
         )
-    except FunnelResearchError:
+    except FunnelResearchError as exc:
+        await orchestrator.fail(run_id=run_id, reason=str(exc))
         raise
     except Exception as exc:
         await orchestrator.fail(run_id=run_id, reason=f"unexpected failure: {exc}")
@@ -187,7 +188,8 @@ async def _run_funnel(
                 regeneration_feedback=None,
             )
         except FunnelResearchError:
-            return
+            await session.commit()
+            raise
 
         _emit_funnel_stage(
             session,

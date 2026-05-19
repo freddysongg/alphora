@@ -203,6 +203,22 @@ def test_create_research_runs_rejects_empty_tickers(initialized_schema: None) ->
     assert response.status_code == 422
 
 
+def test_tradingagents_post_rejects_more_than_25_tickers(
+    initialized_schema: None,
+) -> None:
+    _ = initialized_schema
+    payload: dict[str, Any] = {
+        "strategy": "tradingagents",
+        "trade_date": "2026-05-18",
+        "tickers": [f"T{i}" for i in range(26)],
+        "llm_provider": "openai",
+        "llm_model": "gpt-4o-mini",
+    }
+    with TestClient(app) as client:
+        response = client.post("/api/research-runs", json=payload)
+    assert response.status_code == 422
+
+
 def test_create_research_runs_actually_persists(
     initialized_schema: None, fake_queue: Any
 ) -> None:

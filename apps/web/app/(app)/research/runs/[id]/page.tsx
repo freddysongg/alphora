@@ -14,7 +14,6 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 type ResearchRunDetail = components["schemas"]["ResearchRunDetail"];
-type MacroBriefPublic = components["schemas"]["MacroBriefPublic"];
 
 interface RunDetailPageProps {
   params: Promise<{ id: string }>;
@@ -43,16 +42,6 @@ async function loadRunDetail(
   }
 }
 
-async function loadMacroBrief(
-  runId: string,
-): Promise<MacroBriefPublic | null> {
-  try {
-    return await getMacroBrief(runId);
-  } catch {
-    return null;
-  }
-}
-
 export default async function RunDetailPage(
   props: RunDetailPageProps,
 ): Promise<ReactElement> {
@@ -62,6 +51,6 @@ export default async function RunDetailPage(
     notFound();
   }
   const macroBrief =
-    detail.strategy === "funnel_research" ? await loadMacroBrief(id) : null;
+    detail.strategy === "funnel_research" ? await getMacroBrief(id) : null;
   return <RunDetail detail={detail} macroBrief={macroBrief} />;
 }
