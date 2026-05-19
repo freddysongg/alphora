@@ -17,7 +17,13 @@ async def persist_macro_brief(
     run_id: uuid.UUID,
     brief: MacroBrief,
     wall_clock_ms: int,
+    mark_succeeded: bool = True,
 ) -> uuid.UUID:
+    """Persist a `MacroBrief` row. By default also marks the run succeeded.
+
+    Pass `mark_succeeded=False` when the caller has more stages to run
+    (sector fan-out + consolidate) and will mark the run succeeded itself.
+    """
     row = MacroBriefRow(
         run_id=run_id,
         themes=[t.model_dump(mode="json") for t in brief.themes],
@@ -32,6 +38,9 @@ async def persist_macro_brief(
     )
     session.add(row)
     await session.flush()
+
+    if not mark_succeeded:
+        return row.id
 
     run = (await session.execute(select(ResearchRun).where(ResearchRun.id == run_id))).scalar_one()
     if run.status == RunStatus.running:
@@ -50,4 +59,29 @@ async def persist_macro_brief(
     return row.id
 
 
-__all__ = ["persist_macro_brief"]
+async def mark_run_succeeded(
+    *,
+    session: AsyncSession,
+    run_id: uuid.UUID,
+    wall_clock_ms: int,
+) -> None:
+    """Mark the run as succeeded and emit the terminal `succeeded` stage event."""
+    run = (
+        await session.execute(select(ResearchRun).where(ResearchRun.id == run_id))
+    ).scalar_one()
+    if run.status != RunStatus.running:
+        return
+    run.status = RunStatus.succeeded
+    run.finished_at = datetime.now(UTC)
+    run.wall_clock_ms = wall_clock_ms
+    index, total = resolve_stage_position(strategy=run.strategy, stage_name="succeeded")
+    emit_stage_event(
+        session,
+        run_id=run_id,
+        stage_name="succeeded",
+        stage_index=index,
+        total_stages=total,
+    )
+
+
+__all__ = ["mark_run_succeeded", "persist_macro_brief"]

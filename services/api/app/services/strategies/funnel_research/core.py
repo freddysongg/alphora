@@ -24,7 +24,10 @@ from app.services.strategies.funnel_research._ingest import (
     run_ingest,
 )
 from app.services.strategies.funnel_research._llm_call import call_synthesis
-from app.services.strategies.funnel_research._persist import persist_macro_brief
+from app.services.strategies.funnel_research._persist import (
+    mark_run_succeeded,
+    persist_macro_brief,
+)
 from app.services.strategies.funnel_research._verifier import run_regen_loop
 
 
@@ -120,7 +123,7 @@ async def _run_funnel(
             session,
             run_id=run_id,
             stage_name="ingest",
-            message="stage 1/5: ingest",
+            message="stage 1/7: ingest",
         )
         await session.commit()
 
@@ -160,7 +163,7 @@ async def _run_funnel(
             session,
             run_id=run_id,
             stage_name="digest",
-            message="stage 2/5: digest",
+            message="stage 2/7: digest",
         )
         await session.commit()
 
@@ -172,7 +175,7 @@ async def _run_funnel(
             session,
             run_id=run_id,
             stage_name="synthesize",
-            message="stage 3/5: synthesize",
+            message="stage 3/7: synthesize",
         )
         await session.commit()
 
@@ -199,7 +202,7 @@ async def _run_funnel(
             session,
             run_id=run_id,
             stage_name="verify",
-            message="stage 4/5: verify",
+            message="stage 4/7: verify",
         )
 
         async def regenerate(reasons: list[str]) -> MacroBrief:
@@ -239,6 +242,34 @@ async def _run_funnel(
             session=session,
             run_id=run_id,
             brief=regen_result.brief,
+            wall_clock_ms=wall_clock_ms,
+            mark_succeeded=False,
+        )
+        await session.commit()
+
+    async with session_factory() as session:
+        _emit_funnel_stage(
+            session,
+            run_id=run_id,
+            stage_name="sector_fanout",
+            message="stage 5/7: sector_fanout",
+        )
+        await session.commit()
+
+    async with session_factory() as session:
+        _emit_funnel_stage(
+            session,
+            run_id=run_id,
+            stage_name="consolidate",
+            message="stage 6/7: consolidate",
+        )
+        await session.commit()
+
+    async with session_factory() as session:
+        wall_clock_ms = int((time.monotonic() - started) * 1000)
+        await mark_run_succeeded(
+            session=session,
+            run_id=run_id,
             wall_clock_ms=wall_clock_ms,
         )
         await session.commit()

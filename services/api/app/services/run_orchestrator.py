@@ -32,7 +32,14 @@ StageScheme = tuple[str, ...]
 
 STAGE_SCHEMES: dict[str, StageScheme] = {
     "tradingagents": ("running",),
-    "funnel_research": ("ingest", "digest", "synthesize", "verify"),
+    "funnel_research": (
+        "ingest",
+        "digest",
+        "synthesize",
+        "verify",
+        "sector_fanout",
+        "consolidate",
+    ),
 }
 
 _TERMINAL_STAGE_NAMES: frozenset[str] = frozenset({"succeeded", "failed", "cancelled"})
