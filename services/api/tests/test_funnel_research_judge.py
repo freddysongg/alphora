@@ -23,6 +23,11 @@ from app.schemas.macro_brief import (
     SectorCallDirection,
     VerifierStatus,
 )
+from app.schemas.portfolio_brief import (
+    PortfolioBrief,
+    PortfolioCoverage,
+    PortfolioMacroSummary,
+)
 from app.schemas.sector_brief import (
     JudgeStatus,
     SectorBrief,
@@ -71,6 +76,34 @@ def _macro_brief() -> MacroBrief:
         proposed_hypotheses=[],
         confidence=0.6,
         evidence_ids=[],
+        verifier_status=VerifierStatus.verified,
+        regeneration_count=0,
+    )
+
+
+def _portfolio_brief() -> PortfolioBrief:
+    return PortfolioBrief(
+        run_id=uuid.uuid4(),
+        macro=PortfolioMacroSummary(
+            themes=[],
+            watch_items=[],
+            confidence=0.5,
+            judge_status=JudgeStatus.passed,
+        ),
+        sectors=[],
+        companies=[],
+        cited_claims=[],
+        cited_chunk_ids=[],
+        coverage=PortfolioCoverage(
+            sectors_selected=0,
+            sectors_verified=0,
+            sectors_judge_passed=0,
+            sectors_judge_flagged=0,
+            companies_selected=0,
+            companies_verified=0,
+            companies_judge_passed=0,
+            companies_judge_flagged=0,
+        ),
         verifier_status=VerifierStatus.verified,
         regeneration_count=0,
     )
@@ -229,6 +262,32 @@ async def test_run_judge_rejects_invalid_status(
         orchestrator_fail=_noop_fail,
     )
     assert outcome.public.status is JudgeStatus.not_run
+
+
+@pytest.mark.asyncio
+async def test_run_judge_accepts_portfolio_brief(db_session: AsyncSession) -> None:
+    run_id = await _seed_run(db_session)
+    received_brief_kind: list[str] = []
+
+    async def llm(**kwargs: Any) -> LlmCompletionResult:
+        rendered = "".join(m.content for m in kwargs["messages"])
+        for marker in ("portfolio",):
+            if f"Brief kind: {marker}" in rendered:
+                received_brief_kind.append(marker)
+        return _completion(json.dumps({"status": "passed", "reasons": []}))
+
+    outcome = await run_judge(
+        session=db_session,
+        run_id=run_id,
+        brief=_portfolio_brief(),
+        brief_kind="portfolio",
+        chunks=[],
+        llm_complete=llm,
+        orchestrator_pause=_noop_pause,
+        orchestrator_fail=_noop_fail,
+    )
+    assert outcome.public.status is JudgeStatus.passed
+    assert received_brief_kind == ["portfolio"]
 
 
 @pytest.mark.asyncio

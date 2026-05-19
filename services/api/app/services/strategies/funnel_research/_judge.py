@@ -23,6 +23,7 @@ from app.db.models_runs import RunEventLevel
 from app.schemas.company_thesis import CompanyThesis
 from app.schemas.extraction import EvidenceChunkRef
 from app.schemas.macro_brief import MacroBrief
+from app.schemas.portfolio_brief import PortfolioBrief
 from app.schemas.sector_brief import JudgePublic, JudgeStatus, SectorBrief
 from app.services.llm.client import (
     BudgetKilledError,
@@ -34,7 +35,7 @@ from app.services.run_events import emit_run_event
 from app.services.strategies.funnel_research._errors import FunnelResearchError
 from app.services.strategies.funnel_research.config import SYNTHESIS_MODEL
 
-BriefKind = Literal["macro", "sector", "company"]
+BriefKind = Literal["macro", "sector", "company", "portfolio"]
 
 
 @dataclass(frozen=True)
@@ -117,7 +118,7 @@ async def run_judge(
     *,
     session: AsyncSession,
     run_id: uuid.UUID,
-    brief: MacroBrief | SectorBrief | CompanyThesis,
+    brief: MacroBrief | SectorBrief | CompanyThesis | PortfolioBrief,
     brief_kind: BriefKind,
     chunks: list[EvidenceChunkRef],
     llm_complete: Callable[..., Awaitable[LlmCompletionResult]],
