@@ -1,6 +1,6 @@
 import time
 import uuid
-from collections.abc import MutableMapping
+from collections.abc import Awaitable, Callable, MutableMapping
 
 import httpx
 from pydantic import ValidationError
@@ -8,10 +8,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.models_runs import ResearchRun, RunStatus
-from app.schemas.extraction import BootstrappedEntity
-from app.schemas.macro_brief import MacroBrief, MacroBriefScope
+from app.schemas.extraction import BootstrappedEntity, EvidenceChunkRef
+from app.schemas.macro_brief import MacroBrief, MacroBriefScope, VerifierStatus
+from app.schemas.sector_brief import JudgePublic, JudgeStatus
 from app.services.entity_bootstrap.gics_sectors import load_top_level_sector_names
-from app.services.llm.client import LlmClient
+from app.services.llm.client import LlmClient, LlmCompletionResult
 from app.services.run_events import emit_stage_event
 from app.services.run_orchestrator import RunOrchestrator, resolve_stage_position
 from app.services.strategies.funnel_research._bootstrap import run as bootstrap_run
@@ -23,12 +24,21 @@ from app.services.strategies.funnel_research._ingest import (
     default_fetcher,
     run_ingest,
 )
+from app.services.strategies.funnel_research._judge import run_judge
 from app.services.strategies.funnel_research._llm_call import call_synthesis
 from app.services.strategies.funnel_research._persist import (
     mark_run_succeeded,
     persist_macro_brief,
 )
-from app.services.strategies.funnel_research._verifier import run_regen_loop
+from app.services.strategies.funnel_research._verifier import (
+    RegenLoopResult,
+    run_regen_loop,
+    verify_once,
+)
+from app.services.strategies.funnel_research.config import MAX_REGENERATIONS
+
+_LlmCompleteCallable = Callable[..., Awaitable[LlmCompletionResult]]
+_MacroRegenerateCallable = Callable[[list[str]], Awaitable[MacroBrief]]
 
 
 def _emit_funnel_stage(
@@ -53,6 +63,73 @@ def _emit_funnel_stage(
 
 def _index_sectors(entities: list[BootstrappedEntity]) -> dict[str, uuid.UUID]:
     return {entity.canonical_name: entity.entity_id for entity in entities}
+
+
+async def _judge_macro_with_optional_regen(
+    *,
+    session: AsyncSession,
+    run_id: uuid.UUID,
+    regen_result: RegenLoopResult,
+    chunks: list[EvidenceChunkRef],
+    sector_entity_ids: dict[str, uuid.UUID],
+    allowed_sector_names: list[str],
+    llm_complete: _LlmCompleteCallable,
+    regenerate: _MacroRegenerateCallable,
+) -> tuple[MacroBrief, JudgePublic]:
+    """Run the LLM judge over the deterministically verified brief.
+
+    On `quote_unverified`, skips the judge and returns `not_run`. On `flagged`
+    with remaining regen budget, attempts one more synthesis with judge
+    reasons, re-runs the deterministic verifier, and re-runs the judge if the
+    new brief still verifies; otherwise keeps the original verified brief and
+    the flagged judge verdict.
+    """
+    brief = regen_result.brief
+    if brief.verifier_status is VerifierStatus.quote_unverified:
+        return brief, JudgePublic(
+            status=JudgeStatus.not_run, reasons=[], call_id=None
+        )
+
+    judge_outcome = await run_judge(
+        session=session,
+        run_id=run_id,
+        brief=brief,
+        brief_kind="macro",
+        chunks=chunks,
+        llm_complete=llm_complete,
+    )
+    if (
+        judge_outcome.public.status is not JudgeStatus.flagged
+        or not judge_outcome.regenerate_reasons
+        or regen_result.regeneration_count >= MAX_REGENERATIONS
+    ):
+        return brief, judge_outcome.public
+
+    new_brief_raw = await regenerate(judge_outcome.regenerate_reasons)
+    verify_result = verify_once(
+        brief=new_brief_raw,
+        chunks=chunks,
+        sector_entity_ids=sector_entity_ids,
+        allowed_sector_names=allowed_sector_names,
+    )
+    if not verify_result.is_valid:
+        return brief, judge_outcome.public
+
+    refreshed = new_brief_raw.model_copy(
+        update={
+            "verifier_status": VerifierStatus.verified,
+            "regeneration_count": regen_result.regeneration_count + 1,
+        }
+    )
+    second_outcome = await run_judge(
+        session=session,
+        run_id=run_id,
+        brief=refreshed,
+        brief_kind="macro",
+        chunks=chunks,
+        llm_complete=llm_complete,
+    )
+    return refreshed, second_outcome.public
 
 
 async def run_macro_brief(
@@ -229,21 +306,33 @@ async def _run_funnel(
             regenerate=regenerate,
             allowed_sector_names=allowed_sector_names,
         )
+
+        macro_brief, macro_judge = await _judge_macro_with_optional_regen(
+            session=session,
+            run_id=run_id,
+            regen_result=regen_result,
+            chunks=ingest_result.chunks,
+            sector_entity_ids=sector_entity_ids,
+            allowed_sector_names=allowed_sector_names,
+            llm_complete=llm_client.complete,
+            regenerate=regenerate,
+        )
         await session.commit()
 
     async with session_factory() as session:
         await persist_hypotheses(
             session=session,
             run_id=run_id,
-            proposed=list(regen_result.brief.proposed_hypotheses),
+            proposed=list(macro_brief.proposed_hypotheses),
         )
         wall_clock_ms = int((time.monotonic() - started) * 1000)
         await persist_macro_brief(
             session=session,
             run_id=run_id,
-            brief=regen_result.brief,
+            brief=macro_brief,
             wall_clock_ms=wall_clock_ms,
             mark_succeeded=False,
+            judge=macro_judge,
         )
         await session.commit()
 

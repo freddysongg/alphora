@@ -9,6 +9,7 @@ import pytest
 from sqlalchemy import select
 
 from app.db.models_graph import Hypothesis
+from app.db.models_llm import LlmCallLog, LlmCallStatus
 from app.db.models_macro import MacroBrief as MacroBriefRow
 from app.db.models_runs import ResearchRun, RunEvent, RunStatus, Strategy
 from app.db.session import session_factory
@@ -106,10 +107,38 @@ async def test_run_macro_brief_end_to_end_success(initialized_schema: None) -> N
 
     class StubLlm:
         async def complete(self, **kwargs: Any) -> LlmCompletionResult:
-            chunk_id = runtime_state["__chunk_id__"]
-            sector_eid = runtime_state["Energy"]
+            messages = kwargs.get("messages", [])
+            is_judge = any(
+                "Brief kind:" in getattr(m, "content", "") for m in messages
+            )
+            if is_judge:
+                content = json.dumps({"status": "passed", "reasons": []})
+            else:
+                chunk_id = runtime_state["__chunk_id__"]
+                sector_eid = runtime_state["Energy"]
+                content = _brief_json(chunk_id, sector_eid)
+
+            session = kwargs["session"]
+            log = LlmCallLog(
+                id=uuid.uuid4(),
+                run_id=kwargs.get("run_id"),
+                model=kwargs.get("model", "gpt-5-mini"),
+                prompt_hash="0" * 64,
+                input_hash="0" * 64,
+                input_tokens=10,
+                output_tokens=10,
+                cached_input_tokens=0,
+                reasoning_tokens=0,
+                cost_usd=Decimal("0.001"),
+                latency_ms=10,
+                status=LlmCallStatus.success,
+                evidence_ids=None,
+            )
+            session.add(log)
+            await session.flush()
+
             return LlmCompletionResult(
-                content=_brief_json(chunk_id, sector_eid),
+                content=content,
                 model=kwargs.get("model", "gpt-5-mini"),
                 usage=TokenUsage(
                     input_tokens=10,
@@ -119,7 +148,7 @@ async def test_run_macro_brief_end_to_end_success(initialized_schema: None) -> N
                 ),
                 cost_usd=Decimal("0.001"),
                 latency_ms=10,
-                log_id=uuid.uuid4(),
+                log_id=log.id,
             )
 
     orchestrator = RunOrchestrator(
@@ -148,6 +177,8 @@ async def test_run_macro_brief_end_to_end_success(initialized_schema: None) -> N
             )
         ).scalar_one()
         assert brief.verifier_status == "verified"
+        assert brief.judge_status == "passed"
+        assert brief.judge_call_id is not None
         hypotheses = (
             (
                 await session.execute(
