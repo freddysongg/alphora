@@ -63,7 +63,7 @@ async def test_fetch_polymarket_events_500_retries_until_failure() -> None:
 
 
 @respx.mock
-async def test_fetch_polymarket_markets_parses_list() -> None:
+async def test_fetch_polymarket_markets_decodes_json_encoded_string_arrays() -> None:
     from app.services.source_clients.polymarket import fetch_polymarket_markets
 
     respx.get(_MARKETS_URL).mock(
@@ -74,8 +74,8 @@ async def test_fetch_polymarket_markets_parses_list() -> None:
                     "id": "abc-123",
                     "question": "Will X happen?",
                     "slug": "will-x-happen",
-                    "outcomes": ["Yes", "No"],
-                    "outcomePrices": ["0.62", "0.38"],
+                    "outcomes": "[\"Yes\", \"No\"]",
+                    "outcomePrices": "[\"0.62\", \"0.38\"]",
                     "volume": "12345.67",
                     "liquidity": "9999.99",
                     "active": True,
@@ -91,7 +91,60 @@ async def test_fetch_polymarket_markets_parses_list() -> None:
     assert len(markets) == 1
     assert markets[0].question == "Will X happen?"
     assert markets[0].outcomes == ["Yes", "No"]
+    assert markets[0].outcome_prices == ["0.62", "0.38"]
     assert len(content_hash) == 64
+
+
+@respx.mock
+async def test_fetch_polymarket_markets_accepts_native_array_shape() -> None:
+    from app.services.source_clients.polymarket import fetch_polymarket_markets
+
+    respx.get(_MARKETS_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json=[
+                {
+                    "id": "def-456",
+                    "question": "Will Y happen?",
+                    "slug": "will-y-happen",
+                    "outcomes": ["Yes", "No"],
+                    "outcomePrices": ["0.5", "0.5"],
+                    "active": True,
+                    "closed": False,
+                }
+            ],
+        )
+    )
+
+    async with httpx.AsyncClient() as client:
+        markets, _ = await fetch_polymarket_markets(client=client)
+
+    assert markets[0].outcomes == ["Yes", "No"]
+    assert markets[0].outcome_prices == ["0.5", "0.5"]
+
+
+@respx.mock
+async def test_fetch_polymarket_markets_omits_outcomes_when_missing() -> None:
+    from app.services.source_clients.polymarket import fetch_polymarket_markets
+
+    respx.get(_MARKETS_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json=[
+                {
+                    "id": "ghi-789",
+                    "question": "Will Z happen?",
+                    "slug": "will-z-happen",
+                }
+            ],
+        )
+    )
+
+    async with httpx.AsyncClient() as client:
+        markets, _ = await fetch_polymarket_markets(client=client)
+
+    assert markets[0].outcomes == []
+    assert markets[0].outcome_prices == []
 
 
 @respx.mock
