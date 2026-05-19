@@ -18,6 +18,7 @@ from app.schemas.macro_brief import (
     VerifierStatus,
     WatchItem,
 )
+from app.schemas.sector_brief import JudgePublic, JudgeStatus
 
 router = APIRouter()
 
@@ -85,7 +86,14 @@ async def get_macro_brief(run_id: uuid.UUID, session: SessionDep) -> MacroBriefP
                 )
             )
 
-    return MacroBriefPublic(brief=brief, chunks=chunks)
+    judge = JudgePublic(
+        status=JudgeStatus(row.judge_status),
+        reasons=list(row.judge_reasons or []),
+        call_id=row.judge_call_id,
+    )
+    return MacroBriefPublic(
+        brief=brief, judge=judge, chunks=chunks, sector_briefs=[]
+    )
 
 
 __all__ = ["router"]

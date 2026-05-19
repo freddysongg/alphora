@@ -1,8 +1,11 @@
 import uuid
 from enum import StrEnum
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+if TYPE_CHECKING:
+    from app.schemas.sector_brief import JudgePublic, SectorBriefPublic
 
 
 class MacroBriefScope(BaseModel):
@@ -94,8 +97,12 @@ class MacroBriefPublic(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     brief: MacroBrief
+    judge: "JudgePublic"
     chunks: list[ChunkLookup]
+    sector_briefs: list["SectorBriefPublic"]
 
+
+from app.schemas import sector_brief as _sector_brief  # noqa: E402, F401
 
 __all__ = [
     "ChunkLookup",

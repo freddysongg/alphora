@@ -80,13 +80,14 @@ def test_macro_brief_forbids_extra_fields() -> None:
         )
 
 
-def test_macro_brief_public_wraps_brief_and_chunks() -> None:
+def test_macro_brief_public_wraps_brief_judge_chunks_and_sector_briefs() -> None:
     from app.schemas.macro_brief import (
         ChunkLookup,
         MacroBrief,
         MacroBriefPublic,
         VerifierStatus,
     )
+    from app.schemas.sector_brief import JudgePublic, JudgeStatus
 
     brief = MacroBrief(
         themes=[],
@@ -101,6 +102,7 @@ def test_macro_brief_public_wraps_brief_and_chunks() -> None:
     )
     public = MacroBriefPublic(
         brief=brief,
+        judge=JudgePublic(status=JudgeStatus.not_run, reasons=[], call_id=None),
         chunks=[
             ChunkLookup(
                 chunk_id=uuid.uuid4(),
@@ -110,6 +112,9 @@ def test_macro_brief_public_wraps_brief_and_chunks() -> None:
                 attributes={},
             )
         ],
+        sector_briefs=[],
     )
     assert public.brief.confidence == 0.5
     assert public.chunks[0].source == "fred"
+    assert public.judge.status is JudgeStatus.not_run
+    assert public.sector_briefs == []

@@ -48,6 +48,7 @@ from app.db.models_runs import (
     RunStatus,
     SourceProvenance,
 )
+from app.db.models_sector import SectorBrief
 from app.db.models_settings import ApplicationSettings, LlmProvider
 
 __all__ = [
@@ -94,6 +95,7 @@ __all__ = [
     "RunStatus",
     "ScreenerResult",
     "ScreenerRun",
+    "SectorBrief",
     "SourceProvenance",
     "TimestampMixin",
     "Watchlist",
