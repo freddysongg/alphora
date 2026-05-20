@@ -2,6 +2,7 @@
 
 import type { ReactElement } from "react";
 import { useMemo } from "react";
+import dagre from "@dagrejs/dagre";
 import {
   Background,
   Controls,
@@ -72,32 +73,50 @@ interface PositionedNode extends GraphNode {
   position: { x: number; y: number };
 }
 
-function layoutNodes(nodes: readonly GraphNode[]): PositionedNode[] {
-  const hypothesisNodes = nodes.filter((node) => node.is_hypothesis);
-  const otherNodes = nodes.filter((node) => !node.is_hypothesis);
-  const stepX = 180;
-  const stepY = 140;
-  const columnWidth = Math.max(hypothesisNodes.length, otherNodes.length, 1);
-  const positioned: PositionedNode[] = [];
-  hypothesisNodes.forEach((node, index) => {
-    positioned.push({
+const NODE_WIDTH = 160;
+const NODE_HEIGHT = 60;
+
+function layoutNodes(
+  nodes: readonly GraphNode[],
+  edges: readonly GraphEdge[],
+): PositionedNode[] {
+  if (nodes.length === 0) {
+    return [];
+  }
+  const graph = new dagre.graphlib.Graph();
+  graph.setDefaultEdgeLabel(() => ({}));
+  graph.setGraph({
+    rankdir: "TB",
+    nodesep: 60,
+    ranksep: 120,
+    align: "UL",
+    marginx: 20,
+    marginy: 20,
+  });
+  for (const node of nodes) {
+    graph.setNode(node.id, {
+      width: NODE_WIDTH,
+      height: NODE_HEIGHT,
+      rank: node.is_hypothesis ? "min" : undefined,
+    });
+  }
+  const knownIds = new Set(nodes.map((node) => node.id));
+  for (const edge of edges) {
+    if (knownIds.has(edge.from_id) && knownIds.has(edge.to_id)) {
+      graph.setEdge(edge.from_id, edge.to_id);
+    }
+  }
+  dagre.layout(graph);
+  return nodes.map((node) => {
+    const computed = graph.node(node.id);
+    return {
       ...node,
       position: {
-        x: index * stepX - ((columnWidth - 1) * stepX) / 2,
-        y: 0,
+        x: computed.x - NODE_WIDTH / 2,
+        y: computed.y - NODE_HEIGHT / 2,
       },
-    });
+    };
   });
-  otherNodes.forEach((node, index) => {
-    positioned.push({
-      ...node,
-      position: {
-        x: index * stepX - ((columnWidth - 1) * stepX) / 2,
-        y: stepY,
-      },
-    });
-  });
-  return positioned;
 }
 
 function toReactFlowNodes(positioned: readonly PositionedNode[]): Node[] {
@@ -157,8 +176,8 @@ function toReactFlowEdges(edges: readonly GraphEdge[]): Edge[] {
 export function KnowledgeGraph(props: KnowledgeGraphProps): ReactElement {
   const { graph } = props;
   const positioned = useMemo(
-    () => layoutNodes(graph?.nodes ?? []),
-    [graph?.nodes],
+    () => layoutNodes(graph?.nodes ?? [], graph?.edges ?? []),
+    [graph?.nodes, graph?.edges],
   );
   const reactFlowNodes = useMemo(
     () => toReactFlowNodes(positioned),
