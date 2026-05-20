@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import desc, select
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import OrchestratorDep, QueueDep, SessionDep
+from app.api.deps import OpenAiClientDep, OrchestratorDep, QueueDep, SessionDep
 from app.api.sse import format_sse_event
 from app.db.models_llm import LlmCallLog
 from app.db.models_runs import (
@@ -19,13 +19,14 @@ from app.db.models_runs import (
 )
 from app.db.session import session_factory
 from app.schemas.common import StrategyEnum
-from app.schemas.llm import LlmCallLogPublic
+from app.schemas.llm import LlmCallLogPublic, LlmCallReplayPublic
 from app.schemas.runs import (
     CreateResearchRunsRequest,
     GroupedRuns,
     ResearchRunDetail,
     ResearchRunSummary,
 )
+from app.services.llm.replay import ReplayError, replay_llm_call
 from app.services.run_orchestrator import RunOrchestratorError
 from app.services.strategies.funnel_research.config import PROMPT_VERSION
 
@@ -286,6 +287,49 @@ async def list_research_run_llm_calls(
     )
     rows = (await session.execute(stmt)).scalars().all()
     return [LlmCallLogPublic.model_validate(row) for row in rows]
+
+
+@router.post(
+    "/{run_id}/llm-calls/{log_id}/replay",
+    response_model=LlmCallReplayPublic,
+    status_code=status.HTTP_201_CREATED,
+)
+async def replay_research_run_llm_call(
+    run_id: uuid.UUID,
+    log_id: uuid.UUID,
+    session: SessionDep,
+    openai_client: OpenAiClientDep,
+) -> LlmCallReplayPublic:
+    run = (
+        await session.execute(select(ResearchRun).where(ResearchRun.id == run_id))
+    ).scalar_one_or_none()
+    if run is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="research run not found"
+        )
+    log = (
+        await session.execute(select(LlmCallLog).where(LlmCallLog.id == log_id))
+    ).scalar_one_or_none()
+    if log is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="llm call log not found"
+        )
+    if log.run_id != run_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="llm call log does not belong to this run",
+        )
+    try:
+        replay = await replay_llm_call(
+            session=session,
+            original_log_id=log_id,
+            openai_client=openai_client,
+        )
+    except ReplayError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+    return LlmCallReplayPublic.model_validate(replay)
 
 
 @router.post("/{run_id}/cancel", response_model=ResearchRunSummary)

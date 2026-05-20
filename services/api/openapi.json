@@ -372,6 +372,59 @@
         }
       }
     },
+    "/api/research-runs/{run_id}/llm-calls/{log_id}/replay": {
+      "post": {
+        "tags": [
+          "research-runs"
+        ],
+        "summary": "Replay Research Run Llm Call",
+        "operationId": "replay_research_run_llm_call_api_research_runs__run_id__llm_calls__log_id__replay_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "log_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Log Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LlmCallReplayPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/research-runs/{run_id}/cancel": {
       "post": {
         "tags": [
@@ -2600,6 +2653,16 @@
         ],
         "title": "JudgeStatus"
       },
+      "LlmBudgetActionEnum": {
+        "type": "string",
+        "enum": [
+          "allow",
+          "warn",
+          "pause",
+          "kill"
+        ],
+        "title": "LlmBudgetActionEnum"
+      },
       "LlmCallLogPublic": {
         "properties": {
           "id": {
@@ -2684,6 +2747,116 @@
             ],
             "title": "Evidence Ids"
           },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "agent_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Name"
+          },
+          "call_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Call Index"
+          },
+          "temperature": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reasoning Effort"
+          },
+          "input_payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Payload"
+          },
+          "output_content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Content"
+          },
+          "budget_action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LlmBudgetActionEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -2706,9 +2879,127 @@
           "status",
           "error_message",
           "evidence_ids",
+          "prompt_version",
+          "stage",
+          "agent_name",
+          "call_index",
+          "temperature",
+          "seed",
+          "reasoning_effort",
+          "input_payload",
+          "output_content",
+          "budget_action",
           "created_at"
         ],
         "title": "LlmCallLogPublic"
+      },
+      "LlmCallReplayPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "original_log_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Original Log Id"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version"
+          },
+          "input_payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Input Payload"
+          },
+          "output_content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Content"
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens"
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens"
+          },
+          "cached_input_tokens": {
+            "type": "integer",
+            "title": "Cached Input Tokens"
+          },
+          "reasoning_tokens": {
+            "type": "integer",
+            "title": "Reasoning Tokens"
+          },
+          "cost_usd": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cost Usd"
+          },
+          "latency_ms": {
+            "type": "integer",
+            "title": "Latency Ms"
+          },
+          "status": {
+            "$ref": "#/components/schemas/LlmCallStatusEnum"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "replayed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Replayed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "original_log_id",
+          "model",
+          "prompt_version",
+          "input_payload",
+          "output_content",
+          "input_tokens",
+          "output_tokens",
+          "cached_input_tokens",
+          "reasoning_tokens",
+          "cost_usd",
+          "latency_ms",
+          "status",
+          "error_message",
+          "replayed_at"
+        ],
+        "title": "LlmCallReplayPublic"
       },
       "LlmCallStatusEnum": {
         "type": "string",

@@ -20,7 +20,7 @@ from collections.abc import Awaitable, Callable
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.extraction._prompts import build_extraction_messages
-from app.services.extraction.config import EXTRACTION_MODEL
+from app.services.extraction.config import EXTRACTION_MODEL, PROMPT_VERSION
 from app.services.llm import BudgetKilledError, BudgetPausedError, LlmCompletionResult
 
 
@@ -51,6 +51,9 @@ async def call_llm_for_extraction(
             model=EXTRACTION_MODEL,
             messages=messages,
             evidence_ids=[str(evidence_id)],
+            prompt_version=PROMPT_VERSION,
+            stage="extraction",
+            agent_name="extraction",
         )
     except BudgetPausedError as exc:
         await orchestrator_pause(run_id=run_id, reason=str(exc))

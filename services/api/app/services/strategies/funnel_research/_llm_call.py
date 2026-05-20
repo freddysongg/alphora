@@ -15,7 +15,7 @@ from app.services.llm.client import (
 )
 from app.services.strategies.funnel_research._errors import FunnelResearchError
 from app.services.strategies.funnel_research._prompts import build_synthesis_messages
-from app.services.strategies.funnel_research.config import SYNTHESIS_MODEL
+from app.services.strategies.funnel_research.config import PROMPT_VERSION, SYNTHESIS_MODEL
 
 
 async def call_synthesis(
@@ -47,6 +47,9 @@ async def call_synthesis(
             model=SYNTHESIS_MODEL,
             messages=messages,
             evidence_ids=[str(eid) for eid in evidence_ids],
+            prompt_version=PROMPT_VERSION,
+            stage="macro_synthesis",
+            agent_name="synthesis",
         )
     except BudgetPausedError as exc:
         await orchestrator_pause(run_id=run_id, reason=str(exc))

@@ -118,6 +118,7 @@ async def test_persist_resolves_candidates_and_writes_relation(
     assert outcome.skipped_relation_count == 0
     relations = (await db_session.execute(select(Relation))).scalars().all()
     assert len(relations) == 1
+    assert relations[0].prompt_version == "extract-v1"
 
 
 @pytest.mark.asyncio

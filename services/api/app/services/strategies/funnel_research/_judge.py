@@ -146,6 +146,8 @@ async def run_judge(
             model=SYNTHESIS_MODEL,
             messages=messages,
             evidence_ids=None,
+            stage="judge",
+            agent_name="judge",
         )
     except BudgetPausedError as exc:
         await orchestrator_pause(run_id=run_id, reason=str(exc))

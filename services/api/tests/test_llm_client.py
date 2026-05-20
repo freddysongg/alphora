@@ -103,6 +103,7 @@ async def test_complete_returns_result_and_logs_call_on_success() -> None:
         assert len(log.prompt_hash) == 64
         assert len(log.input_hash) == 64
         assert log.evidence_ids == ["ev_1", "ev_2"]
+        assert log.budget_action == BudgetAction.allow.value
 
         events = (
             await session.execute(select(RunEvent).where(RunEvent.run_id == run_id))
@@ -113,6 +114,7 @@ async def test_complete_returns_result_and_logs_call_on_success() -> None:
         assert event.data is not None
         assert event.data["event"] == "cost"
         assert event.data["budget_action"] == BudgetAction.allow.value
+        assert event.data["log_id"] == str(log.id)
 
 
 @pytest.mark.usefixtures("initialized_schema")
@@ -180,6 +182,7 @@ async def test_complete_pause_threshold_raises_budget_paused_error() -> None:
         logs = (await session.execute(select(LlmCallLog))).scalars().all()
         assert len(logs) == 1
         assert logs[0].status is LlmCallStatus.budget_paused
+        assert logs[0].budget_action == BudgetAction.pause.value
 
         events = (
             await session.execute(select(RunEvent).where(RunEvent.run_id == run_id))
@@ -188,6 +191,7 @@ async def test_complete_pause_threshold_raises_budget_paused_error() -> None:
         assert events[0].level is RunEventLevel.warn
         assert events[0].data is not None
         assert events[0].data["budget_action"] == BudgetAction.pause.value
+        assert events[0].data["log_id"] == str(logs[0].id)
 
 
 @pytest.mark.usefixtures("initialized_schema")
@@ -221,6 +225,7 @@ async def test_complete_kill_threshold_raises_budget_killed_error() -> None:
         logs = (await session.execute(select(LlmCallLog))).scalars().all()
         assert len(logs) == 1
         assert logs[0].status is LlmCallStatus.budget_killed
+        assert logs[0].budget_action == BudgetAction.kill.value
 
         events = (
             await session.execute(select(RunEvent).where(RunEvent.run_id == run_id))
@@ -228,6 +233,7 @@ async def test_complete_kill_threshold_raises_budget_killed_error() -> None:
         assert len(events) == 1
         assert events[0].data is not None
         assert events[0].data["budget_action"] == BudgetAction.kill.value
+        assert events[0].data["log_id"] == str(logs[0].id)
 
 
 @pytest.mark.usefixtures("initialized_schema")
@@ -371,6 +377,7 @@ async def test_complete_daily_cost_accumulates_across_calls() -> None:
         ).scalars().all()
         assert len(new_logs) == 1
         assert new_logs[0].status is LlmCallStatus.success
+        assert new_logs[0].budget_action == BudgetAction.warn.value
 
         events = (
             await session.execute(select(RunEvent).where(RunEvent.run_id == run_id))
@@ -378,6 +385,7 @@ async def test_complete_daily_cost_accumulates_across_calls() -> None:
         assert len(events) == 1
         assert events[0].data is not None
         assert events[0].data["budget_action"] == BudgetAction.warn.value
+        assert events[0].data["log_id"] == str(new_logs[0].id)
 
 
 @pytest.mark.usefixtures("initialized_schema")

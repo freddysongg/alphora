@@ -107,6 +107,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/research-runs/{run_id}/llm-calls/{log_id}/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replay Research Run Llm Call */
+        post: operations["replay_research_run_llm_call_api_research_runs__run_id__llm_calls__log_id__replay_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/research-runs/{run_id}/cancel": {
         parameters: {
             query?: never;
@@ -858,6 +875,11 @@ export interface components {
          * @enum {string}
          */
         JudgeStatus: "not_run" | "passed" | "flagged";
+        /**
+         * LlmBudgetActionEnum
+         * @enum {string}
+         */
+        LlmBudgetActionEnum: "allow" | "warn" | "pause" | "kill";
         /** LlmCallLogPublic */
         LlmCallLogPublic: {
             /**
@@ -890,11 +912,75 @@ export interface components {
             error_message: string | null;
             /** Evidence Ids */
             evidence_ids: string[] | null;
+            /** Prompt Version */
+            prompt_version: string | null;
+            /** Stage */
+            stage: string | null;
+            /** Agent Name */
+            agent_name: string | null;
+            /** Call Index */
+            call_index: number | null;
+            /** Temperature */
+            temperature: number | null;
+            /** Seed */
+            seed: number | null;
+            /** Reasoning Effort */
+            reasoning_effort: string | null;
+            /** Input Payload */
+            input_payload: {
+                [key: string]: unknown;
+            } | null;
+            /** Output Content */
+            output_content: string | null;
+            budget_action: components["schemas"]["LlmBudgetActionEnum"] | null;
             /**
              * Created At
              * Format: date-time
              */
             created_at: string;
+        };
+        /** LlmCallReplayPublic */
+        LlmCallReplayPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Original Log Id
+             * Format: uuid
+             */
+            original_log_id: string;
+            /** Model */
+            model: string;
+            /** Prompt Version */
+            prompt_version: string | null;
+            /** Input Payload */
+            input_payload: {
+                [key: string]: unknown;
+            };
+            /** Output Content */
+            output_content: string | null;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Cached Input Tokens */
+            cached_input_tokens: number;
+            /** Reasoning Tokens */
+            reasoning_tokens: number;
+            /** Cost Usd */
+            cost_usd: string;
+            /** Latency Ms */
+            latency_ms: number;
+            status: components["schemas"]["LlmCallStatusEnum"];
+            /** Error Message */
+            error_message: string | null;
+            /**
+             * Replayed At
+             * Format: date-time
+             */
+            replayed_at: string;
         };
         /**
          * LlmCallStatusEnum
@@ -1865,6 +1951,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LlmCallLogPublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replay_research_run_llm_call_api_research_runs__run_id__llm_calls__log_id__replay_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                log_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmCallReplayPublic"];
                 };
             };
             /** @description Validation Error */

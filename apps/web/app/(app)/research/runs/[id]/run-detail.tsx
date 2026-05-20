@@ -36,6 +36,8 @@ import {
   runStatusToStatusKind,
 } from "@/lib/research/status-mapping";
 import { RunLogStream } from "@/components/research/run-log-stream";
+import { RunCostMeter } from "@/components/research/run-cost-meter";
+import type { CostMeterState } from "@/components/research/run-cost-meter";
 import { cn } from "@/lib/cn";
 import { CancelRunButton } from "./cancel-run-button";
 import { MacroBriefDetail } from "./macro-brief-detail";
@@ -218,10 +220,12 @@ function buildMetricTiles(detail: ResearchRunDetail): MetricTile[] {
 export interface RunDetailProps {
   detail: ResearchRunDetail;
   macroBrief: MacroBriefPublic | null;
+  initialCostState: CostMeterState;
+  initialSeenLogIds: readonly string[];
 }
 
 export function RunDetail(props: RunDetailProps): ReactElement {
-  const { detail, macroBrief } = props;
+  const { detail, macroBrief, initialCostState, initialSeenLogIds } = props;
   const isFunnelResearch = detail.strategy === "funnel_research";
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [optimisticStatus, setOptimisticStatus] = useState<RunStatus | null>(
@@ -306,7 +310,13 @@ export function RunDetail(props: RunDetailProps): ReactElement {
         </div>
       </header>
 
-      <div className="px-6 pt-4 pb-12">
+      <div className="px-6 pt-4 pb-12 flex flex-col gap-6">
+        <RunCostMeter
+          runId={detail.id}
+          initialState={initialCostState}
+          initialSeenLogIds={initialSeenLogIds}
+          isTerminal={isLogStreamTerminal}
+        />
         {isFunnelResearch && macroBrief !== null ? (
           <MacroBriefDetail data={macroBrief} runId={detail.id} />
         ) : isFunnelResearch &&

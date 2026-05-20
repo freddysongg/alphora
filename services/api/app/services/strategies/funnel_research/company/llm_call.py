@@ -27,7 +27,7 @@ from app.services.strategies.funnel_research.company.prompts import (
     build_company_messages,
 )
 from app.services.strategies.funnel_research.company.selector import CompanyIdea
-from app.services.strategies.funnel_research.config import SYNTHESIS_MODEL
+from app.services.strategies.funnel_research.config import PROMPT_VERSION, SYNTHESIS_MODEL
 
 
 async def call_company_synthesis(
@@ -61,6 +61,9 @@ async def call_company_synthesis(
             model=SYNTHESIS_MODEL,
             messages=messages,
             evidence_ids=[str(eid) for eid in evidence_ids],
+            prompt_version=PROMPT_VERSION,
+            stage="company_synthesis",
+            agent_name="synthesis",
         )
     except BudgetPausedError as exc:
         await orchestrator_pause(run_id=run_id, reason=str(exc))

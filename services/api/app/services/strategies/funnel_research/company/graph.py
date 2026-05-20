@@ -71,6 +71,7 @@ async def persist_company_candidates(
                 run_id=run_id,
                 relation=relation,
                 entity_id_by_span=entity_id_by_span,
+                prompt_version=result.prompt_version,
             )
             if persisted:
                 persisted_relations += 1
@@ -107,6 +108,7 @@ async def _persist_relation(
     run_id: uuid.UUID,
     relation: CandidateRelation,
     entity_id_by_span: dict[str, uuid.UUID],
+    prompt_version: str,
 ) -> bool:
     from_id = entity_id_by_span.get(relation.subj_span)
     to_id = entity_id_by_span.get(relation.obj_span)
@@ -165,6 +167,7 @@ async def _persist_relation(
                 "exact_quote": relation.exact_quote,
             },
             extraction_confidence=relation.extraction_confidence,
+            prompt_version=prompt_version,
         )
     )
     return True
