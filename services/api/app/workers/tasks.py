@@ -9,6 +9,8 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.db.models_runs import ResearchRun, Strategy
 from app.db.session import session_factory
+from app.schemas.budget import BudgetThresholds
+from app.services.budget import BudgetGuard
 from app.services.data_sources_bootstrap import bootstrap_data_sources
 from app.services.hypothesis import OpenAiEmbedder
 from app.services.llm.client import LlmClient
@@ -126,9 +128,14 @@ async def _dispatch_funnel_research(
             run_id, f"failed to construct openai client: {exc}"
         )
         return
+    settings = get_settings()
+    thresholds = BudgetThresholds(per_stage_usd=settings.per_stage_budget_caps_usd)
+    budget_guard = BudgetGuard(thresholds=thresholds)
     try:
         async with httpx.AsyncClient() as http_client:
-            llm_client = LlmClient(openai_client=openai_client)
+            llm_client = LlmClient(
+                openai_client=openai_client, budget_guard=budget_guard
+            )
             hypothesis_embedder = OpenAiEmbedder(client=openai_client)
             await run_macro_brief(
                 session_factory=session_factory,

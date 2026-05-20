@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 from typing import Any
 from unittest.mock import MagicMock
 from uuid import uuid4
@@ -86,6 +87,54 @@ async def test_execute_research_run_dispatches_funnel_research(
     assert "llm_client" in captured
     assert "orchestrator" in captured
     assert "http_client" in captured
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_dispatch_builds_llm_client_with_per_stage_budget_caps_from_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id = uuid4()
+    async with session_factory() as session:
+        session.add(
+            ResearchRun(
+                id=run_id,
+                ticker="AAPL",
+                trade_date=date(2026, 5, 20),
+                strategy=Strategy.funnel_research.value,
+                status=RunStatus.queued,
+                config={},
+            )
+        )
+        await session.commit()
+
+    captured: dict[str, Any] = {}
+
+    async def fake_run_macro_brief(**kwargs: Any) -> None:
+        captured.update(kwargs)
+
+    monkeypatch.setattr(worker_tasks, "run_macro_brief", fake_run_macro_brief)
+    monkeypatch.setattr(
+        worker_tasks, "_build_openai_client", lambda: MagicMock()
+    )
+
+    from app.config import Settings
+
+    def _fake_settings() -> Settings:
+        return Settings(
+            per_stage_budget_caps_usd={
+                "belief_update": Decimal("0.50"),
+                "synthesize": Decimal("2.00"),
+            }
+        )
+
+    monkeypatch.setattr(worker_tasks, "get_settings", _fake_settings)
+
+    await worker_tasks._dispatch(run_id)
+
+    llm_client = captured["llm_client"]
+    per_stage = llm_client._guard.thresholds.per_stage_usd
+    assert per_stage["belief_update"] == Decimal("0.50")
+    assert per_stage["synthesize"] == Decimal("2.00")
 
 
 def test_execute_research_run_rejects_invalid_uuid() -> None:

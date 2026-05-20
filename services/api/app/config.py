@@ -1,3 +1,4 @@
+from decimal import Decimal
 from functools import lru_cache
 from typing import Literal
 
@@ -50,6 +51,8 @@ class Settings(BaseSettings):
 
     lifecycle_sweep_interval_seconds: int = 3600
     lifecycle_sweep_enabled: bool = True
+
+    per_stage_budget_caps_usd: dict[str, Decimal] = Field(default_factory=dict)
 
 
 @lru_cache
