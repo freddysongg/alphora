@@ -30,6 +30,7 @@ from app.schemas.hypotheses import (
     HypothesisHistoryResponse,
     HypothesisLifecycleResponse,
     HypothesisListResponse,
+    HypothesisParentRequest,
     HypothesisPublic,
     HypothesisState,
     HypothesisStateFilter,
@@ -376,6 +377,61 @@ async def transition_hypothesis(
                 "reason": payload.reason,
             },
         )
+    await session.commit()
+    await session.refresh(row)
+    return _to_public(row)
+
+
+_NON_TERMINAL_PARENT_STATUSES: Final[frozenset[str]] = frozenset(
+    {HypothesisStatus.proposed.value, HypothesisStatus.active.value}
+)
+
+
+@router.post(
+    "/hypotheses/{hypothesis_id}/parent",
+    response_model=HypothesisPublic,
+)
+async def set_hypothesis_parent(
+    hypothesis_id: uuid.UUID,
+    payload: HypothesisParentRequest,
+    session: SessionDep,
+) -> HypothesisPublic:
+    """Set or clear `parent_hypothesis_id` on a hypothesis.
+
+    Pass `{"parent_id": null}` to clear. Returns 404 if either the child or
+    the parent is missing; 409 if the parent is in a terminal state or the
+    child would become its own parent.
+    """
+    row = await _load_hypothesis(session=session, hypothesis_id=hypothesis_id)
+    if payload.parent_id is None:
+        row.parent_hypothesis_id = None
+        await session.commit()
+        await session.refresh(row)
+        return _to_public(row)
+    if payload.parent_id == hypothesis_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="hypothesis cannot be its own parent",
+        )
+    parent = (
+        await session.execute(
+            select(Hypothesis).where(Hypothesis.id == payload.parent_id)
+        )
+    ).scalar_one_or_none()
+    if parent is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"parent hypothesis {payload.parent_id} not found",
+        )
+    if parent.status not in _NON_TERMINAL_PARENT_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"parent hypothesis {payload.parent_id} is in terminal state "
+                f"{parent.status!r}"
+            ),
+        )
+    row.parent_hypothesis_id = parent.id
     await session.commit()
     await session.refresh(row)
     return _to_public(row)

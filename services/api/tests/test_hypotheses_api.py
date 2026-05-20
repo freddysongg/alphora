@@ -503,6 +503,95 @@ async def test_transition_hypothesis_marks_archived_on_expired(
 
 
 @pytest.mark.asyncio
+async def test_set_parent_links_child_to_existing_open_parent(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    parent = await _seed_hypothesis(db_session, claim_text="parent claim")
+    child = await _seed_hypothesis(db_session, claim_text="child claim")
+    await db_session.commit()
+
+    response = await async_client.post(
+        f"/api/research/hypotheses/{child.id}/parent",
+        json={"parent_id": str(parent.id)},
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["id"] == str(child.id)
+    await db_session.refresh(child)
+    assert child.parent_hypothesis_id == parent.id
+
+
+@pytest.mark.asyncio
+async def test_set_parent_with_null_clears_existing_link(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    parent = await _seed_hypothesis(db_session, claim_text="parent claim")
+    child = await _seed_hypothesis(db_session, claim_text="child claim")
+    child.parent_hypothesis_id = parent.id
+    await db_session.commit()
+
+    response = await async_client.post(
+        f"/api/research/hypotheses/{child.id}/parent",
+        json={"parent_id": None},
+    )
+
+    assert response.status_code == 200, response.text
+    await db_session.refresh(child)
+    assert child.parent_hypothesis_id is None
+
+
+@pytest.mark.asyncio
+async def test_set_parent_returns_404_when_parent_missing(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    child = await _seed_hypothesis(db_session, claim_text="child claim")
+    await db_session.commit()
+
+    response = await async_client.post(
+        f"/api/research/hypotheses/{child.id}/parent",
+        json={"parent_id": str(uuid.uuid4())},
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_set_parent_returns_409_when_parent_is_terminal(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    parent = await _seed_hypothesis(
+        db_session,
+        claim_text="terminal parent",
+        status_value=HypothesisStatus.validated.value,
+    )
+    child = await _seed_hypothesis(db_session, claim_text="child claim")
+    await db_session.commit()
+
+    response = await async_client.post(
+        f"/api/research/hypotheses/{child.id}/parent",
+        json={"parent_id": str(parent.id)},
+    )
+
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_set_parent_returns_409_when_setting_self_as_parent(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    row = await _seed_hypothesis(db_session, claim_text="self-loop attempt")
+    await db_session.commit()
+
+    response = await async_client.post(
+        f"/api/research/hypotheses/{row.id}/parent",
+        json={"parent_id": str(row.id)},
+    )
+
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
 async def test_sweep_lifecycle_endpoint_returns_counts(
     async_client: AsyncClient, db_session: AsyncSession
 ) -> None:

@@ -105,6 +105,12 @@ class HypothesisTransitionRequest(BaseModel):
     reason: str | None = Field(default=None, max_length=500)
 
 
+class HypothesisParentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    parent_id: uuid.UUID | None
+
+
 class LifecycleSweepCounts(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -154,6 +160,7 @@ __all__ = [
     "HypothesisHistoryResponse",
     "HypothesisLifecycleResponse",
     "HypothesisListResponse",
+    "HypothesisParentRequest",
     "HypothesisPublic",
     "HypothesisState",
     "HypothesisStateFilter",

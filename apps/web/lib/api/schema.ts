@@ -372,6 +372,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/research/hypotheses/{hypothesis_id}/parent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Hypothesis Parent
+         * @description Set or clear `parent_hypothesis_id` on a hypothesis.
+         *
+         *     Pass `{"parent_id": null}` to clear. Returns 404 if either the child or
+         *     the parent is missing; 409 if the parent is in a terminal state or the
+         *     child would become its own parent.
+         */
+        post: operations["set_hypothesis_parent_api_research_hypotheses__hypothesis_id__parent_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/research/hypotheses/lifecycle/sweep": {
         parameters: {
             query?: never;
@@ -1529,6 +1553,11 @@ export interface components {
             items: components["schemas"]["HypothesisPublic"][];
             /** Next Cursor */
             next_cursor?: string | null;
+        };
+        /** HypothesisParentRequest */
+        HypothesisParentRequest: {
+            /** Parent Id */
+            parent_id: string | null;
         };
         /** HypothesisPublic */
         HypothesisPublic: {
@@ -3373,6 +3402,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["HypothesisTransitionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HypothesisPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_hypothesis_parent_api_research_hypotheses__hypothesis_id__parent_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hypothesis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HypothesisParentRequest"];
             };
         };
         responses: {

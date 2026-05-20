@@ -1113,6 +1113,60 @@
         }
       }
     },
+    "/api/research/hypotheses/{hypothesis_id}/parent": {
+      "post": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Set Hypothesis Parent",
+        "description": "Set or clear `parent_hypothesis_id` on a hypothesis.\n\nPass `{\"parent_id\": null}` to clear. Returns 404 if either the child or\nthe parent is missing; 409 if the parent is in a terminal state or the\nchild would become its own parent.",
+        "operationId": "set_hypothesis_parent_api_research_hypotheses__hypothesis_id__parent_post",
+        "parameters": [
+          {
+            "name": "hypothesis_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Hypothesis Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HypothesisParentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HypothesisPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/research/hypotheses/lifecycle/sweep": {
       "post": {
         "tags": [
@@ -4647,6 +4701,28 @@
           "items"
         ],
         "title": "HypothesisListResponse"
+      },
+      "HypothesisParentRequest": {
+        "properties": {
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "parent_id"
+        ],
+        "title": "HypothesisParentRequest"
       },
       "HypothesisPublic": {
         "properties": {
