@@ -300,6 +300,79 @@ async def test_insert_or_get_entity_uses_supplied_cache_for_lookup_and_insert(
     assert cache["0000789019"] is new_row
 
 
+async def test_insert_or_get_entity_populates_ticker_normalized_uppercased(
+    populated_session: AsyncSession,
+) -> None:
+    from app.db.models_graph import EntityType
+    from app.services.entity_bootstrap._persist import insert_or_get_entity
+
+    async with populated_session.begin():
+        entity, _ = await insert_or_get_entity(
+            session=populated_session,
+            entity_type=EntityType.company,
+            canonical_name="Apple Inc.",
+            aliases=[],
+            external_ids={"cik": "0000320193", "ticker": "aapl"},
+            primary_external_id_key="cik",
+            source_registry="sec_cik",
+        )
+
+    assert entity.ticker_normalized == "AAPL"
+
+
+async def test_insert_or_get_entity_leaves_ticker_normalized_none_when_no_ticker(
+    populated_session: AsyncSession,
+) -> None:
+    from app.db.models_graph import EntityType
+    from app.services.entity_bootstrap._persist import insert_or_get_entity
+
+    async with populated_session.begin():
+        entity, _ = await insert_or_get_entity(
+            session=populated_session,
+            entity_type=EntityType.company,
+            canonical_name="Privately Held Co",
+            aliases=[],
+            external_ids={"cik": "0001234567"},
+            primary_external_id_key="cik",
+            source_registry="sec_cik",
+        )
+
+    assert entity.ticker_normalized is None
+
+
+async def test_insert_or_get_entity_keeps_existing_ticker_normalized_on_conflict(
+    populated_session: AsyncSession,
+) -> None:
+    """When merging into an existing row, ticker_normalized stays in sync
+    with the merged external_ids (which preserves the existing ticker)."""
+    from app.db.models_graph import EntityType
+    from app.services.entity_bootstrap._persist import insert_or_get_entity
+
+    async with populated_session.begin():
+        await insert_or_get_entity(
+            session=populated_session,
+            entity_type=EntityType.company,
+            canonical_name="Apple Inc.",
+            aliases=[],
+            external_ids={"cik": "0000320193", "ticker": "AAPL"},
+            primary_external_id_key="cik",
+            source_registry="sec_cik",
+        )
+
+    async with populated_session.begin():
+        merged, _ = await insert_or_get_entity(
+            session=populated_session,
+            entity_type=EntityType.company,
+            canonical_name="Apple Inc.",
+            aliases=[],
+            external_ids={"cik": "0000320193", "ticker": "OTHER"},
+            primary_external_id_key="cik",
+            source_registry="polygon_tickers",
+        )
+
+    assert merged.ticker_normalized == "AAPL"
+
+
 async def test_bootstrap_emits_single_entities_select_per_run(
     initialized_schema: None,
 ) -> None:

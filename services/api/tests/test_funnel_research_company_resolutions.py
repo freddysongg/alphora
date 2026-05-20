@@ -1,6 +1,7 @@
 import uuid
 
 import pytest
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models_graph import Entity, EntityType
@@ -58,6 +59,7 @@ async def test_build_company_resolutions_reads_cik_from_sec_bootstrap_key(
             canonical_name="Apple Inc.",
             aliases=["apple"],
             external_ids={"cik": "0000320193", "ticker": "AAPL"},
+            ticker_normalized="AAPL",
         )
     )
     await db_session.commit()
@@ -106,6 +108,7 @@ async def test_build_company_resolutions_matches_by_ticker_when_canonical_name_d
             canonical_name="Apple Inc.",
             aliases=[],
             external_ids={"cik": "0000320193", "ticker": "AAPL"},
+            ticker_normalized="AAPL",
         )
     )
     await db_session.commit()
@@ -153,6 +156,7 @@ async def test_build_company_resolutions_prefers_ticker_over_canonical_name(
                 canonical_name="Microsoft Corporation",
                 aliases=[],
                 external_ids={"ticker": "MSFT"},
+                ticker_normalized="MSFT",
             ),
             Entity(
                 id=name_entity_id,
@@ -160,6 +164,7 @@ async def test_build_company_resolutions_prefers_ticker_over_canonical_name(
                 canonical_name="Microsoft",
                 aliases=[],
                 external_ids={"ticker": "OTHER"},
+                ticker_normalized="OTHER",
             ),
         ]
     )
@@ -247,6 +252,7 @@ async def test_build_company_resolutions_returns_none_cik_when_missing(
             canonical_name="Privately Held Co",
             aliases=[],
             external_ids={"ticker": "PRIV"},
+            ticker_normalized="PRIV",
         )
     )
     await db_session.commit()
@@ -273,3 +279,155 @@ async def test_build_company_resolutions_returns_none_cik_when_missing(
     )
 
     assert resolutions[key].cik is None
+
+
+@pytest.mark.asyncio
+async def test_build_company_resolutions_uses_narrow_query_when_idea_matches_by_ticker(
+    db_session: AsyncSession,
+) -> None:
+    """When every selected idea matches by canonical_name or ticker, the resolver
+    issues a single narrow SELECT — not a full table scan that loads every
+    company entity for an in-Python alias scan."""
+    from app.db.session import engine
+
+    sector_id = uuid.uuid4()
+    matching_id = uuid.uuid4()
+    db_session.add_all(
+        [
+            Entity(
+                id=matching_id,
+                type=EntityType.company.value,
+                canonical_name="Apple Inc.",
+                aliases=[],
+                external_ids={"cik": "0000320193", "ticker": "AAPL"},
+                ticker_normalized="AAPL",
+            ),
+            Entity(
+                id=uuid.uuid4(),
+                type=EntityType.company.value,
+                canonical_name="Unrelated Co",
+                aliases=[],
+                external_ids={"ticker": "ZZZZ"},
+                ticker_normalized="ZZZZ",
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    sector_briefs = [
+        _sector_brief_public(
+            sector_entity_id=sector_id,
+            sector_name="Information Technology",
+            companies=[
+                SectorCompanyIdea(
+                    name="Apple",
+                    ticker="AAPL",
+                    direction=SectorCallDirection.overweight,
+                    conviction=0.8,
+                    evidence_ids=[],
+                )
+            ],
+        )
+    ]
+
+    entity_select_count = 0
+    last_entity_select: str = ""
+
+    def _on_cursor_execute(
+        conn: object,
+        cursor: object,
+        statement: str,
+        parameters: object,
+        context: object,
+        executemany: bool,
+    ) -> None:
+        nonlocal entity_select_count, last_entity_select
+        normalized = statement.upper().replace('"', "").replace("`", "")
+        if "FROM ENTITIES" in normalized and "INSERT" not in normalized:
+            entity_select_count += 1
+            last_entity_select = normalized
+
+    event.listen(engine.sync_engine, "before_cursor_execute", _on_cursor_execute)
+    try:
+        resolutions = await _build_company_resolutions(
+            session=db_session, sector_briefs=sector_briefs
+        )
+    finally:
+        event.remove(engine.sync_engine, "before_cursor_execute", _on_cursor_execute)
+
+    key = company_resolution_key(select_companies(sector_briefs)[0])
+    assert resolutions[key].company_entity_id == matching_id
+    assert entity_select_count == 1, (
+        f"expected single narrow SELECT, got {entity_select_count}"
+    )
+    assert "TICKER_NORMALIZED" in last_entity_select, (
+        f"narrow query should reference ticker_normalized; got: {last_entity_select}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_build_company_resolutions_falls_back_to_alias_load_when_narrow_query_misses(
+    db_session: AsyncSession,
+) -> None:
+    """When an idea matches only by alias, the narrow query misses, so a second
+    broader load runs to scan aliases in Python — exactly two SELECTs total."""
+    from app.db.session import engine
+
+    sector_id = uuid.uuid4()
+    company_entity_id = uuid.uuid4()
+    db_session.add(
+        Entity(
+            id=company_entity_id,
+            type=EntityType.company.value,
+            canonical_name="Alphabet Inc.",
+            aliases=["Google"],
+            external_ids={"cik": "0001652044"},
+            ticker_normalized=None,
+        )
+    )
+    await db_session.commit()
+
+    sector_briefs = [
+        _sector_brief_public(
+            sector_entity_id=sector_id,
+            sector_name="Communication Services",
+            companies=[
+                SectorCompanyIdea(
+                    name="Google",
+                    ticker=None,
+                    direction=SectorCallDirection.overweight,
+                    conviction=0.7,
+                    evidence_ids=[],
+                )
+            ],
+        )
+    ]
+
+    entity_select_count = 0
+
+    def _on_cursor_execute(
+        conn: object,
+        cursor: object,
+        statement: str,
+        parameters: object,
+        context: object,
+        executemany: bool,
+    ) -> None:
+        nonlocal entity_select_count
+        normalized = statement.upper().replace('"', "").replace("`", "")
+        if "FROM ENTITIES" in normalized and "INSERT" not in normalized:
+            entity_select_count += 1
+
+    event.listen(engine.sync_engine, "before_cursor_execute", _on_cursor_execute)
+    try:
+        resolutions = await _build_company_resolutions(
+            session=db_session, sector_briefs=sector_briefs
+        )
+    finally:
+        event.remove(engine.sync_engine, "before_cursor_execute", _on_cursor_execute)
+
+    key = company_resolution_key(select_companies(sector_briefs)[0])
+    assert resolutions[key].company_entity_id == company_entity_id
+    assert entity_select_count == 2, (
+        f"expected narrow + alias fallback (2 SELECTs), got {entity_select_count}"
+    )

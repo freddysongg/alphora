@@ -1,3 +1,5 @@
+from collections.abc import Mapping
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,6 +8,13 @@ from app.db.models_graph import Entity, EntityType
 
 class BootstrapError(Exception):
     """Raised when bootstrap inputs are malformed or persistence cannot proceed."""
+
+
+def _derive_ticker_normalized(external_ids: Mapping[str, object]) -> str | None:
+    ticker = external_ids.get("ticker")
+    if isinstance(ticker, str) and ticker:
+        return ticker.upper()
+    return None
 
 
 async def fetch_existing_by_primary_value(
@@ -63,6 +72,7 @@ async def insert_or_get_entity(
         }
         existing.aliases = merged_aliases
         existing.external_ids = merged_external_ids
+        existing.ticker_normalized = _derive_ticker_normalized(merged_external_ids)
         if extra_attributes is not None:
             merged_attributes: dict[str, object] = {
                 **(existing.attributes or {}),
@@ -81,6 +91,7 @@ async def insert_or_get_entity(
         aliases=list(aliases),
         external_ids=dict(external_ids),
         attributes=new_attributes,
+        ticker_normalized=_derive_ticker_normalized(external_ids),
         confidence=1.0,
         needs_review=False,
     )

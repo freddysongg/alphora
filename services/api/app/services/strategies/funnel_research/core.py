@@ -657,20 +657,39 @@ async def _build_company_resolutions(
     2. ``canonical_name`` exact match.
     3. ``aliases`` case-insensitive match on the idea name.
 
+    Strategy: a narrow ``IN`` query first targets ``canonical_name`` and the
+    indexed ``ticker_normalized`` column. Only when an idea misses both does
+    the resolver fall back to a broader load to scan ``aliases`` (a JSON list
+    that isn't portably indexable across SQLite + PostgreSQL).
+
     CIK comes from ``entity.external_ids["cik"]`` when present (the key written
     by ``bootstrap_from_sec_cik``). Companies without a resolved entity are
     omitted; the runner skips them with warn.
     """
+    from sqlalchemy import or_
+
     from app.db.models_graph import Entity, EntityType
 
     selected = select_companies(sector_briefs)
     if not selected:
         return {}
 
-    rows = (
+    names = {idea.company_name for idea in selected}
+    tickers_uppercase = {
+        idea.ticker.upper() for idea in selected if idea.ticker
+    }
+
+    narrow_conditions = [Entity.canonical_name.in_(names)]
+    if tickers_uppercase:
+        narrow_conditions.append(Entity.ticker_normalized.in_(tickers_uppercase))
+
+    narrow_rows = (
         (
             await session.execute(
-                select(Entity).where(Entity.type == EntityType.company.value)
+                select(Entity).where(
+                    Entity.type == EntityType.company.value,
+                    or_(*narrow_conditions),
+                )
             )
         )
         .scalars()
@@ -679,17 +698,17 @@ async def _build_company_resolutions(
 
     by_canonical_name: dict[str, Entity] = {}
     by_ticker: dict[str, Entity] = {}
-    by_alias: dict[str, Entity] = {}
-    for row in rows:
-        by_canonical_name[row.canonical_name] = row
-        ticker_value = (row.external_ids or {}).get("ticker")
-        if isinstance(ticker_value, str) and ticker_value:
-            by_ticker.setdefault(ticker_value.upper(), row)
-        for alias in row.aliases or []:
-            if isinstance(alias, str) and alias:
-                by_alias.setdefault(alias.lower(), row)
+    for row in narrow_rows:
+        by_canonical_name.setdefault(row.canonical_name, row)
+        if row.ticker_normalized:
+            by_ticker.setdefault(row.ticker_normalized, row)
+
+    from app.services.strategies.funnel_research.company.selector import (
+        CompanyIdea,
+    )
 
     resolutions: dict[str, CompanyResolution] = {}
+    unmatched_ideas: list[CompanyIdea] = []
     for idea in selected:
         entity: Entity | None = None
         if idea.ticker:
@@ -697,8 +716,7 @@ async def _build_company_resolutions(
         if entity is None:
             entity = by_canonical_name.get(idea.company_name)
         if entity is None:
-            entity = by_alias.get(idea.company_name.lower())
-        if entity is None:
+            unmatched_ideas.append(idea)
             continue
         cik_value = (entity.external_ids or {}).get("cik")
         cik = str(cik_value) if isinstance(cik_value, str) else None
@@ -706,6 +724,33 @@ async def _build_company_resolutions(
             company_entity_id=entity.id,
             cik=cik,
         )
+
+    if unmatched_ideas:
+        all_rows = (
+            (
+                await session.execute(
+                    select(Entity).where(Entity.type == EntityType.company.value)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        by_alias: dict[str, Entity] = {}
+        for row in all_rows:
+            for alias in row.aliases or []:
+                if isinstance(alias, str) and alias:
+                    by_alias.setdefault(alias.lower(), row)
+        for idea in unmatched_ideas:
+            entity = by_alias.get(idea.company_name.lower())
+            if entity is None:
+                continue
+            cik_value = (entity.external_ids or {}).get("cik")
+            cik = str(cik_value) if isinstance(cik_value, str) else None
+            resolutions[company_resolution_key(idea)] = CompanyResolution(
+                company_entity_id=entity.id,
+                cik=cik,
+            )
+
     return resolutions
 
 

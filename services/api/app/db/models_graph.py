@@ -179,6 +179,7 @@ class Entity(Base, TimestampMixin):
     __tablename__ = "entities"
     __table_args__ = (
         Index("ix_entities_type_canonical_name", "type", "canonical_name"),
+        Index("ix_entities_type_ticker_normalized", "type", "ticker_normalized"),
         Index("ix_entities_needs_review", "needs_review"),
     )
 
@@ -191,6 +192,9 @@ class Entity(Base, TimestampMixin):
     )
     attributes: Mapped[dict[str, object]] = mapped_column(
         JSON, nullable=False, default=dict
+    )
+    ticker_normalized: Mapped[str | None] = mapped_column(
+        String(32), nullable=True, default=None
     )
     confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     needs_review: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
