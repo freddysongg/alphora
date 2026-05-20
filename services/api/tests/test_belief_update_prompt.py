@@ -33,6 +33,7 @@ def test_build_messages_returns_single_system_message_with_chunk_ids_inlined() -
     assert str(chunk_a) in msg.content
     assert str(chunk_b) in msg.content
     assert "WTI down 4% wk/wk" in msg.content
+    assert "OPEC trim" in msg.content
 
 
 def test_response_accepts_well_formed_payload() -> None:
