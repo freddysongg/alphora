@@ -7,7 +7,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models_company import CompanyThesis as CompanyThesisRow
-from app.db.models_graph import Entity, EntityType
+from app.db.models_graph import Entity, EntityType, Evidence, EvidenceChunk
 from app.db.models_llm import LlmCallLog, LlmCallStatus
 from app.db.models_runs import ResearchRun, RunStatus, Strategy
 from app.schemas.company_thesis import (
@@ -15,7 +15,7 @@ from app.schemas.company_thesis import (
     CompanyRisk,
     CompanyThesis,
 )
-from app.schemas.macro_brief import SectorCallDirection, VerifierStatus
+from app.schemas.macro_brief import CitedClaim, SectorCallDirection, VerifierStatus
 from app.schemas.sector_brief import JudgeStatus
 
 
@@ -216,3 +216,162 @@ async def test_get_company_thesis_returns_404_when_thesis_missing(
         f"/api/research-runs/{run.id}/companies/{uuid.uuid4()}"
     )
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_company_thesis_returns_chunks_for_cited_claims(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    run = ResearchRun(
+        id=uuid.uuid4(),
+        ticker=None,
+        trade_date=date(2026, 5, 18),
+        strategy=Strategy.funnel_research.value,
+        status=RunStatus.succeeded,
+        config={},
+        scope_payload={"kind": "macro", "universe": "us_equities"},
+    )
+    db_session.add(run)
+    await db_session.flush()
+
+    sector_entity_id = uuid.uuid4()
+    company_entity_id = uuid.uuid4()
+    db_session.add_all(
+        [
+            Entity(
+                id=sector_entity_id,
+                type=EntityType.sector.value,
+                canonical_name="Information Technology",
+                aliases=[],
+                external_ids={},
+                attributes={},
+            ),
+            Entity(
+                id=company_entity_id,
+                type=EntityType.company.value,
+                canonical_name="Apple Inc.",
+                aliases=[],
+                external_ids={},
+                attributes={},
+            ),
+        ]
+    )
+    await db_session.flush()
+
+    evidence = Evidence(
+        source="10-Q",
+        document_id="AAPL-10Q",
+        raw_url=None,
+        content_hash="e" * 64,
+        structured=None,
+    )
+    db_session.add(evidence)
+    await db_session.flush()
+
+    chunk = EvidenceChunk(
+        evidence_id=evidence.id,
+        chunk_index=0,
+        text="Services revenue grew 18% year over year as installed base expanded.",
+        start_offset=None,
+        end_offset=None,
+        attributes={"section": "MD&A"},
+        content_hash="f" * 64,
+    )
+    db_session.add(chunk)
+    await db_session.flush()
+
+    thesis_payload = CompanyThesis(
+        company_entity_id=company_entity_id,
+        company_name="Apple Inc.",
+        sector_entity_id=sector_entity_id,
+        sector_name="Information Technology",
+        ticker="AAPL",
+        direction=SectorCallDirection.overweight,
+        conviction=0.8,
+        bull_case="Services growth accelerates.",
+        bear_case="iPhone demand decelerates.",
+        catalysts=[
+            CompanyCatalyst(
+                name="WWDC 2026",
+                expected_timing="Q3 2026",
+                evidence_ids=[evidence.id],
+            )
+        ],
+        risks=[
+            CompanyRisk(
+                name="Regulatory pressure in EU",
+                severity=0.6,
+                evidence_ids=[evidence.id],
+            )
+        ],
+        cited_claims=[
+            CitedClaim(
+                claim_text="Services revenue grew 18% YoY.",
+                exact_quote="Services revenue grew 18% year over year",
+                chunk_id=chunk.id,
+                source="10-Q",
+            )
+        ],
+        confidence=0.7,
+        evidence_ids=[evidence.id],
+        verifier_status=VerifierStatus.verified,
+        regeneration_count=0,
+    )
+
+    judge_log = LlmCallLog(
+        id=uuid.uuid4(),
+        run_id=run.id,
+        model="gpt-5-mini",
+        prompt_hash="0" * 64,
+        input_hash="0" * 64,
+        latency_ms=10,
+        status=LlmCallStatus.success,
+        cost_usd=Decimal("0.001"),
+    )
+    db_session.add(judge_log)
+    await db_session.flush()
+
+    db_session.add(
+        CompanyThesisRow(
+            run_id=run.id,
+            company_entity_id=company_entity_id,
+            sector_entity_id=sector_entity_id,
+            ticker="AAPL",
+            direction=SectorCallDirection.overweight.value,
+            payload=thesis_payload.model_dump(mode="json"),
+            verifier_status="verified",
+            regeneration_count=0,
+            judge_status=JudgeStatus.passed.value,
+            judge_reasons=None,
+            judge_call_id=judge_log.id,
+            wall_clock_ms=42,
+        )
+    )
+    await db_session.commit()
+
+    response = await async_client.get(
+        f"/api/research-runs/{run.id}/companies/{company_entity_id}"
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert len(body["chunks"]) == 1
+    chunk_lookup = body["chunks"][0]
+    assert chunk_lookup["chunk_id"] == str(chunk.id)
+    assert chunk_lookup["evidence_id"] == str(evidence.id)
+    assert chunk_lookup["source"] == "10-Q"
+    assert "Services revenue grew 18% year over year" in chunk_lookup["text"]
+
+
+@pytest.mark.asyncio
+async def test_get_company_thesis_returns_empty_chunks_when_no_cited_claims(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    run_id, company_entity_id, _ = await _seed_funnel_run_with_company_thesis(
+        db_session
+    )
+    response = await async_client.get(
+        f"/api/research-runs/{run_id}/companies/{company_entity_id}"
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["chunks"] == []

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
 import type { Route } from "next";
 import Link from "next/link";
@@ -19,6 +19,7 @@ import { cn } from "@/lib/cn";
 type CompanyThesisPublic = components["schemas"]["CompanyThesisPublic"];
 type CompanyCatalyst = components["schemas"]["CompanyCatalyst"];
 type CompanyRisk = components["schemas"]["CompanyRisk"];
+type ChunkLookup = components["schemas"]["ChunkLookup"];
 type CitedClaim = components["schemas"]["CitedClaim"];
 type VerifierStatus = components["schemas"]["VerifierStatus"];
 type JudgeStatus = components["schemas"]["JudgeStatus"];
@@ -52,6 +53,8 @@ const directionToTone: Record<SectorCallDirection, string> = {
   neutral: "text-fg-subtle",
 };
 
+const CHUNK_PREVIEW_LENGTH = 200;
+
 export interface CompanyThesisDetailProps {
   data: CompanyThesisPublic;
 }
@@ -60,10 +63,18 @@ export function CompanyThesisDetail(
   props: CompanyThesisDetailProps,
 ): ReactElement {
   const { data } = props;
-  const { thesis, judge } = data;
+  const { thesis, judge, chunks } = data;
   const convictionPct = Math.round(
     Math.max(0, Math.min(1, thesis.conviction)) * 100,
   );
+
+  const chunkById = useMemo(() => {
+    const map = new Map<string, ChunkLookup>();
+    for (const chunk of chunks) {
+      map.set(chunk.chunk_id, chunk);
+    }
+    return map;
+  }, [chunks]);
 
   return (
     <div className="flex flex-col gap-6" data-testid="company-thesis-detail">
@@ -155,6 +166,7 @@ export function CompanyThesisDetail(
               <CitedClaimRow
                 key={`${claim.chunk_id}-${claim.exact_quote.slice(0, 32)}`}
                 claim={claim}
+                chunk={chunkById.get(claim.chunk_id) ?? null}
               />
             ))}
           </ul>
@@ -318,15 +330,21 @@ function ThesisEvidenceRow(props: ThesisEvidenceRowProps): ReactElement {
 
 interface CitedClaimRowProps {
   claim: CitedClaim;
+  chunk: ChunkLookup | null;
 }
 
 function CitedClaimRow(props: CitedClaimRowProps): ReactElement {
-  const { claim } = props;
+  const { claim, chunk } = props;
   const [isOpen, setIsOpen] = useState<boolean>(false);
 
   const handleToggle = (): void => {
     setIsOpen((previous) => !previous);
   };
+
+  const chunkPreview =
+    chunk !== null && chunk.text.length > CHUNK_PREVIEW_LENGTH
+      ? `${chunk.text.slice(0, CHUNK_PREVIEW_LENGTH)}…`
+      : (chunk?.text ?? "");
 
   return (
     <li
@@ -351,6 +369,14 @@ function CitedClaimRow(props: CitedClaimRowProps): ReactElement {
           <p className="rounded-md bg-canvas border border-line p-3 text-sm text-fg italic leading-relaxed">
             &ldquo;{claim.exact_quote}&rdquo;
           </p>
+          {chunk !== null ? (
+            <p className="text-xs text-fg-muted leading-relaxed">
+              <span className="font-mono uppercase tracking-[0.14em] text-fg-subtle">
+                Chunk:
+              </span>{" "}
+              {chunkPreview}
+            </p>
+          ) : null}
           <p className="text-xs text-fg-muted leading-relaxed font-mono">
             <span className="uppercase tracking-[0.14em] text-fg-subtle">
               Evidence:

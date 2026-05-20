@@ -2,7 +2,12 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.schemas.macro_brief import CitedClaim, SectorCallDirection, VerifierStatus
+from app.schemas.macro_brief import (
+    ChunkLookup,
+    CitedClaim,
+    SectorCallDirection,
+    VerifierStatus,
+)
 from app.schemas.sector_brief import JudgePublic
 
 
@@ -48,6 +53,7 @@ class CompanyThesisPublic(BaseModel):
 
     thesis: CompanyThesis
     judge: JudgePublic
+    chunks: list[ChunkLookup]
 
 
 __all__ = [

@@ -18,6 +18,7 @@ const CITED_CLAIM_CHUNK_ID = "00000000-0000-4000-8000-0000000000d1";
 function makeThesis(
   thesisOverrides: Partial<CompanyThesisPublic["thesis"]> = {},
   judgeOverrides: Partial<CompanyThesisPublic["judge"]> = {},
+  chunks: CompanyThesisPublic["chunks"] = [],
 ): CompanyThesisPublic {
   return {
     thesis: {
@@ -45,6 +46,7 @@ function makeThesis(
       call_id: null,
       ...judgeOverrides,
     },
+    chunks,
   };
 }
 
@@ -199,5 +201,66 @@ describe("CompanyThesisDetail", () => {
     );
     const row = screen.getByTestId("company-catalyst-row");
     expect(within(row).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("renders chunk-preview text inside the expanded cited claim row", () => {
+    render(
+      <CompanyThesisDetail
+        data={makeThesis(
+          {
+            cited_claims: [
+              {
+                claim_text: "Services revenue grew 18% YoY.",
+                exact_quote: "Services revenue grew 18% year over year.",
+                chunk_id: CITED_CLAIM_CHUNK_ID,
+                source: "10-Q",
+              },
+            ],
+          },
+          {},
+          [
+            {
+              chunk_id: CITED_CLAIM_CHUNK_ID,
+              evidence_id: "00000000-0000-4000-8000-0000000000d2",
+              source: "10-Q",
+              text: "Services revenue grew 18% year over year as the installed base expanded.",
+              attributes: {},
+            },
+          ],
+        )}
+      />,
+    );
+    const row = screen.getByTestId("company-cited-claim-row");
+    fireEvent.click(within(row).getByRole("button"));
+    expect(
+      within(row).getByText(/Services revenue grew 18% year over year\./),
+    ).toBeInTheDocument();
+    expect(
+      within(row).getByText(/installed base expanded/),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the cited claim chunk link even when the chunk lookup is missing", () => {
+    render(
+      <CompanyThesisDetail
+        data={makeThesis({
+          cited_claims: [
+            {
+              claim_text: "Margin pressure intensifies.",
+              exact_quote: "Margins compressed materially.",
+              chunk_id: CITED_CLAIM_CHUNK_ID,
+              source: "10-K",
+            },
+          ],
+        })}
+      />,
+    );
+    const row = screen.getByTestId("company-cited-claim-row");
+    fireEvent.click(within(row).getByRole("button"));
+    const link = within(row).getByTestId("company-cited-claim-chunk-link");
+    expect(link).toHaveAttribute(
+      "href",
+      `/research/evidence/${CITED_CLAIM_CHUNK_ID}`,
+    );
   });
 });

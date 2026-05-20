@@ -1831,12 +1831,20 @@
           },
           "judge": {
             "$ref": "#/components/schemas/JudgePublic"
+          },
+          "chunks": {
+            "items": {
+              "$ref": "#/components/schemas/ChunkLookup"
+            },
+            "type": "array",
+            "title": "Chunks"
           }
         },
         "type": "object",
         "required": [
           "thesis",
-          "judge"
+          "judge",
+          "chunks"
         ],
         "title": "CompanyThesisPublic"
       },

@@ -105,7 +105,7 @@ async def _load_persisted_company_theses(
             reasons=list(row.judge_reasons or []),
             call_id=row.judge_call_id,
         )
-        theses.append(CompanyThesisPublic(thesis=thesis, judge=judge))
+        theses.append(CompanyThesisPublic(thesis=thesis, judge=judge, chunks=[]))
     return theses
 
 

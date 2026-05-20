@@ -2,14 +2,43 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import SessionDep
 from app.db.models_company import CompanyThesis as CompanyThesisRow
+from app.db.models_graph import Evidence, EvidenceChunk
 from app.db.models_runs import ResearchRun
 from app.schemas.company_thesis import CompanyThesis, CompanyThesisPublic
+from app.schemas.macro_brief import ChunkLookup
 from app.schemas.sector_brief import JudgePublic, JudgeStatus
 
 router = APIRouter()
+
+
+async def _load_chunks(
+    *,
+    session: AsyncSession,
+    chunk_ids: list[uuid.UUID],
+) -> list[ChunkLookup]:
+    if not chunk_ids:
+        return []
+    chunk_rows = (
+        await session.execute(
+            select(EvidenceChunk, Evidence.source)
+            .join(Evidence, Evidence.id == EvidenceChunk.evidence_id)
+            .where(EvidenceChunk.id.in_(chunk_ids))
+        )
+    ).all()
+    return [
+        ChunkLookup(
+            chunk_id=chunk_row.id,
+            evidence_id=chunk_row.evidence_id,
+            source=source,
+            text=chunk_row.text,
+            attributes=chunk_row.attributes or {},
+        )
+        for chunk_row, source in chunk_rows
+    ]
 
 
 @router.get(
@@ -52,7 +81,9 @@ async def get_company_thesis(
         reasons=list(row.judge_reasons or []),
         call_id=row.judge_call_id,
     )
-    return CompanyThesisPublic(thesis=thesis, judge=judge)
+    chunk_ids = [claim.chunk_id for claim in thesis.cited_claims]
+    chunks = await _load_chunks(session=session, chunk_ids=chunk_ids)
+    return CompanyThesisPublic(thesis=thesis, judge=judge, chunks=chunks)
 
 
 __all__ = ["router"]

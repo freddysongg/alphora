@@ -593,6 +593,8 @@ export interface components {
         CompanyThesisPublic: {
             thesis: components["schemas"]["CompanyThesis"];
             judge: components["schemas"]["JudgePublic"];
+            /** Chunks */
+            chunks: components["schemas"]["ChunkLookup"][];
         };
         /** CreatePaperOrderRequest */
         CreatePaperOrderRequest: {

@@ -70,8 +70,10 @@ def test_company_thesis_public_round_trip() -> None:
     public = CompanyThesisPublic(
         thesis=_company_thesis(),
         judge=JudgePublic(status=JudgeStatus.not_run, reasons=[], call_id=None),
+        chunks=[],
     )
     assert public.judge.status is JudgeStatus.not_run
+    assert public.chunks == []
 
 
 def test_company_thesis_ticker_optional() -> None:
