@@ -260,6 +260,8 @@ export interface paths {
          *     them to the chunk most frequently referenced in cited_claims across all
          *     macro / sector / company briefs, falling back to the lowest `chunk_index`
          *     when no citation references any chunk of the evidence.
+         *
+         *     When `run_id` is provided, citation counts are restricted to that run.
          */
         get: operations["get_evidence_trace_by_evidence_api_research_evidence_by_evidence__evidence_id__get"];
         put?: never;
@@ -2132,6 +2134,7 @@ export interface operations {
         parameters: {
             query?: {
                 context_radius?: number;
+                run_id?: string | null;
             };
             header?: never;
             path: {

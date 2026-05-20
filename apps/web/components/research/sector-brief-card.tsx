@@ -95,7 +95,7 @@ export function SectorBriefCard(props: SectorBriefCardProps): ReactElement {
             <CapsLabel className="text-fg-subtle">THEMES</CapsLabel>
             <ul className="flex flex-col gap-2">
               {brief.themes.map((theme) => (
-                <SectorThemeRow key={theme.name} theme={theme} />
+                <SectorThemeRow key={theme.name} theme={theme} runId={runId} />
               ))}
             </ul>
           </div>
@@ -116,7 +116,11 @@ export function SectorBriefCard(props: SectorBriefCardProps): ReactElement {
             <CapsLabel className="text-fg-subtle">WATCH ITEMS</CapsLabel>
             <ul className="flex flex-col gap-2">
               {brief.watch_items.map((item) => (
-                <SectorWatchItemRow key={item.name} item={item} />
+                <SectorWatchItemRow
+                  key={item.name}
+                  item={item}
+                  runId={runId}
+                />
               ))}
             </ul>
           </div>
@@ -142,13 +146,15 @@ export function SectorBriefCard(props: SectorBriefCardProps): ReactElement {
 
 interface SectorThemeRowProps {
   theme: Theme;
+  runId?: string;
 }
 
 function SectorThemeRow(props: SectorThemeRowProps): ReactElement {
-  const { theme } = props;
+  const { theme, runId } = props;
   const { button, list } = useEvidenceDisclosure(
     theme.evidence_ids,
     "sector-theme",
+    runId,
   );
 
   return (
@@ -172,13 +178,15 @@ function SectorThemeRow(props: SectorThemeRowProps): ReactElement {
 
 interface SectorWatchItemRowProps {
   item: WatchItem;
+  runId?: string;
 }
 
 function SectorWatchItemRow(props: SectorWatchItemRowProps): ReactElement {
-  const { item } = props;
+  const { item, runId } = props;
   const { hasEvidence, button, list } = useEvidenceDisclosure(
     item.evidence_ids,
     "sector-watch-item",
+    runId,
   );
 
   return (
@@ -208,6 +216,7 @@ function SectorCompanyRow(props: SectorCompanyRowProps): ReactElement {
   const { button, list } = useEvidenceDisclosure(
     company.evidence_ids,
     "sector-company",
+    runId,
   );
 
   const companyName =

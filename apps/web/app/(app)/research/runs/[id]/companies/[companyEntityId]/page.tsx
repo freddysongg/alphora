@@ -74,7 +74,7 @@ export default async function CompanyThesisPage(
 
       <div className="px-6 pt-4 pb-12">
         {thesis !== null ? (
-          <CompanyThesisDetail data={thesis} />
+          <CompanyThesisDetail data={thesis} runId={id} />
         ) : detail.status === "failed" || detail.status === "cancelled" ? (
           <p className="text-sm text-fg-muted">
             Company thesis was not produced because the run was {detail.status}.

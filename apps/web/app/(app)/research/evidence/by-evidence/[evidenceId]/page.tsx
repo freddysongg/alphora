@@ -17,18 +17,23 @@ type EvidenceTracePublic = components["schemas"]["EvidenceTracePublic"];
 
 interface EvidenceTracePageProps {
   params: Promise<{ evidenceId: string }>;
+  searchParams?: Promise<{ run_id?: string }>;
 }
 
 const NOT_FOUND_STATUS = 404;
 
 async function loadEvidenceTrace(
   evidenceId: string,
+  runId: string | undefined,
 ): Promise<EvidenceTracePublic | null> {
   try {
     const response = await getServerApi().GET(
       "/api/research/evidence/by-evidence/{evidence_id}",
       {
-        params: { path: { evidence_id: evidenceId } },
+        params: {
+          path: { evidence_id: evidenceId },
+          query: runId !== undefined ? { run_id: runId } : {},
+        },
       },
     );
     if (response.data === undefined) {
@@ -47,7 +52,8 @@ export default async function EvidenceTraceByEvidencePage(
   props: EvidenceTracePageProps,
 ): Promise<ReactElement> {
   const { evidenceId } = await props.params;
-  const trace = await loadEvidenceTrace(evidenceId);
+  const search = props.searchParams ? await props.searchParams : undefined;
+  const trace = await loadEvidenceTrace(evidenceId, search?.run_id);
   if (trace === null) {
     notFound();
   }

@@ -769,7 +769,7 @@
           "research"
         ],
         "summary": "Get Evidence Trace By Evidence",
-        "description": "Trace endpoint addressable by Evidence.id.\n\nBrief schemas store `Evidence.id` values in their `evidence_ids` arrays\n(themes, sector calls, watch items, hypotheses). Those ids are not chunk\nids, so the chunk-id endpoint cannot resolve them. This endpoint resolves\nthem to the chunk most frequently referenced in cited_claims across all\nmacro / sector / company briefs, falling back to the lowest `chunk_index`\nwhen no citation references any chunk of the evidence.",
+        "description": "Trace endpoint addressable by Evidence.id.\n\nBrief schemas store `Evidence.id` values in their `evidence_ids` arrays\n(themes, sector calls, watch items, hypotheses). Those ids are not chunk\nids, so the chunk-id endpoint cannot resolve them. This endpoint resolves\nthem to the chunk most frequently referenced in cited_claims across all\nmacro / sector / company briefs, falling back to the lowest `chunk_index`\nwhen no citation references any chunk of the evidence.\n\nWhen `run_id` is provided, citation counts are restricted to that run.",
         "operationId": "get_evidence_trace_by_evidence_api_research_evidence_by_evidence__evidence_id__get",
         "parameters": [
           {
@@ -792,6 +792,23 @@
               "minimum": 0,
               "default": 2,
               "title": "Context Radius"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Run Id"
             }
           }
         ],

@@ -128,7 +128,11 @@ export function MacroBriefDetail(props: MacroBriefDetailProps): ReactElement {
             </thead>
             <tbody>
               {brief.sector_calls.map((call) => (
-                <SectorCallRow key={call.sector_entity_id} call={call} />
+                <SectorCallRow
+                  key={call.sector_entity_id}
+                  call={call}
+                  runId={runId}
+                />
               ))}
             </tbody>
           </table>
@@ -345,13 +349,15 @@ function HypothesisRow(props: HypothesisRowProps): ReactElement {
 
 interface SectorCallRowProps {
   call: SectorCall;
+  runId?: string;
 }
 
 function SectorCallRow(props: SectorCallRowProps): ReactElement {
-  const { call } = props;
+  const { call, runId } = props;
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const evidenceCount = call.evidence_ids.length;
   const hasEvidence = evidenceCount > 0;
+  const runQuery = runId !== undefined ? `?run_id=${runId}` : "";
 
   const handleToggle = (): void => {
     setIsOpen((previous) => !previous);
@@ -385,7 +391,9 @@ function SectorCallRow(props: SectorCallRowProps): ReactElement {
                 {call.evidence_ids.map((evidenceId) => (
                   <li key={evidenceId} className="font-mono">
                     <Link
-                      href={`/research/evidence/by-evidence/${evidenceId}` as Route}
+                      href={
+                        `/research/evidence/by-evidence/${evidenceId}${runQuery}` as Route
+                      }
                       className="text-accent-text hover:underline"
                       data-testid="macro-sector-call-evidence-link"
                     >

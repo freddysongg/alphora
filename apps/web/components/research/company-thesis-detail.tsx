@@ -57,12 +57,13 @@ const CHUNK_PREVIEW_LENGTH = 200;
 
 export interface CompanyThesisDetailProps {
   data: CompanyThesisPublic;
+  runId?: string;
 }
 
 export function CompanyThesisDetail(
   props: CompanyThesisDetailProps,
 ): ReactElement {
-  const { data } = props;
+  const { data, runId } = props;
   const { thesis, judge, chunks } = data;
   const convictionPct = Math.round(
     Math.max(0, Math.min(1, thesis.conviction)) * 100,
@@ -139,6 +140,7 @@ export function CompanyThesisDetail(
               <CatalystRow
                 key={`${catalyst.name}-${index}`}
                 catalyst={catalyst}
+                runId={runId}
               />
             ))}
           </ul>
@@ -151,7 +153,7 @@ export function CompanyThesisDetail(
         ) : (
           <ul className="flex flex-col gap-2">
             {thesis.risks.map((risk, index) => (
-              <RiskRow key={`${risk.name}-${index}`} risk={risk} />
+              <RiskRow key={`${risk.name}-${index}`} risk={risk} runId={runId} />
             ))}
           </ul>
         )}
@@ -174,7 +176,7 @@ export function CompanyThesisDetail(
       </Section>
 
       <Section title="EVIDENCE">
-        <ThesisEvidenceRow evidenceIds={thesis.evidence_ids} />
+        <ThesisEvidenceRow evidenceIds={thesis.evidence_ids} runId={runId} />
       </Section>
     </div>
   );
@@ -243,13 +245,15 @@ function Empty(): ReactElement {
 
 interface CatalystRowProps {
   catalyst: CompanyCatalyst;
+  runId?: string;
 }
 
 function CatalystRow(props: CatalystRowProps): ReactElement {
-  const { catalyst } = props;
+  const { catalyst, runId } = props;
   const { hasEvidence, button, list } = useEvidenceDisclosure(
     catalyst.evidence_ids,
     "company-catalyst",
+    runId,
   );
 
   return (
@@ -275,13 +279,15 @@ function CatalystRow(props: CatalystRowProps): ReactElement {
 
 interface RiskRowProps {
   risk: CompanyRisk;
+  runId?: string;
 }
 
 function RiskRow(props: RiskRowProps): ReactElement {
-  const { risk } = props;
+  const { risk, runId } = props;
   const { hasEvidence, button, list } = useEvidenceDisclosure(
     risk.evidence_ids,
     "company-risk",
+    runId,
   );
 
   return (
@@ -305,13 +311,15 @@ function RiskRow(props: RiskRowProps): ReactElement {
 
 interface ThesisEvidenceRowProps {
   evidenceIds: readonly string[];
+  runId?: string;
 }
 
 function ThesisEvidenceRow(props: ThesisEvidenceRowProps): ReactElement {
-  const { evidenceIds } = props;
+  const { evidenceIds, runId } = props;
   const { hasEvidence, button, list } = useEvidenceDisclosure(
     evidenceIds,
     "company-thesis",
+    runId,
   );
 
   return (

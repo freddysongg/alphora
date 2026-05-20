@@ -90,7 +90,7 @@ export function PortfolioBriefDetail(
       </Section>
 
       <Section title="MACRO SUMMARY">
-        <MacroSummary macro={brief.macro} />
+        <MacroSummary macro={brief.macro} runId={brief.run_id} />
       </Section>
 
       <Section title="SECTORS">
@@ -253,10 +253,11 @@ function CoverageBlock(props: CoverageBlockProps): ReactElement {
 
 interface MacroSummaryProps {
   macro: PortfolioMacroSummary;
+  runId: string;
 }
 
 function MacroSummary(props: MacroSummaryProps): ReactElement {
-  const { macro } = props;
+  const { macro, runId } = props;
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -279,18 +280,19 @@ function MacroSummary(props: MacroSummaryProps): ReactElement {
           {judgeStatusToShortLabel[macro.judge_status]}
         </span>
       </div>
-      <ThemeList themes={macro.themes} />
-      <WatchItemList items={macro.watch_items} />
+      <ThemeList themes={macro.themes} runId={runId} />
+      <WatchItemList items={macro.watch_items} runId={runId} />
     </div>
   );
 }
 
 interface ThemeListProps {
   themes: readonly Theme[];
+  runId: string;
 }
 
 function ThemeList(props: ThemeListProps): ReactElement {
-  const { themes } = props;
+  const { themes, runId } = props;
   return (
     <div>
       <CapsLabel className="text-fg-subtle">THEMES</CapsLabel>
@@ -299,7 +301,11 @@ function ThemeList(props: ThemeListProps): ReactElement {
       ) : (
         <ul className="mt-2 flex flex-col gap-2">
           {themes.map((theme) => (
-            <PortfolioMacroThemeRow key={theme.name} theme={theme} />
+            <PortfolioMacroThemeRow
+              key={theme.name}
+              theme={theme}
+              runId={runId}
+            />
           ))}
         </ul>
       )}
@@ -309,10 +315,11 @@ function ThemeList(props: ThemeListProps): ReactElement {
 
 interface WatchItemListProps {
   items: readonly WatchItem[];
+  runId: string;
 }
 
 function WatchItemList(props: WatchItemListProps): ReactElement {
-  const { items } = props;
+  const { items, runId } = props;
   return (
     <div>
       <CapsLabel className="text-fg-subtle">WATCH ITEMS</CapsLabel>
@@ -321,7 +328,11 @@ function WatchItemList(props: WatchItemListProps): ReactElement {
       ) : (
         <ul className="mt-2 flex flex-col gap-2">
           {items.map((item) => (
-            <PortfolioMacroWatchItemRow key={item.name} item={item} />
+            <PortfolioMacroWatchItemRow
+              key={item.name}
+              item={item}
+              runId={runId}
+            />
           ))}
         </ul>
       )}
@@ -331,15 +342,17 @@ function WatchItemList(props: WatchItemListProps): ReactElement {
 
 interface PortfolioMacroThemeRowProps {
   theme: Theme;
+  runId: string;
 }
 
 function PortfolioMacroThemeRow(
   props: PortfolioMacroThemeRowProps,
 ): ReactElement {
-  const { theme } = props;
+  const { theme, runId } = props;
   const { button, list } = useEvidenceDisclosure(
     theme.evidence_ids,
     "portfolio-macro-theme",
+    runId,
   );
 
   return (
@@ -363,15 +376,17 @@ function PortfolioMacroThemeRow(
 
 interface PortfolioMacroWatchItemRowProps {
   item: WatchItem;
+  runId: string;
 }
 
 function PortfolioMacroWatchItemRow(
   props: PortfolioMacroWatchItemRowProps,
 ): ReactElement {
-  const { item } = props;
+  const { item, runId } = props;
   const { hasEvidence, button, list } = useEvidenceDisclosure(
     item.evidence_ids,
     "portfolio-macro-watch-item",
+    runId,
   );
 
   return (

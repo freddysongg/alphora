@@ -14,6 +14,7 @@ export interface EvidenceDisclosure {
 export function useEvidenceDisclosure(
   evidenceIds: readonly string[],
   testIdPrefix: string,
+  runId?: string,
 ): EvidenceDisclosure {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const evidenceCount = evidenceIds.length;
@@ -28,6 +29,7 @@ export function useEvidenceDisclosure(
   };
 
   const linkTestId = `${testIdPrefix}-evidence-link`;
+  const runQuery = runId !== undefined ? `?run_id=${runId}` : "";
 
   const button = (
     <button
@@ -45,7 +47,9 @@ export function useEvidenceDisclosure(
       {evidenceIds.map((evidenceId) => (
         <li key={evidenceId} className="font-mono">
           <Link
-            href={`/research/evidence/by-evidence/${evidenceId}` as Route}
+            href={
+              `/research/evidence/by-evidence/${evidenceId}${runQuery}` as Route
+            }
             className="text-accent-text hover:underline"
             data-testid={linkTestId}
           >

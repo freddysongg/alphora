@@ -13,6 +13,7 @@ const MACRO_THEME_EVIDENCE_ID_1 = "00000000-0000-4000-8000-000000000031";
 const MACRO_THEME_EVIDENCE_ID_2 = "00000000-0000-4000-8000-000000000032";
 const MACRO_WATCH_EVIDENCE_ID_1 = "00000000-0000-4000-8000-000000000041";
 const MACRO_WATCH_EVIDENCE_ID_2 = "00000000-0000-4000-8000-000000000042";
+const PORTFOLIO_RUN_ID = "00000000-0000-4000-8000-000000000099";
 
 function makeData(
   overrides: Partial<PortfolioBriefPublic["brief"]> = {},
@@ -198,12 +199,12 @@ describe("PortfolioBriefDetail", () => {
     expect(links).toHaveLength(2);
     expect(links[0]).toHaveAttribute(
       "href",
-      `/research/evidence/by-evidence/${MACRO_THEME_EVIDENCE_ID_1}`,
+      `/research/evidence/by-evidence/${MACRO_THEME_EVIDENCE_ID_1}?run_id=${PORTFOLIO_RUN_ID}`,
     );
     expect(links[0]).toHaveTextContent(MACRO_THEME_EVIDENCE_ID_1);
     expect(links[1]).toHaveAttribute(
       "href",
-      `/research/evidence/by-evidence/${MACRO_THEME_EVIDENCE_ID_2}`,
+      `/research/evidence/by-evidence/${MACRO_THEME_EVIDENCE_ID_2}?run_id=${PORTFOLIO_RUN_ID}`,
     );
     expect(links[1]).toHaveTextContent(MACRO_THEME_EVIDENCE_ID_2);
   });
@@ -239,12 +240,12 @@ describe("PortfolioBriefDetail", () => {
     expect(links).toHaveLength(2);
     expect(links[0]).toHaveAttribute(
       "href",
-      `/research/evidence/by-evidence/${MACRO_WATCH_EVIDENCE_ID_1}`,
+      `/research/evidence/by-evidence/${MACRO_WATCH_EVIDENCE_ID_1}?run_id=${PORTFOLIO_RUN_ID}`,
     );
     expect(links[0]).toHaveTextContent(MACRO_WATCH_EVIDENCE_ID_1);
     expect(links[1]).toHaveAttribute(
       "href",
-      `/research/evidence/by-evidence/${MACRO_WATCH_EVIDENCE_ID_2}`,
+      `/research/evidence/by-evidence/${MACRO_WATCH_EVIDENCE_ID_2}?run_id=${PORTFOLIO_RUN_ID}`,
     );
     expect(links[1]).toHaveTextContent(MACRO_WATCH_EVIDENCE_ID_2);
   });

@@ -301,3 +301,109 @@ async def test_get_evidence_trace_by_evidence_id_prefers_most_cited_chunk(
     assert body["chunk"]["id"] == str(cited_chunk.id)
     assert body["chunk"]["chunk_index"] == 2
     assert body["chunk"]["text"] == "chunk 2 body"
+
+
+@pytest.mark.asyncio
+async def test_get_evidence_trace_by_evidence_id_scopes_citations_to_run_id_when_provided(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """With ?run_id=, citation counts are restricted to that run. Chunks cited
+    in other runs do not affect the most-cited choice."""
+    evidence = await _seed_evidence(db_session, source_id=None)
+    chunks = []
+    for index in range(3):
+        chunk = await _seed_chunk(
+            db_session,
+            evidence_id=evidence.id,
+            chunk_index=index,
+            text=f"chunk {index} body",
+            content_hash=f"{index:064d}",
+        )
+        chunks.append(chunk)
+
+    run_a = ResearchRun(
+        id=uuid.uuid4(),
+        ticker=None,
+        trade_date=date(2026, 5, 18),
+        strategy=Strategy.funnel_research.value,
+        status=RunStatus.succeeded,
+        config={},
+        scope_payload={"kind": "macro", "universe": "us_equities"},
+    )
+    run_b = ResearchRun(
+        id=uuid.uuid4(),
+        ticker=None,
+        trade_date=date(2026, 5, 19),
+        strategy=Strategy.funnel_research.value,
+        status=RunStatus.succeeded,
+        config={},
+        scope_payload={"kind": "macro", "universe": "us_equities"},
+    )
+    db_session.add_all([run_a, run_b])
+    await db_session.flush()
+
+    macro_a = MacroBriefRow(
+        run_id=run_a.id,
+        themes=[],
+        sector_calls=[],
+        watch_items=[],
+        cited_claims=[
+            {
+                "claim_text": "run a claim",
+                "exact_quote": "qa",
+                "chunk_id": str(chunks[0].id),
+                "source": "edgar",
+            },
+            {
+                "claim_text": "run a claim 2",
+                "exact_quote": "qa2",
+                "chunk_id": str(chunks[0].id),
+                "source": "edgar",
+            },
+        ],
+        proposed_hypotheses=[],
+        confidence=0.7,
+        verifier_status="verified",
+        regeneration_count=0,
+        evidence_ids=[],
+        judge_status="passed",
+        judge_reasons=None,
+        judge_call_id=None,
+    )
+    macro_b = MacroBriefRow(
+        run_id=run_b.id,
+        themes=[],
+        sector_calls=[],
+        watch_items=[],
+        cited_claims=[
+            {
+                "claim_text": "run b claim",
+                "exact_quote": "qb",
+                "chunk_id": str(chunks[2].id),
+                "source": "edgar",
+            },
+        ],
+        proposed_hypotheses=[],
+        confidence=0.7,
+        verifier_status="verified",
+        regeneration_count=0,
+        evidence_ids=[],
+        judge_status="passed",
+        judge_reasons=None,
+        judge_call_id=None,
+    )
+    db_session.add_all([macro_a, macro_b])
+    await db_session.commit()
+
+    unscoped_response = await async_client.get(
+        f"/api/research/evidence/by-evidence/{evidence.id}"
+    )
+    assert unscoped_response.status_code == 200
+    assert unscoped_response.json()["chunk"]["id"] == str(chunks[0].id)
+
+    scoped_response = await async_client.get(
+        f"/api/research/evidence/by-evidence/{evidence.id}",
+        params={"run_id": str(run_b.id)},
+    )
+    assert scoped_response.status_code == 200
+    assert scoped_response.json()["chunk"]["id"] == str(chunks[2].id)

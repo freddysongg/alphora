@@ -10,13 +10,15 @@ const EVIDENCE_ID_2 = "00000000-0000-4000-8000-000000000002";
 interface HarnessProps {
   ids: readonly string[];
   testIdPrefix: string;
+  runId?: string;
 }
 
 function Harness(props: HarnessProps): ReactElement {
-  const { ids, testIdPrefix } = props;
+  const { ids, testIdPrefix, runId } = props;
   const { button, list, hasEvidence } = useEvidenceDisclosure(
     ids,
     testIdPrefix,
+    runId,
   );
   return (
     <div data-testid="harness">
@@ -82,6 +84,45 @@ describe("useEvidenceDisclosure", () => {
     fireEvent.click(button);
     expect(button).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByTestId("list-slot").children).toHaveLength(0);
+  });
+
+  it("appends ?run_id when runId is provided so the trace endpoint scopes citations to that run", () => {
+    const runId = "11111111-1111-4111-8111-111111111111";
+    render(
+      <Harness
+        ids={[EVIDENCE_ID_1, EVIDENCE_ID_2]}
+        testIdPrefix="scoped"
+        runId={runId}
+      />,
+    );
+    fireEvent.click(
+      within(screen.getByTestId("button-slot")).getByRole("button"),
+    );
+    const links = within(screen.getByTestId("list-slot")).getAllByTestId(
+      "scoped-evidence-link",
+    );
+    expect(links[0]).toHaveAttribute(
+      "href",
+      `/research/evidence/by-evidence/${EVIDENCE_ID_1}?run_id=${runId}`,
+    );
+    expect(links[1]).toHaveAttribute(
+      "href",
+      `/research/evidence/by-evidence/${EVIDENCE_ID_2}?run_id=${runId}`,
+    );
+  });
+
+  it("omits the run_id query when runId is undefined", () => {
+    render(<Harness ids={[EVIDENCE_ID_1]} testIdPrefix="unscoped" />);
+    fireEvent.click(
+      within(screen.getByTestId("button-slot")).getByRole("button"),
+    );
+    const link = within(screen.getByTestId("list-slot")).getByTestId(
+      "unscoped-evidence-link",
+    );
+    expect(link).toHaveAttribute(
+      "href",
+      `/research/evidence/by-evidence/${EVIDENCE_ID_1}`,
+    );
   });
 
   it("uses the provided prefix for each link's data-testid", () => {

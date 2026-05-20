@@ -33,6 +33,7 @@ async def get_evidence_trace_by_evidence(
         int,
         Query(ge=_CONTEXT_RADIUS_MIN, le=_CONTEXT_RADIUS_MAX),
     ] = _CONTEXT_RADIUS_DEFAULT,
+    run_id: Annotated[uuid.UUID | None, Query()] = None,
 ) -> EvidenceTracePublic:
     """Trace endpoint addressable by Evidence.id.
 
@@ -42,6 +43,8 @@ async def get_evidence_trace_by_evidence(
     them to the chunk most frequently referenced in cited_claims across all
     macro / sector / company briefs, falling back to the lowest `chunk_index`
     when no citation references any chunk of the evidence.
+
+    When `run_id` is provided, citation counts are restricted to that run.
     """
     chunks = (
         (
@@ -59,7 +62,9 @@ async def get_evidence_trace_by_evidence(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="evidence not found",
         )
-    selected = await _pick_most_cited_chunk(session=session, chunks=chunks)
+    selected = await _pick_most_cited_chunk(
+        session=session, chunks=chunks, run_id=run_id
+    )
     return await _build_trace_for_chunk(
         session=session, selected=selected, context_radius=context_radius
     )
@@ -69,27 +74,30 @@ async def _pick_most_cited_chunk(
     *,
     session: SessionDep,
     chunks: Sequence[EvidenceChunk],
+    run_id: uuid.UUID | None = None,
 ) -> EvidenceChunk:
     chunk_id_to_chunk = {chunk.id: chunk for chunk in chunks}
     citation_counts: Counter[uuid.UUID] = Counter()
 
-    macro_cited = (
-        (await session.execute(select(MacroBriefRow.cited_claims))).scalars().all()
-    )
+    macro_query = select(MacroBriefRow.cited_claims)
+    sector_query = select(SectorBriefRow.payload)
+    company_query = select(CompanyThesisRow.payload)
+    if run_id is not None:
+        macro_query = macro_query.where(MacroBriefRow.run_id == run_id)
+        sector_query = sector_query.where(SectorBriefRow.run_id == run_id)
+        company_query = company_query.where(CompanyThesisRow.run_id == run_id)
+
+    macro_cited = (await session.execute(macro_query)).scalars().all()
     for claims in macro_cited:
         _accumulate_chunk_citations(claims, chunk_id_to_chunk, citation_counts)
 
-    sector_payloads = (
-        (await session.execute(select(SectorBriefRow.payload))).scalars().all()
-    )
+    sector_payloads = (await session.execute(sector_query)).scalars().all()
     for payload in sector_payloads:
         _accumulate_chunk_citations(
             _extract_cited_claims(payload), chunk_id_to_chunk, citation_counts
         )
 
-    company_payloads = (
-        (await session.execute(select(CompanyThesisRow.payload))).scalars().all()
-    )
+    company_payloads = (await session.execute(company_query)).scalars().all()
     for payload in company_payloads:
         _accumulate_chunk_citations(
             _extract_cited_claims(payload), chunk_id_to_chunk, citation_counts
