@@ -305,7 +305,9 @@ export function RunDetail(props: RunDetailProps): ReactElement {
     return reportOptions.find((option) => option.key === activeReportId) ?? null;
   }, [activeReportId, reportOptions]);
   const isCancellable =
-    resolvedStatus === "queued" || resolvedStatus === "running";
+    resolvedStatus === "queued"
+    || resolvedStatus === "running"
+    || resolvedStatus === "paused";
   const isLogStreamTerminal = isTerminal(resolvedStatus);
 
   const handleOptimisticCancel = (): void => {

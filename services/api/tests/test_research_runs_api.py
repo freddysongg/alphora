@@ -88,6 +88,51 @@ def test_get_research_run_returns_detail_with_nested_arrays(
     assert detail["config"]["llm_provider"] == "openai"
 
 
+def test_get_research_run_detail_exposes_source_client_cache_stats(
+    initialized_schema: None, fake_queue: Any
+) -> None:
+    _ = initialized_schema
+    _ = fake_queue
+    import asyncio
+
+    payload: dict[str, Any] = {
+        "tickers": ["MSFT"],
+        "trade_date": "2026-05-20",
+        "llm_provider": "openai",
+        "llm_model": "gpt-4o-mini",
+    }
+    with TestClient(app) as client:
+        create_response = client.post("/api/research-runs", json=payload)
+        run_id = create_response.json()[0]["id"]
+
+    async def _seed() -> None:
+        async with session_factory() as session:
+            row = (
+                await session.execute(
+                    select(ResearchRun).where(ResearchRun.id == uuid.UUID(run_id))
+                )
+            ).scalar_one()
+            row.source_client_cache_stats = {
+                "hits": 12,
+                "misses": 4,
+                "evictions": 0,
+                "hit_rate": 0.75,
+            }
+            await session.commit()
+
+    asyncio.get_event_loop().run_until_complete(_seed())
+    with TestClient(app) as client:
+        detail_response = client.get(f"/api/research-runs/{run_id}")
+    assert detail_response.status_code == 200
+    detail = detail_response.json()
+    assert detail["source_client_cache_stats"] == {
+        "hits": 12,
+        "misses": 4,
+        "evictions": 0,
+        "hit_rate": 0.75,
+    }
+
+
 def test_get_research_run_returns_404_when_missing(initialized_schema: None) -> None:
     _ = initialized_schema
     missing_id = uuid.uuid4()

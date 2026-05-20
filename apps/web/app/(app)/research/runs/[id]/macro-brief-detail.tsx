@@ -87,7 +87,7 @@ export function MacroBriefDetail(props: MacroBriefDetailProps): ReactElement {
         ) : (
           <ul className="flex flex-col gap-2">
             {brief.themes.map((theme) => (
-              <ThemeRow key={theme.name} theme={theme} />
+              <ThemeRow key={theme.name} theme={theme} runId={runId} />
             ))}
           </ul>
         )}
@@ -145,7 +145,7 @@ export function MacroBriefDetail(props: MacroBriefDetailProps): ReactElement {
         ) : (
           <ul className="flex flex-col gap-2">
             {brief.watch_items.map((item) => (
-              <WatchItemRow key={item.name} item={item} />
+              <WatchItemRow key={item.name} item={item} runId={runId} />
             ))}
           </ul>
         )}
@@ -176,6 +176,7 @@ export function MacroBriefDetail(props: MacroBriefDetailProps): ReactElement {
               <HypothesisRow
                 key={`${hypothesis.claim_text}-${index}`}
                 hypothesis={hypothesis}
+                runId={runId}
               />
             ))}
           </ul>
@@ -264,13 +265,15 @@ function Empty(): ReactElement {
 
 interface ThemeRowProps {
   theme: Theme;
+  runId?: string;
 }
 
 function ThemeRow(props: ThemeRowProps): ReactElement {
-  const { theme } = props;
+  const { theme, runId } = props;
   const { button, list } = useEvidenceDisclosure(
     theme.evidence_ids,
     "macro-theme",
+    runId,
   );
 
   return (
@@ -294,13 +297,15 @@ function ThemeRow(props: ThemeRowProps): ReactElement {
 
 interface WatchItemRowProps {
   item: WatchItem;
+  runId?: string;
 }
 
 function WatchItemRow(props: WatchItemRowProps): ReactElement {
-  const { item } = props;
+  const { item, runId } = props;
   const { hasEvidence, button, list } = useEvidenceDisclosure(
     item.evidence_ids,
     "macro-watch-item",
+    runId,
   );
 
   return (
@@ -322,13 +327,15 @@ function WatchItemRow(props: WatchItemRowProps): ReactElement {
 
 interface HypothesisRowProps {
   hypothesis: ProposedHypothesis;
+  runId?: string;
 }
 
 function HypothesisRow(props: HypothesisRowProps): ReactElement {
-  const { hypothesis } = props;
+  const { hypothesis, runId } = props;
   const { hasEvidence, button, list } = useEvidenceDisclosure(
     hypothesis.evidence_ids,
     "macro-hypothesis",
+    runId,
   );
 
   return (

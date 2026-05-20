@@ -311,6 +311,70 @@ describe("MacroBriefDetail", () => {
     expect(links[1]).toHaveTextContent(MACRO_HYPOTHESIS_EVIDENCE_ID_2);
   });
 
+  it("threads runId into theme, watch item, and hypothesis evidence links", () => {
+    const RUN_ID = "11111111-1111-4111-8111-111111111111";
+    const data = makeData({
+      brief: {
+        themes: [
+          {
+            name: "AI Capex",
+            evidence_ids: [MACRO_THEME_EVIDENCE_ID_1],
+            confidence: 0.8,
+          },
+        ],
+        sector_calls: [],
+        watch_items: [
+          {
+            name: "10y yields",
+            reason: "approaching threshold",
+            evidence_ids: [MACRO_WATCH_EVIDENCE_ID_1],
+          },
+        ],
+        cited_claims: [],
+        proposed_hypotheses: [
+          {
+            claim_text: "Rate cuts repriced",
+            scope_entity_ids: [],
+            evidence_ids: [MACRO_HYPOTHESIS_EVIDENCE_ID_1],
+          },
+        ],
+        confidence: 0.7,
+        evidence_ids: [],
+        verifier_status: "verified",
+        regeneration_count: 0,
+      },
+    });
+    render(<MacroBriefDetail data={data} runId={RUN_ID} />);
+
+    const themeRow = screen.getByTestId("macro-theme-row");
+    fireEvent.click(within(themeRow).getByRole("button"));
+    const themeLink = within(themeRow).getByTestId("macro-theme-evidence-link");
+    expect(themeLink).toHaveAttribute(
+      "href",
+      `/research/evidence/by-evidence/${MACRO_THEME_EVIDENCE_ID_1}?run_id=${RUN_ID}`,
+    );
+
+    const watchRow = screen.getByTestId("macro-watch-item-row");
+    fireEvent.click(within(watchRow).getByRole("button"));
+    const watchLink = within(watchRow).getByTestId(
+      "macro-watch-item-evidence-link",
+    );
+    expect(watchLink).toHaveAttribute(
+      "href",
+      `/research/evidence/by-evidence/${MACRO_WATCH_EVIDENCE_ID_1}?run_id=${RUN_ID}`,
+    );
+
+    const hypRow = screen.getByTestId("macro-hypothesis-row");
+    fireEvent.click(within(hypRow).getByRole("button"));
+    const hypLink = within(hypRow).getByTestId(
+      "macro-hypothesis-evidence-link",
+    );
+    expect(hypLink).toHaveAttribute(
+      "href",
+      `/research/evidence/by-evidence/${MACRO_HYPOTHESIS_EVIDENCE_ID_1}?run_id=${RUN_ID}`,
+    );
+  });
+
   it("renders the evidence link even when the chunk lookup is missing", () => {
     const data = makeData({
       brief: {

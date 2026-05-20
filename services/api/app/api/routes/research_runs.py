@@ -221,6 +221,7 @@ async def get_research_run(run_id: uuid.UUID, session: SessionDep) -> ResearchRu
             "updated_at": run.updated_at,
             "started_at": run.started_at,
             "finished_at": run.finished_at,
+            "source_client_cache_stats": run.source_client_cache_stats,
             "reports": run.reports,
             "events": list(reversed(event_rows)),
             "provenance": run.provenance,
