@@ -175,6 +175,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/research-runs/{run_id}/companies/{company_entity_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Company Thesis */
+        get: operations["get_company_thesis_api_research_runs__run_id__companies__company_entity_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/research/hypotheses": {
         parameters: {
             query?: never;
@@ -222,9 +239,10 @@ export interface paths {
          *
          *     Brief schemas store `Evidence.id` values in their `evidence_ids` arrays
          *     (themes, sector calls, watch items, hypotheses). Those ids are not chunk
-         *     ids, so the chunk-id endpoint cannot resolve them. This endpoint picks the
-         *     first chunk (lowest `chunk_index`) for the given evidence and returns the
-         *     same `EvidenceTracePublic` payload the chunk-id endpoint returns.
+         *     ids, so the chunk-id endpoint cannot resolve them. This endpoint resolves
+         *     them to the chunk most frequently referenced in cited_claims across all
+         *     macro / sector / company briefs, falling back to the lowest `chunk_index`
+         *     when no citation references any chunk of the evidence.
          */
         get: operations["get_evidence_trace_by_evidence_api_research_evidence_by_evidence__evidence_id__get"];
         put?: never;
@@ -513,6 +531,68 @@ export interface components {
             chunk_id: string;
             /** Source */
             source: string;
+        };
+        /** CompanyCatalyst */
+        CompanyCatalyst: {
+            /** Name */
+            name: string;
+            /** Expected Timing */
+            expected_timing?: string | null;
+            /** Evidence Ids */
+            evidence_ids: string[];
+        };
+        /** CompanyRisk */
+        CompanyRisk: {
+            /** Name */
+            name: string;
+            /** Severity */
+            severity: number;
+            /** Evidence Ids */
+            evidence_ids: string[];
+        };
+        /** CompanyThesis */
+        CompanyThesis: {
+            /**
+             * Company Entity Id
+             * Format: uuid
+             */
+            company_entity_id: string;
+            /** Company Name */
+            company_name: string;
+            /**
+             * Sector Entity Id
+             * Format: uuid
+             */
+            sector_entity_id: string;
+            /** Sector Name */
+            sector_name: string;
+            /** Ticker */
+            ticker?: string | null;
+            direction: components["schemas"]["SectorCallDirection"];
+            /** Conviction */
+            conviction: number;
+            /** Bull Case */
+            bull_case: string;
+            /** Bear Case */
+            bear_case: string;
+            /** Catalysts */
+            catalysts: components["schemas"]["CompanyCatalyst"][];
+            /** Risks */
+            risks: components["schemas"]["CompanyRisk"][];
+            /** Cited Claims */
+            cited_claims: components["schemas"]["CitedClaim"][];
+            /** Confidence */
+            confidence: number;
+            /** Evidence Ids */
+            evidence_ids: string[];
+            verifier_status: components["schemas"]["VerifierStatus"];
+            /** Regeneration Count */
+            regeneration_count: number;
+        };
+        /** CompanyThesisPublic */
+        CompanyThesisPublic: {
+            thesis: components["schemas"]["CompanyThesis"];
+            judge: components["schemas"]["JudgePublic"];
         };
         /** CreatePaperOrderRequest */
         CreatePaperOrderRequest: {
@@ -1884,6 +1964,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PortfolioBriefPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_company_thesis_api_research_runs__run_id__companies__company_entity_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                company_entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyThesisPublic"];
                 };
             };
             /** @description Validation Error */

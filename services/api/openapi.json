@@ -544,6 +544,59 @@
         }
       }
     },
+    "/api/research-runs/{run_id}/companies/{company_entity_id}": {
+      "get": {
+        "tags": [
+          "research-runs"
+        ],
+        "summary": "Get Company Thesis",
+        "operationId": "get_company_thesis_api_research_runs__run_id__companies__company_entity_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "company_entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Company Entity Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyThesisPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/research/hypotheses": {
       "get": {
         "tags": [
@@ -663,7 +716,7 @@
           "research"
         ],
         "summary": "Get Evidence Trace By Evidence",
-        "description": "Trace endpoint addressable by Evidence.id.\n\nBrief schemas store `Evidence.id` values in their `evidence_ids` arrays\n(themes, sector calls, watch items, hypotheses). Those ids are not chunk\nids, so the chunk-id endpoint cannot resolve them. This endpoint picks the\nfirst chunk (lowest `chunk_index`) for the given evidence and returns the\nsame `EvidenceTracePublic` payload the chunk-id endpoint returns.",
+        "description": "Trace endpoint addressable by Evidence.id.\n\nBrief schemas store `Evidence.id` values in their `evidence_ids` arrays\n(themes, sector calls, watch items, hypotheses). Those ids are not chunk\nids, so the chunk-id endpoint cannot resolve them. This endpoint resolves\nthem to the chunk most frequently referenced in cited_claims across all\nmacro / sector / company briefs, falling back to the lowest `chunk_index`\nwhen no citation references any chunk of the evidence.",
         "operationId": "get_evidence_trace_by_evidence_api_research_evidence_by_evidence__evidence_id__get",
         "parameters": [
           {
@@ -1579,6 +1632,213 @@
           "source"
         ],
         "title": "CitedClaim"
+      },
+      "CompanyCatalyst": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "expected_timing": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Timing"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "evidence_ids"
+        ],
+        "title": "CompanyCatalyst"
+      },
+      "CompanyRisk": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "severity": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Severity"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "severity",
+          "evidence_ids"
+        ],
+        "title": "CompanyRisk"
+      },
+      "CompanyThesis": {
+        "properties": {
+          "company_entity_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Company Entity Id"
+          },
+          "company_name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Company Name"
+          },
+          "sector_entity_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Sector Entity Id"
+          },
+          "sector_name": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Sector Name"
+          },
+          "ticker": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticker"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/SectorCallDirection"
+          },
+          "conviction": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Conviction"
+          },
+          "bull_case": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Bull Case"
+          },
+          "bear_case": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Bear Case"
+          },
+          "catalysts": {
+            "items": {
+              "$ref": "#/components/schemas/CompanyCatalyst"
+            },
+            "type": "array",
+            "title": "Catalysts"
+          },
+          "risks": {
+            "items": {
+              "$ref": "#/components/schemas/CompanyRisk"
+            },
+            "type": "array",
+            "title": "Risks"
+          },
+          "cited_claims": {
+            "items": {
+              "$ref": "#/components/schemas/CitedClaim"
+            },
+            "type": "array",
+            "title": "Cited Claims"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          },
+          "verifier_status": {
+            "$ref": "#/components/schemas/VerifierStatus"
+          },
+          "regeneration_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Regeneration Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "company_entity_id",
+          "company_name",
+          "sector_entity_id",
+          "sector_name",
+          "direction",
+          "conviction",
+          "bull_case",
+          "bear_case",
+          "catalysts",
+          "risks",
+          "cited_claims",
+          "confidence",
+          "evidence_ids",
+          "verifier_status",
+          "regeneration_count"
+        ],
+        "title": "CompanyThesis"
+      },
+      "CompanyThesisPublic": {
+        "properties": {
+          "thesis": {
+            "$ref": "#/components/schemas/CompanyThesis"
+          },
+          "judge": {
+            "$ref": "#/components/schemas/JudgePublic"
+          }
+        },
+        "type": "object",
+        "required": [
+          "thesis",
+          "judge"
+        ],
+        "title": "CompanyThesisPublic"
       },
       "CreatePaperOrderRequest": {
         "properties": {

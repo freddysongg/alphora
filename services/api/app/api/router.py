@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.routes import (
+    company_theses,
     data_health,
     graph,
     health,
@@ -24,6 +25,9 @@ api_router.include_router(
 )
 api_router.include_router(
     portfolio_briefs.router, prefix="/research-runs", tags=["research-runs"]
+)
+api_router.include_router(
+    company_theses.router, prefix="/research-runs", tags=["research-runs"]
 )
 api_router.include_router(
     hypotheses.router, prefix="/research", tags=["research"]

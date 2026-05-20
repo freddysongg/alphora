@@ -105,7 +105,7 @@ export function PortfolioBriefDetail(
         {brief.companies.length === 0 ? (
           <Empty />
         ) : (
-          <CompanyTable entries={brief.companies} />
+          <CompanyTable entries={brief.companies} runId={brief.run_id} />
         )}
       </Section>
 
@@ -454,10 +454,11 @@ function SectorTable(props: SectorTableProps): ReactElement {
 
 interface CompanyTableProps {
   entries: readonly PortfolioCompanyEntry[];
+  runId: string;
 }
 
 function CompanyTable(props: CompanyTableProps): ReactElement {
-  const { entries } = props;
+  const { entries, runId } = props;
   const sorted = useMemo(
     () => [...entries].sort((a, b) => a.rank - b.rank),
     [entries],
@@ -488,7 +489,17 @@ function CompanyTable(props: CompanyTableProps): ReactElement {
             <td className="px-3 text-right font-mono tabular-nums text-fg-muted">
               {entry.rank}
             </td>
-            <td className="px-3 text-fg">{entry.company_name}</td>
+            <td className="px-3 text-fg">
+              <Link
+                href={
+                  `/research/runs/${runId}/companies/${entry.company_entity_id}` as Route
+                }
+                className="text-fg hover:text-accent-text hover:underline transition-colors duration-150"
+                data-testid="portfolio-company-link"
+              >
+                {entry.company_name}
+              </Link>
+            </td>
             <td className="px-3 font-mono text-fg-muted">
               {entry.ticker ?? "—"}
             </td>

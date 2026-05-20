@@ -12,6 +12,7 @@ type LlmProvider = components["schemas"]["LlmProviderEnum"];
 type AnalystKind = components["schemas"]["AnalystKindEnum"];
 type MacroBriefPublic = components["schemas"]["MacroBriefPublic"];
 type PortfolioBriefPublic = components["schemas"]["PortfolioBriefPublic"];
+type CompanyThesisPublic = components["schemas"]["CompanyThesisPublic"];
 
 const ALLOWED_PROVIDERS: ReadonlySet<LlmProvider> = new Set<LlmProvider>([
   "openai",
@@ -195,6 +196,31 @@ export async function getPortfolioBrief(
       "/api/research-runs/{run_id}/portfolio-brief",
       {
         params: { path: { run_id: runId } },
+      },
+    );
+    if (response.data === undefined) {
+      return null;
+    }
+    return response.data;
+  } catch (caught) {
+    if (isApiError(caught) && caught.status === 404) {
+      return null;
+    }
+    throw caught;
+  }
+}
+
+export async function getCompanyThesis(
+  runId: string,
+  companyEntityId: string,
+): Promise<CompanyThesisPublic | null> {
+  try {
+    const response = await getServerApi().GET(
+      "/api/research-runs/{run_id}/companies/{company_entity_id}",
+      {
+        params: {
+          path: { run_id: runId, company_entity_id: companyEntityId },
+        },
       },
     );
     if (response.data === undefined) {

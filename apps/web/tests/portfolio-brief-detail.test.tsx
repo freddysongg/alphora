@@ -109,6 +109,15 @@ describe("PortfolioBriefDetail", () => {
     expect(within(companyTable).getByText("Apple")).toBeInTheDocument();
     expect(within(companyTable).getByText("AAPL")).toBeInTheDocument();
 
+    const companyLink = within(companyTable).getByTestId(
+      "portfolio-company-link",
+    );
+    expect(companyLink).toHaveAttribute(
+      "href",
+      `/research/runs/00000000-0000-4000-8000-000000000099/companies/${COMPANY_ID}`,
+    );
+    expect(companyLink).toHaveTextContent("Apple");
+
     expect(screen.getByTestId("judge-badge")).toHaveTextContent(/passed/i);
     expect(screen.getByText("AI Capex")).toBeInTheDocument();
     expect(screen.getByText("Inflation surprises")).toBeInTheDocument();
