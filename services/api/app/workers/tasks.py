@@ -8,6 +8,7 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.db.models_runs import ResearchRun, Strategy
 from app.db.session import session_factory
+from app.services.hypothesis import OpenAiEmbedder
 from app.services.llm.client import LlmClient
 from app.services.run_orchestrator import RunOrchestrator
 from app.services.strategies.funnel_research import (
@@ -68,12 +69,14 @@ async def _dispatch_funnel_research(
     try:
         async with httpx.AsyncClient() as http_client:
             llm_client = LlmClient(openai_client=openai_client)
+            hypothesis_embedder = OpenAiEmbedder(client=openai_client)
             await run_macro_brief(
                 session_factory=session_factory,
                 run_id=run_id,
                 llm_client=llm_client,
                 orchestrator=orchestrator,
                 http_client=http_client,
+                hypothesis_embedder=hypothesis_embedder,
             )
     except FunnelResearchError:
         return

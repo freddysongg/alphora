@@ -395,5 +395,204 @@ async def test_get_hypothesis_belief_history_404_for_missing(
     assert response.status_code == 404
 
 
+@pytest.mark.asyncio
+async def test_transition_hypothesis_proposed_to_active(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    run_id = await _seed_run(db_session)
+    row = await _seed_hypothesis(
+        db_session, claim_text="proposed claim", proposed_by_run_id=run_id
+    )
+    await db_session.commit()
+
+    response = await async_client.post(
+        f"/api/research/hypotheses/{row.id}/transition",
+        json={"to": "active"},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["state"] == "active"
+
+
+@pytest.mark.asyncio
+async def test_transition_hypothesis_active_to_validated_records_event(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    run_id = await _seed_run(db_session)
+    row = await _seed_hypothesis(
+        db_session,
+        claim_text="active claim",
+        status_value=HypothesisStatus.active.value,
+        proposed_by_run_id=run_id,
+    )
+    await db_session.commit()
+
+    response = await async_client.post(
+        f"/api/research/hypotheses/{row.id}/transition",
+        json={"to": "validated", "reason": "earnings beat"},
+    )
+    assert response.status_code == 200, response.text
+
+    db_session.expire_all()
+    events = (
+        (
+            await db_session.execute(
+                select(RunEvent).where(RunEvent.run_id == run_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert any(
+        e.level is RunEventLevel.info
+        and isinstance(e.data, dict)
+        and e.data.get("event") == "hypothesis_transitioned"
+        and e.data.get("to") == "validated"
+        and e.data.get("from") == "active"
+        for e in events
+    )
+
+
+@pytest.mark.asyncio
+async def test_transition_hypothesis_rejects_invalid_transition(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    row = await _seed_hypothesis(
+        db_session,
+        claim_text="terminal",
+        status_value=HypothesisStatus.expired.value,
+    )
+    await db_session.commit()
+    response = await async_client.post(
+        f"/api/research/hypotheses/{row.id}/transition",
+        json={"to": "active"},
+    )
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_transition_hypothesis_returns_404_for_missing(
+    async_client: AsyncClient,
+) -> None:
+    response = await async_client.post(
+        f"/api/research/hypotheses/{uuid.uuid4()}/transition",
+        json={"to": "active"},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_transition_hypothesis_marks_archived_on_expired(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    row = await _seed_hypothesis(
+        db_session,
+        claim_text="will expire",
+        status_value=HypothesisStatus.active.value,
+    )
+    await db_session.commit()
+    response = await async_client.post(
+        f"/api/research/hypotheses/{row.id}/transition",
+        json={"to": "expired", "reason": "manual"},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["state"] == "expired"
+    assert body["archived_at"] is not None
+    assert body["archived_reason"] == "manual"
+
+
+@pytest.mark.asyncio
+async def test_sweep_lifecycle_endpoint_returns_counts(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    expiring = await _seed_hypothesis(
+        db_session,
+        claim_text="will expire",
+        status_value=HypothesisStatus.active.value,
+    )
+    expiring.valid_until = datetime(2026, 1, 1, tzinfo=UTC)
+    await db_session.commit()
+    response = await async_client.post(
+        "/api/research/hypotheses/lifecycle/sweep"
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["counts"]["expired"] >= 1
+    assert str(expiring.id) in body["expired_ids"]
+
+
+@pytest.mark.asyncio
+async def test_get_hypothesis_lifecycle_returns_full_bundle(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    parent = await _seed_hypothesis(
+        db_session, claim_text="parent claim"
+    )
+    child = await _seed_hypothesis(
+        db_session, claim_text="child claim"
+    )
+    child.parent_hypothesis_id = parent.id
+    await db_session.commit()
+
+    response = await async_client.get(
+        f"/api/research/hypotheses/{child.id}/lifecycle"
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["hypothesis"]["id"] == str(child.id)
+    assert body["parent"] is not None
+    assert body["parent"]["id"] == str(parent.id)
+
+
+@pytest.mark.asyncio
+async def test_get_hypothesis_lifecycle_lists_children(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    parent = await _seed_hypothesis(
+        db_session, claim_text="root claim"
+    )
+    child_a = await _seed_hypothesis(
+        db_session, claim_text="child a"
+    )
+    child_b = await _seed_hypothesis(
+        db_session, claim_text="child b"
+    )
+    child_a.parent_hypothesis_id = parent.id
+    child_b.parent_hypothesis_id = parent.id
+    await db_session.commit()
+
+    response = await async_client.get(
+        f"/api/research/hypotheses/{parent.id}/lifecycle"
+    )
+    body = response.json()
+    child_ids = {item["id"] for item in body["children"]}
+    assert child_ids == {str(child_a.id), str(child_b.id)}
+
+
+@pytest.mark.asyncio
+async def test_get_hypothesis_lifecycle_surfaces_supersedes_link(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    old = await _seed_hypothesis(
+        db_session,
+        claim_text="old framing",
+        status_value=HypothesisStatus.active.value,
+    )
+    new = await _seed_hypothesis(
+        db_session, claim_text="new framing"
+    )
+    old.status = HypothesisStatus.superseded.value
+    old.superseded_by_id = new.id
+    await db_session.commit()
+
+    response = await async_client.get(
+        f"/api/research/hypotheses/{new.id}/lifecycle"
+    )
+    body = response.json()
+    assert body["supersedes"] is not None
+    assert body["supersedes"]["id"] == str(old.id)
+
+
 # Reference imports keep the relation type symbol live for future expansion.
 _ = RelationType, RunEvent, RunEventLevel

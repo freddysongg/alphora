@@ -113,6 +113,14 @@ class RelationTypeEnum(StrEnum):
     subsidiary_of = "subsidiary_of"
     supports_hypothesis = "supports_hypothesis"
     contradicts_hypothesis = "contradicts_hypothesis"
+    validates_if_beat = "validates_if_beat"
+    falsifies_if_miss = "falsifies_if_miss"
+
+
+class EventResolutionKindEnum(StrEnum):
+    beat = "beat"
+    miss = "miss"
+    neutral = "neutral"
 
 
 class HypothesisStatusEnum(StrEnum):

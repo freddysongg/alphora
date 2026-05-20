@@ -28,6 +28,10 @@ from app.schemas.sector_brief import (
     SectorBriefPublic,
 )
 from app.services.entity_bootstrap.gics_sectors import load_top_level_sector_names
+from app.services.hypothesis import (
+    Embedder,
+    OpenAiDuplicateConfirmer,
+)
 from app.services.llm.client import LlmClient, LlmCompletionResult
 from app.services.run_events import emit_run_event, emit_stage_event
 from app.services.run_orchestrator import RunOrchestrator, resolve_stage_position
@@ -191,6 +195,7 @@ async def run_macro_brief(
     sector_constituents: dict[str, SectorConstituents] | None = None,
     company_fetcher: CompanySourceFetcher | None = None,
     chunk_id_capture: MutableMapping[str, uuid.UUID] | None = None,
+    hypothesis_embedder: Embedder | None = None,
 ) -> None:
     """Execute the funnel_research strategy for one run.
 
@@ -227,6 +232,7 @@ async def run_macro_brief(
             company_fetcher=company_fetcher,
             chunk_id_capture=chunk_id_capture,
             started=started,
+            hypothesis_embedder=hypothesis_embedder,
         )
     except FunnelResearchError as exc:
         await orchestrator.fail(run_id=run_id, reason=str(exc))
@@ -249,6 +255,7 @@ async def _run_funnel(
     sector_constituents: dict[str, SectorConstituents],
     chunk_id_capture: MutableMapping[str, uuid.UUID] | None,
     started: float,
+    hypothesis_embedder: Embedder | None = None,
 ) -> None:
     active_fetcher = fetcher
 
@@ -409,10 +416,21 @@ async def _run_funnel(
             await session.commit()
 
         async with session_factory() as session:
+            dedup_confirmer = (
+                OpenAiDuplicateConfirmer(
+                    llm_client=llm_client,
+                    session=session,
+                    run_id=run_id,
+                )
+                if hypothesis_embedder is not None
+                else None
+            )
             await persist_hypotheses(
                 session=session,
                 run_id=run_id,
                 proposed=list(macro_brief.proposed_hypotheses),
+                embedder=hypothesis_embedder,
+                confirmer=dedup_confirmer,
             )
             wall_clock_ms = int((time.monotonic() - started) * 1000)
             await persist_macro_brief(

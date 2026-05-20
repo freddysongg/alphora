@@ -33,6 +33,7 @@ _EXPECTED_TABLES = {
     "leakage_holdout_cases",
     "leakage_runs",
     "human_reviews",
+    "event_resolutions",
 }
 
 

@@ -118,6 +118,8 @@ async def recompute_belief_for_hypothesis(
     )
 
     hypothesis.belief = result.belief
+    hypothesis.last_activity_at = effective_now
+    hypothesis.stagnation_flagged_at = None
     history = list(hypothesis.belief_history or [])
     history.append(
         {

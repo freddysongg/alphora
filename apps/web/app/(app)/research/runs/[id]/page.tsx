@@ -17,7 +17,10 @@ type HumanReviewSummary = components["schemas"]["HumanReviewSummary"];
 type HypothesisPublic = components["schemas"]["HypothesisPublic"];
 type BeliefRecomputationPublic =
   components["schemas"]["BeliefRecomputationPublic"];
+type HypothesisLifecycleResponse =
+  components["schemas"]["HypothesisLifecycleResponse"];
 import type { HypothesisBeliefBundle } from "@/components/research/hypothesis-belief-explainer";
+import type { HypothesisLifecycleBundle } from "@/components/research/hypothesis-lifecycle-card";
 
 export const metadata: Metadata = {
   title: "Run Detail · Alphora",
@@ -220,6 +223,40 @@ async function loadLatestBelief(
   }
 }
 
+async function loadHypothesisLifecycleBundles(
+  hypotheses: readonly HypothesisPublic[],
+): Promise<readonly HypothesisLifecycleBundle[]> {
+  if (hypotheses.length === 0) {
+    return [];
+  }
+  return Promise.all(
+    hypotheses.map(async (hypothesis) => {
+      const lifecycle = await loadHypothesisLifecycle(hypothesis.id);
+      return { hypothesis, lifecycle };
+    }),
+  );
+}
+
+async function loadHypothesisLifecycle(
+  hypothesisId: string,
+): Promise<HypothesisLifecycleResponse | null> {
+  try {
+    const { data } = await getServerApi().GET(
+      "/api/research/hypotheses/{hypothesis_id}/lifecycle",
+      {
+        params: { path: { hypothesis_id: hypothesisId } },
+        cache: "no-store",
+      },
+    );
+    return data ?? null;
+  } catch (caught) {
+    if (isApiError(caught) && caught.status === NOT_FOUND_STATUS) {
+      return null;
+    }
+    throw caught;
+  }
+}
+
 async function loadHumanReviewSummary(): Promise<HumanReviewSummary> {
   try {
     const { data } = await getServerApi().GET("/api/human-reviews/summary", {
@@ -256,6 +293,9 @@ export default async function RunDetailPage(
   const counterfactuals = await loadCounterfactualSummary(id);
   const reviewSummary = await loadHumanReviewSummary();
   const beliefBundles = await loadHypothesisBeliefBundles(id);
+  const lifecycleBundles = await loadHypothesisLifecycleBundles(
+    beliefBundles.map((bundle) => bundle.hypothesis),
+  );
   return (
     <RunDetail
       detail={detail}
@@ -266,6 +306,7 @@ export default async function RunDetailPage(
       humanReviewSummary={reviewSummary}
       defaultWeekStart={defaultWeekStart()}
       beliefBundles={beliefBundles}
+      lifecycleBundles={lifecycleBundles}
     />
   );
 }

@@ -46,6 +46,10 @@ import {
   HypothesisBeliefExplainer,
   type HypothesisBeliefBundle,
 } from "@/components/research/hypothesis-belief-explainer";
+import {
+  HypothesisLifecycleCard,
+  type HypothesisLifecycleBundle,
+} from "@/components/research/hypothesis-lifecycle-card";
 import { cn } from "@/lib/cn";
 import { CancelRunButton } from "./cancel-run-button";
 import { MacroBriefDetail } from "./macro-brief-detail";
@@ -237,6 +241,7 @@ export interface RunDetailProps {
   humanReviewSummary: HumanReviewSummary;
   defaultWeekStart: string;
   beliefBundles: readonly HypothesisBeliefBundle[];
+  lifecycleBundles: readonly HypothesisLifecycleBundle[];
 }
 
 export function RunDetail(props: RunDetailProps): ReactElement {
@@ -249,6 +254,7 @@ export function RunDetail(props: RunDetailProps): ReactElement {
     humanReviewSummary,
     defaultWeekStart,
     beliefBundles,
+    lifecycleBundles,
   } = props;
   const router = useRouter();
   const isFunnelResearch = detail.strategy === "funnel_research";
@@ -348,6 +354,7 @@ export function RunDetail(props: RunDetailProps): ReactElement {
         />
         <CounterfactualGateSummary gates={counterfactualGates} />
         <HypothesisBeliefExplainer bundles={beliefBundles} />
+        <HypothesisLifecycleCard bundles={lifecycleBundles} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <HumanReviewForm
             runId={detail.id}

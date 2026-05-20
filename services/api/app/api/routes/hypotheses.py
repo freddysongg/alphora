@@ -1,33 +1,76 @@
 import base64
 import binascii
 import uuid
-from datetime import datetime
-from typing import Annotated
+from datetime import UTC, datetime
+from typing import Annotated, Final
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import SessionDep
-from app.db.models_graph import BeliefRecomputation, Hypothesis, HypothesisStatus
+from app.db.models_graph import (
+    BeliefRecomputation,
+    Entity,
+    EventResolution,
+    Hypothesis,
+    HypothesisStatus,
+    Relation,
+    RelationType,
+)
 from app.db.models_runs import RunEventLevel
 from app.schemas.graph import (
     BeliefInputBreakdown,
     BeliefRecomputationPublic,
+    EventResolutionPublic,
 )
 from app.schemas.hypotheses import (
+    ConditionalEdgePublic,
     HypothesisBeliefResponse,
     HypothesisHistoryResponse,
+    HypothesisLifecycleResponse,
     HypothesisListResponse,
     HypothesisPublic,
     HypothesisState,
     HypothesisStateFilter,
+    HypothesisTransitionRequest,
+    LifecycleSweepCounts,
+    LifecycleSweepResponse,
 )
+from app.services.hypothesis import run_lifecycle_sweep
 from app.services.run_events import emit_run_event
 
 router = APIRouter()
 
 _HYPOTHESIS_ACTIVATED_EVENT = "hypothesis_activated"
+_HYPOTHESIS_TRANSITIONED_EVENT = "hypothesis_transitioned"
+
+_CONDITIONAL_RELATION_TYPES: Final[frozenset[str]] = frozenset(
+    {
+        RelationType.validates_if_beat.value,
+        RelationType.falsifies_if_miss.value,
+    }
+)
+
+_ALLOWED_TRANSITIONS: Final[dict[str, frozenset[str]]] = {
+    HypothesisStatus.proposed.value: frozenset(
+        {
+            HypothesisStatus.active.value,
+            HypothesisStatus.expired.value,
+            HypothesisStatus.superseded.value,
+        }
+    ),
+    HypothesisStatus.active.value: frozenset(
+        {
+            HypothesisStatus.validated.value,
+            HypothesisStatus.falsified.value,
+            HypothesisStatus.expired.value,
+            HypothesisStatus.superseded.value,
+        }
+    ),
+}
+
+_RECENT_RESOLUTIONS_LIMIT: Final[int] = 10
 
 
 def _encode_cursor(created_at: datetime, hypothesis_id: uuid.UUID) -> str:
@@ -58,6 +101,13 @@ def _to_public(row: Hypothesis) -> HypothesisPublic:
         entity_id=row.entity_id,
         belief=row.belief,
         belief_history=list(row.belief_history or []),
+        parent_hypothesis_id=row.parent_hypothesis_id,
+        superseded_by_id=row.superseded_by_id,
+        last_activity_at=row.last_activity_at,
+        stagnation_flagged_at=row.stagnation_flagged_at,
+        archived_at=row.archived_at,
+        archived_reason=row.archived_reason,
+        valid_until=row.valid_until,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -176,6 +226,74 @@ async def get_hypothesis_belief_history(
     )
 
 
+@router.get(
+    "/hypotheses/{hypothesis_id}/lifecycle",
+    response_model=HypothesisLifecycleResponse,
+)
+async def get_hypothesis_lifecycle(
+    hypothesis_id: uuid.UUID, session: SessionDep
+) -> HypothesisLifecycleResponse:
+    row = await _load_hypothesis(session=session, hypothesis_id=hypothesis_id)
+
+    parent = await _load_optional(
+        session=session, hypothesis_id=row.parent_hypothesis_id
+    )
+    superseded_by = await _load_optional(
+        session=session, hypothesis_id=row.superseded_by_id
+    )
+    supersedes = await _load_supersedes(session=session, hypothesis_id=row.id)
+
+    children_rows = (
+        (
+            await session.execute(
+                select(Hypothesis)
+                .where(Hypothesis.parent_hypothesis_id == row.id)
+                .order_by(
+                    Hypothesis.created_at.desc(), Hypothesis.id.desc()
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    conditional_edges = await _load_conditional_edges(
+        session=session, hypothesis_entity_id=row.entity_id
+    )
+
+    recent_resolutions: list[EventResolutionPublic] = []
+    if conditional_edges:
+        event_entity_ids = {edge.event_entity_id for edge in conditional_edges}
+        resolution_rows = (
+            (
+                await session.execute(
+                    select(EventResolution)
+                    .where(EventResolution.event_entity_id.in_(event_entity_ids))
+                    .order_by(
+                        EventResolution.resolved_at.desc(),
+                        EventResolution.id.desc(),
+                    )
+                    .limit(_RECENT_RESOLUTIONS_LIMIT)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        recent_resolutions = [
+            EventResolutionPublic.model_validate(item) for item in resolution_rows
+        ]
+
+    return HypothesisLifecycleResponse(
+        hypothesis=_to_public(row),
+        parent=_to_public(parent) if parent is not None else None,
+        children=[_to_public(child) for child in children_rows],
+        supersedes=_to_public(supersedes) if supersedes is not None else None,
+        superseded_by=_to_public(superseded_by) if superseded_by is not None else None,
+        conditional_edges=conditional_edges,
+        recent_event_resolutions=recent_resolutions,
+    )
+
+
 @router.post(
     "/hypotheses/{hypothesis_id}/activate",
     response_model=HypothesisPublic,
@@ -192,6 +310,7 @@ async def activate_hypothesis(
             ),
         )
     row.status = HypothesisStatus.active.value
+    row.last_activity_at = datetime.now(UTC)
     if row.proposed_by_run_id is not None:
         await _emit_activation_event(
             session=session,
@@ -201,6 +320,88 @@ async def activate_hypothesis(
     await session.commit()
     await session.refresh(row)
     return _to_public(row)
+
+
+@router.post(
+    "/hypotheses/{hypothesis_id}/transition",
+    response_model=HypothesisPublic,
+)
+async def transition_hypothesis(
+    hypothesis_id: uuid.UUID,
+    payload: HypothesisTransitionRequest,
+    session: SessionDep,
+) -> HypothesisPublic:
+    """Manually transition a hypothesis to one of the allowed next states.
+
+    Allowed transitions:
+    - `proposed → active | expired | superseded`
+    - `active   → validated | falsified | expired | superseded`
+
+    Any other source state (including terminal `validated` / `falsified` /
+    `expired` / `superseded`) returns 409.
+    """
+    row = await _load_hypothesis(session=session, hypothesis_id=hypothesis_id)
+    target = payload.to.value
+    allowed = _ALLOWED_TRANSITIONS.get(row.status)
+    if allowed is None or target not in allowed:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"transition from {row.status!r} to {target!r} is not allowed"
+            ),
+        )
+    previous = row.status
+    row.status = target
+    effective_now = datetime.now(UTC)
+    row.last_activity_at = effective_now
+    if target in {
+        HypothesisStatus.expired.value,
+        HypothesisStatus.superseded.value,
+    }:
+        row.archived_at = effective_now
+        row.archived_reason = payload.reason or target
+    if row.proposed_by_run_id is not None:
+        emit_run_event(
+            session,
+            run_id=row.proposed_by_run_id,
+            level=RunEventLevel.info,
+            message=(
+                f"hypothesis {row.id} transitioned {previous} → {target}"
+            ),
+            data={
+                "event": _HYPOTHESIS_TRANSITIONED_EVENT,
+                "hypothesis_id": str(row.id),
+                "from": previous,
+                "to": target,
+                "reason": payload.reason,
+            },
+        )
+    await session.commit()
+    await session.refresh(row)
+    return _to_public(row)
+
+
+@router.post(
+    "/hypotheses/lifecycle/sweep",
+    response_model=LifecycleSweepResponse,
+)
+async def sweep_lifecycle(session: SessionDep) -> LifecycleSweepResponse:
+    report = await run_lifecycle_sweep(session=session)
+    await session.commit()
+    return LifecycleSweepResponse(
+        counts=LifecycleSweepCounts(
+            expired=len(report.expired_ids),
+            archived_belief_floor=len(report.archived_belief_floor_ids),
+            validated=len(report.validated_ids),
+            falsified=len(report.falsified_ids),
+            stagnation_flagged=len(report.stagnation_flagged_ids),
+        ),
+        expired_ids=list(report.expired_ids),
+        archived_belief_floor_ids=list(report.archived_belief_floor_ids),
+        validated_ids=list(report.validated_ids),
+        falsified_ids=list(report.falsified_ids),
+        stagnation_flagged_ids=list(report.stagnation_flagged_ids),
+    )
 
 
 async def _load_hypothesis(
@@ -216,6 +417,60 @@ async def _load_hypothesis(
             status_code=status.HTTP_404_NOT_FOUND, detail="hypothesis not found"
         )
     return row
+
+
+async def _load_optional(
+    *, session: AsyncSession, hypothesis_id: uuid.UUID | None
+) -> Hypothesis | None:
+    if hypothesis_id is None:
+        return None
+    return (
+        await session.execute(
+            select(Hypothesis).where(Hypothesis.id == hypothesis_id)
+        )
+    ).scalar_one_or_none()
+
+
+async def _load_supersedes(
+    *, session: AsyncSession, hypothesis_id: uuid.UUID
+) -> Hypothesis | None:
+    """Find the predecessor that *this* hypothesis superseded, if any.
+
+    The successor (the one inserted by the dedup pipeline) carries no link
+    back to the predecessor; the predecessor carries `superseded_by_id`
+    pointing at the successor. Walk that backward.
+    """
+    return (
+        await session.execute(
+            select(Hypothesis).where(Hypothesis.superseded_by_id == hypothesis_id)
+        )
+    ).scalar_one_or_none()
+
+
+async def _load_conditional_edges(
+    *, session: AsyncSession, hypothesis_entity_id: uuid.UUID | None
+) -> list[ConditionalEdgePublic]:
+    if hypothesis_entity_id is None:
+        return []
+    stmt = (
+        select(Relation, Entity)
+        .outerjoin(Entity, Relation.from_id == Entity.id)
+        .where(
+            Relation.to_id == hypothesis_entity_id,
+            Relation.type.in_(_CONDITIONAL_RELATION_TYPES),
+        )
+        .order_by(Relation.created_at.asc(), Relation.id.asc())
+    )
+    rows = (await session.execute(stmt)).all()
+    return [
+        ConditionalEdgePublic(
+            relation_id=relation.id,
+            relation_type=relation.type,
+            event_entity_id=relation.from_id,
+            event_entity_name=event.canonical_name if event is not None else None,
+        )
+        for relation, event in rows
+    ]
 
 
 def _to_belief_public(row: BeliefRecomputation) -> BeliefRecomputationPublic:

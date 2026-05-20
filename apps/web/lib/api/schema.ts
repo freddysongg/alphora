@@ -294,6 +294,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/research/hypotheses/{hypothesis_id}/lifecycle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Hypothesis Lifecycle */
+        get: operations["get_hypothesis_lifecycle_api_research_hypotheses__hypothesis_id__lifecycle_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/research/hypotheses/{hypothesis_id}/activate": {
         parameters: {
             query?: never;
@@ -305,6 +322,93 @@ export interface paths {
         put?: never;
         /** Activate Hypothesis */
         post: operations["activate_hypothesis_api_research_hypotheses__hypothesis_id__activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research/hypotheses/{hypothesis_id}/transition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transition Hypothesis
+         * @description Manually transition a hypothesis to one of the allowed next states.
+         *
+         *     Allowed transitions:
+         *     - `proposed → active | expired | superseded`
+         *     - `active   → validated | falsified | expired | superseded`
+         *
+         *     Any other source state (including terminal `validated` / `falsified` /
+         *     `expired` / `superseded`) returns 409.
+         */
+        post: operations["transition_hypothesis_api_research_hypotheses__hypothesis_id__transition_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research/hypotheses/lifecycle/sweep": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sweep Lifecycle */
+        post: operations["sweep_lifecycle_api_research_hypotheses_lifecycle_sweep_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research/events/{event_entity_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve Event
+         * @description Record an event resolution and apply its effect to bound hypotheses.
+         *
+         *     422 when the kind is not one of `beat | miss | neutral`.
+         *     404 when the event entity does not exist or is not an `event` type.
+         */
+        post: operations["resolve_event_api_research_events__event_entity_id__resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research/events/{event_entity_id}/resolutions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Event Resolutions
+         * @description Return every resolution recorded against this event entity (newest first).
+         */
+        get: operations["list_event_resolutions_api_research_events__event_entity_id__resolutions_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -845,6 +949,23 @@ export interface components {
             /** Chunks */
             chunks: components["schemas"]["ChunkLookup"][];
         };
+        /** ConditionalEdgePublic */
+        ConditionalEdgePublic: {
+            /**
+             * Relation Id
+             * Format: uuid
+             */
+            relation_id: string;
+            /** Relation Type */
+            relation_type: string;
+            /**
+             * Event Entity Id
+             * Format: uuid
+             */
+            event_entity_id: string;
+            /** Event Entity Name */
+            event_entity_name: string | null;
+        };
         /** CounterfactualGateRunPublic */
         CounterfactualGateRunPublic: {
             /**
@@ -998,6 +1119,66 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /**
+         * EventResolutionKindEnum
+         * @enum {string}
+         */
+        EventResolutionKindEnum: "beat" | "miss" | "neutral";
+        /** EventResolutionPublic */
+        EventResolutionPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Event Entity Id
+             * Format: uuid
+             */
+            event_entity_id: string;
+            kind: components["schemas"]["EventResolutionKindEnum"];
+            /**
+             * Resolved At
+             * Format: date-time
+             */
+            resolved_at: string;
+            /** Source Id */
+            source_id: string | null;
+            /** Notes */
+            notes: string | null;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** EventResolutionRequest */
+        EventResolutionRequest: {
+            /** Kind */
+            kind: string;
+            /** Resolved At */
+            resolved_at?: string | null;
+            /** Source Id */
+            source_id?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Payload */
+            payload?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** EventResolutionResponse */
+        EventResolutionResponse: {
+            resolution: components["schemas"]["EventResolutionPublic"];
+            /** Validated Hypothesis Ids */
+            validated_hypothesis_ids: string[];
+            /** Falsified Hypothesis Ids */
+            falsified_hypothesis_ids: string[];
         };
         /** EvidenceChunkPublic */
         EvidenceChunkPublic: {
@@ -1192,6 +1373,19 @@ export interface components {
             /** Items */
             items: components["schemas"]["BeliefRecomputationPublic"][];
         };
+        /** HypothesisLifecycleResponse */
+        HypothesisLifecycleResponse: {
+            hypothesis: components["schemas"]["HypothesisPublic"];
+            parent: components["schemas"]["HypothesisPublic"] | null;
+            /** Children */
+            children: components["schemas"]["HypothesisPublic"][];
+            supersedes: components["schemas"]["HypothesisPublic"] | null;
+            superseded_by: components["schemas"]["HypothesisPublic"] | null;
+            /** Conditional Edges */
+            conditional_edges: components["schemas"]["ConditionalEdgePublic"][];
+            /** Recent Event Resolutions */
+            recent_event_resolutions: components["schemas"]["EventResolutionPublic"][];
+        };
         /** HypothesisListResponse */
         HypothesisListResponse: {
             /** Items */
@@ -1223,6 +1417,20 @@ export interface components {
             belief_history: {
                 [key: string]: unknown;
             }[];
+            /** Parent Hypothesis Id */
+            parent_hypothesis_id: string | null;
+            /** Superseded By Id */
+            superseded_by_id: string | null;
+            /** Last Activity At */
+            last_activity_at: string | null;
+            /** Stagnation Flagged At */
+            stagnation_flagged_at: string | null;
+            /** Archived At */
+            archived_at: string | null;
+            /** Archived Reason */
+            archived_reason: string | null;
+            /** Valid Until */
+            valid_until: string | null;
             /**
              * Created At
              * Format: date-time
@@ -1244,6 +1452,12 @@ export interface components {
          * @enum {string}
          */
         HypothesisStateFilter: "proposed" | "active" | "all";
+        /** HypothesisTransitionRequest */
+        HypothesisTransitionRequest: {
+            to: components["schemas"]["HypothesisState"];
+            /** Reason */
+            reason?: string | null;
+        };
         /** JudgePublic */
         JudgePublic: {
             status: components["schemas"]["JudgeStatus"];
@@ -1340,6 +1554,33 @@ export interface components {
             case_ids: string[];
             /** Run Id */
             run_id?: string | null;
+        };
+        /** LifecycleSweepCounts */
+        LifecycleSweepCounts: {
+            /** Expired */
+            expired: number;
+            /** Archived Belief Floor */
+            archived_belief_floor: number;
+            /** Validated */
+            validated: number;
+            /** Falsified */
+            falsified: number;
+            /** Stagnation Flagged */
+            stagnation_flagged: number;
+        };
+        /** LifecycleSweepResponse */
+        LifecycleSweepResponse: {
+            counts: components["schemas"]["LifecycleSweepCounts"];
+            /** Expired Ids */
+            expired_ids: string[];
+            /** Archived Belief Floor Ids */
+            archived_belief_floor_ids: string[];
+            /** Validated Ids */
+            validated_ids: string[];
+            /** Falsified Ids */
+            falsified_ids: string[];
+            /** Stagnation Flagged Ids */
+            stagnation_flagged_ids: string[];
         };
         /**
          * LlmBudgetActionEnum
@@ -1794,7 +2035,7 @@ export interface components {
          * RelationTypeEnum
          * @enum {string}
          */
-        RelationTypeEnum: "employs" | "holds_role_at" | "supplies" | "competes_with" | "regulated_by" | "traded_by" | "voted_on" | "sponsored" | "affects" | "belongs_to_sector" | "located_in" | "mentioned_in" | "catalyst_for" | "derives_from_theme" | "subsidiary_of" | "supports_hypothesis" | "contradicts_hypothesis";
+        RelationTypeEnum: "employs" | "holds_role_at" | "supplies" | "competes_with" | "regulated_by" | "traded_by" | "voted_on" | "sponsored" | "affects" | "belongs_to_sector" | "located_in" | "mentioned_in" | "catalyst_for" | "derives_from_theme" | "subsidiary_of" | "supports_hypothesis" | "contradicts_hypothesis" | "validates_if_beat" | "falsifies_if_miss";
         /** ResearchRunDetail */
         ResearchRunDetail: {
             /**
@@ -2789,6 +3030,37 @@ export interface operations {
             };
         };
     };
+    get_hypothesis_lifecycle_api_research_hypotheses__hypothesis_id__lifecycle_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hypothesis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HypothesisLifecycleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     activate_hypothesis_api_research_hypotheses__hypothesis_id__activate_post: {
         parameters: {
             query?: never;
@@ -2807,6 +3079,127 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HypothesisPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transition_hypothesis_api_research_hypotheses__hypothesis_id__transition_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hypothesis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HypothesisTransitionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HypothesisPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sweep_lifecycle_api_research_hypotheses_lifecycle_sweep_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LifecycleSweepResponse"];
+                };
+            };
+        };
+    };
+    resolve_event_api_research_events__event_entity_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventResolutionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventResolutionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_event_resolutions_api_research_events__event_entity_id__resolutions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventResolutionPublic"][];
                 };
             };
             /** @description Validation Error */

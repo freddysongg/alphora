@@ -54,6 +54,14 @@ class RelationType(StrEnum):
     subsidiary_of = "subsidiary_of"
     supports_hypothesis = "supports_hypothesis"
     contradicts_hypothesis = "contradicts_hypothesis"
+    validates_if_beat = "validates_if_beat"
+    falsifies_if_miss = "falsifies_if_miss"
+
+
+class EventResolutionKind(StrEnum):
+    beat = "beat"
+    miss = "miss"
+    neutral = "neutral"
 
 
 class HypothesisStatus(StrEnum):
@@ -268,7 +276,13 @@ class Relation(Base):
 
 class Hypothesis(Base, TimestampMixin):
     __tablename__ = "hypotheses"
-    __table_args__ = (Index("ix_hypotheses_status", "status"),)
+    __table_args__ = (
+        Index("ix_hypotheses_status", "status"),
+        Index("ix_hypotheses_parent_hypothesis_id", "parent_hypothesis_id"),
+        Index("ix_hypotheses_superseded_by_id", "superseded_by_id"),
+        Index("ix_hypotheses_archived_at", "archived_at"),
+        Index("ix_hypotheses_stagnation_flagged_at", "stagnation_flagged_at"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     claim_text: Mapped[str] = mapped_column(Text, nullable=False)
@@ -298,6 +312,27 @@ class Hypothesis(Base, TimestampMixin):
     belief_history: Mapped[list[dict[str, object]]] = mapped_column(
         JSON, nullable=False, default=list
     )
+    parent_hypothesis_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("hypotheses.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    superseded_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("hypotheses.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    last_activity_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    stagnation_flagged_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    archived_reason: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    embedding: Mapped[list[float] | None] = mapped_column(JSON, nullable=True)
 
 
 class BeliefRecomputation(Base):
@@ -457,6 +492,43 @@ class AuditLog(Base):
     )
 
 
+class EventResolution(Base):
+    __tablename__ = "event_resolutions"
+    __table_args__ = (
+        Index(
+            "ix_event_resolutions_event_resolved_at",
+            "event_entity_id",
+            "resolved_at",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    event_entity_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("entities.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    resolved_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    source_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("evidence.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payload: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        default=_utcnow,
+    )
+
+
 __all__ = [
     "AuditAction",
     "AuditLog",
@@ -468,6 +540,8 @@ __all__ = [
     "EntityResolutionReview",
     "EntityResolutionReviewStatus",
     "EntityType",
+    "EventResolution",
+    "EventResolutionKind",
     "Evidence",
     "EvidenceChunk",
     "Hypothesis",

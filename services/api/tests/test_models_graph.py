@@ -17,6 +17,8 @@ from app.db.models_graph import (
     EntityResolutionReview,
     EntityResolutionReviewStatus,
     EntityType,
+    EventResolution,
+    EventResolutionKind,
     Evidence,
     EvidenceChunk,
     Hypothesis,
@@ -62,6 +64,7 @@ _EXPECTED_GRAPH_TABLES = {
     "entity_merges",
     "proposed_types",
     "audit_log",
+    "event_resolutions",
 }
 
 
@@ -773,3 +776,168 @@ async def test_belief_recomputation_inputs_round_trip_as_json() -> None:
         assert reloaded.inputs is not None
         assert reloaded.inputs[0]["sign"] == 1.0
         assert reloaded.inputs[0]["weight"] == 0.42
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_hypothesis_lifecycle_fields_round_trip() -> None:
+    async with session_factory() as session:
+        parent = Hypothesis(
+            claim_text="parent claim",
+            scope_entity_ids=[],
+            scope_theme_ids=[],
+            status=HypothesisStatus.active.value,
+        )
+        session.add(parent)
+        await session.flush()
+        child = Hypothesis(
+            claim_text="child claim",
+            scope_entity_ids=[],
+            scope_theme_ids=[],
+            status=HypothesisStatus.proposed.value,
+            parent_hypothesis_id=parent.id,
+            last_activity_at=datetime(2026, 5, 20, tzinfo=UTC),
+            embedding=[0.1, 0.2, 0.3],
+            valid_until=datetime(2026, 12, 31, tzinfo=UTC),
+        )
+        session.add(child)
+        await session.commit()
+        child_id = child.id
+
+    async with session_factory() as session:
+        reloaded = (
+            await session.execute(
+                select(Hypothesis).where(Hypothesis.id == child_id)
+            )
+        ).scalar_one()
+        assert reloaded.parent_hypothesis_id == parent.id
+        assert reloaded.last_activity_at is not None
+        assert reloaded.embedding == [0.1, 0.2, 0.3]
+        assert reloaded.valid_until is not None
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_hypothesis_parent_id_set_null_on_parent_delete() -> None:
+    async with session_factory() as session:
+        parent = Hypothesis(
+            claim_text="parent",
+            scope_entity_ids=[],
+            scope_theme_ids=[],
+            status=HypothesisStatus.active.value,
+        )
+        session.add(parent)
+        await session.flush()
+        child = Hypothesis(
+            claim_text="child",
+            scope_entity_ids=[],
+            scope_theme_ids=[],
+            status=HypothesisStatus.proposed.value,
+            parent_hypothesis_id=parent.id,
+        )
+        session.add(child)
+        await session.commit()
+        parent_id = parent.id
+        child_id = child.id
+
+        await session.execute(
+            Hypothesis.__table__.delete().where(Hypothesis.id == parent_id)
+        )
+        await session.commit()
+
+        remaining_parent = (
+            await session.execute(
+                select(Hypothesis.parent_hypothesis_id).where(
+                    Hypothesis.id == child_id
+                )
+            )
+        ).scalar_one()
+        assert remaining_parent is None
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_hypothesis_superseded_by_set_null_on_successor_delete() -> None:
+    async with session_factory() as session:
+        old = Hypothesis(
+            claim_text="old",
+            scope_entity_ids=[],
+            scope_theme_ids=[],
+            status=HypothesisStatus.active.value,
+        )
+        new = Hypothesis(
+            claim_text="new",
+            scope_entity_ids=[],
+            scope_theme_ids=[],
+            status=HypothesisStatus.active.value,
+        )
+        session.add_all([old, new])
+        await session.flush()
+        old.superseded_by_id = new.id
+        await session.commit()
+        old_id = old.id
+        new_id = new.id
+
+        await session.execute(
+            Hypothesis.__table__.delete().where(Hypothesis.id == new_id)
+        )
+        await session.commit()
+
+        remaining = (
+            await session.execute(
+                select(Hypothesis.superseded_by_id).where(
+                    Hypothesis.id == old_id
+                )
+            )
+        ).scalar_one()
+        assert remaining is None
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_event_resolution_round_trip_and_cascade_on_entity_delete() -> None:
+    async with session_factory() as session:
+        event = Entity(
+            type=EntityType.event.value,
+            canonical_name="Q3 earnings",
+            aliases=["Q3 earnings"],
+            external_ids={},
+            attributes={},
+        )
+        session.add(event)
+        await session.flush()
+        resolution = EventResolution(
+            event_entity_id=event.id,
+            kind=EventResolutionKind.beat.value,
+            resolved_at=datetime(2026, 6, 1, 14, 0, tzinfo=UTC),
+            notes="EPS exceeded consensus",
+            payload={"eps": 2.15},
+        )
+        session.add(resolution)
+        await session.commit()
+        resolution_id = resolution.id
+        event_id = event.id
+
+    async with session_factory() as session:
+        reloaded = (
+            await session.execute(
+                select(EventResolution).where(EventResolution.id == resolution_id)
+            )
+        ).scalar_one()
+        assert reloaded.kind == "beat"
+        assert reloaded.payload == {"eps": 2.15}
+
+        await session.execute(
+            Entity.__table__.delete().where(Entity.id == event_id)
+        )
+        await session.commit()
+        remaining = (
+            await session.execute(
+                select(EventResolution).where(EventResolution.id == resolution_id)
+            )
+        ).scalar_one_or_none()
+        assert remaining is None
+
+
+def test_event_resolution_kind_enum_values() -> None:
+    assert {member.value for member in EventResolutionKind} == {
+        "beat",
+        "miss",
+        "neutral",
+    }

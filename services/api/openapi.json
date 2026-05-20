@@ -931,6 +931,49 @@
         }
       }
     },
+    "/api/research/hypotheses/{hypothesis_id}/lifecycle": {
+      "get": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Get Hypothesis Lifecycle",
+        "operationId": "get_hypothesis_lifecycle_api_research_hypotheses__hypothesis_id__lifecycle_get",
+        "parameters": [
+          {
+            "name": "hypothesis_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Hypothesis Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HypothesisLifecycleResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/research/hypotheses/{hypothesis_id}/activate": {
       "post": {
         "tags": [
@@ -957,6 +1000,183 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HypothesisPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/research/hypotheses/{hypothesis_id}/transition": {
+      "post": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Transition Hypothesis",
+        "description": "Manually transition a hypothesis to one of the allowed next states.\n\nAllowed transitions:\n- `proposed \u2192 active | expired | superseded`\n- `active   \u2192 validated | falsified | expired | superseded`\n\nAny other source state (including terminal `validated` / `falsified` /\n`expired` / `superseded`) returns 409.",
+        "operationId": "transition_hypothesis_api_research_hypotheses__hypothesis_id__transition_post",
+        "parameters": [
+          {
+            "name": "hypothesis_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Hypothesis Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HypothesisTransitionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HypothesisPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/research/hypotheses/lifecycle/sweep": {
+      "post": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Sweep Lifecycle",
+        "operationId": "sweep_lifecycle_api_research_hypotheses_lifecycle_sweep_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LifecycleSweepResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/research/events/{event_entity_id}/resolve": {
+      "post": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Resolve Event",
+        "description": "Record an event resolution and apply its effect to bound hypotheses.\n\n422 when the kind is not one of `beat | miss | neutral`.\n404 when the event entity does not exist or is not an `event` type.",
+        "operationId": "resolve_event_api_research_events__event_entity_id__resolve_post",
+        "parameters": [
+          {
+            "name": "event_entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Entity Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventResolutionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventResolutionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/research/events/{event_entity_id}/resolutions": {
+      "get": {
+        "tags": [
+          "research"
+        ],
+        "summary": "List Event Resolutions",
+        "description": "Return every resolution recorded against this event entity (newest first).",
+        "operationId": "list_event_resolutions_api_research_events__event_entity_id__resolutions_get",
+        "parameters": [
+          {
+            "name": "event_entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Entity Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventResolutionPublic"
+                  },
+                  "title": "Response List Event Resolutions Api Research Events  Event Entity Id  Resolutions Get"
                 }
               }
             }
@@ -2786,6 +3006,43 @@
         ],
         "title": "CompanyThesisPublic"
       },
+      "ConditionalEdgePublic": {
+        "properties": {
+          "relation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Relation Id"
+          },
+          "relation_type": {
+            "type": "string",
+            "title": "Relation Type"
+          },
+          "event_entity_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Event Entity Id"
+          },
+          "event_entity_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Entity Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "relation_id",
+          "relation_type",
+          "event_entity_id",
+          "event_entity_name"
+        ],
+        "title": "ConditionalEdgePublic"
+      },
       "CounterfactualGateRunPublic": {
         "properties": {
           "id": {
@@ -3171,6 +3428,183 @@
           "updated_at"
         ],
         "title": "DataSourcePublic"
+      },
+      "EventResolutionKindEnum": {
+        "type": "string",
+        "enum": [
+          "beat",
+          "miss",
+          "neutral"
+        ],
+        "title": "EventResolutionKindEnum"
+      },
+      "EventResolutionPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "event_entity_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Event Entity Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/EventResolutionKindEnum"
+          },
+          "resolved_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Resolved At"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payload"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "event_entity_id",
+          "kind",
+          "resolved_at",
+          "source_id",
+          "notes",
+          "payload",
+          "created_at"
+        ],
+        "title": "EventResolutionPublic"
+      },
+      "EventResolutionRequest": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Kind"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payload"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "EventResolutionRequest"
+      },
+      "EventResolutionResponse": {
+        "properties": {
+          "resolution": {
+            "$ref": "#/components/schemas/EventResolutionPublic"
+          },
+          "validated_hypothesis_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Validated Hypothesis Ids"
+          },
+          "falsified_hypothesis_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Falsified Hypothesis Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "resolution",
+          "validated_hypothesis_ids",
+          "falsified_hypothesis_ids"
+        ],
+        "title": "EventResolutionResponse"
       },
       "EvidenceChunkPublic": {
         "properties": {
@@ -3726,6 +4160,76 @@
         ],
         "title": "HypothesisHistoryResponse"
       },
+      "HypothesisLifecycleResponse": {
+        "properties": {
+          "hypothesis": {
+            "$ref": "#/components/schemas/HypothesisPublic"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HypothesisPublic"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/HypothesisPublic"
+            },
+            "type": "array",
+            "title": "Children"
+          },
+          "supersedes": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HypothesisPublic"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "superseded_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HypothesisPublic"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "conditional_edges": {
+            "items": {
+              "$ref": "#/components/schemas/ConditionalEdgePublic"
+            },
+            "type": "array",
+            "title": "Conditional Edges"
+          },
+          "recent_event_resolutions": {
+            "items": {
+              "$ref": "#/components/schemas/EventResolutionPublic"
+            },
+            "type": "array",
+            "title": "Recent Event Resolutions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "hypothesis",
+          "parent",
+          "children",
+          "supersedes",
+          "superseded_by",
+          "conditional_edges",
+          "recent_event_resolutions"
+        ],
+        "title": "HypothesisLifecycleResponse"
+      },
       "HypothesisListResponse": {
         "properties": {
           "items": {
@@ -3827,6 +4331,89 @@
             "type": "array",
             "title": "Belief History"
           },
+          "parent_hypothesis_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Hypothesis Id"
+          },
+          "superseded_by_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded By Id"
+          },
+          "last_activity_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Activity At"
+          },
+          "stagnation_flagged_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stagnation Flagged At"
+          },
+          "archived_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived At"
+          },
+          "archived_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived Reason"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -3849,6 +4436,13 @@
           "entity_id",
           "belief",
           "belief_history",
+          "parent_hypothesis_id",
+          "superseded_by_id",
+          "last_activity_at",
+          "stagnation_flagged_at",
+          "archived_at",
+          "archived_reason",
+          "valid_until",
           "created_at",
           "updated_at"
         ],
@@ -3874,6 +4468,31 @@
           "all"
         ],
         "title": "HypothesisStateFilter"
+      },
+      "HypothesisTransitionRequest": {
+        "properties": {
+          "to": {
+            "$ref": "#/components/schemas/HypothesisState"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "to"
+        ],
+        "title": "HypothesisTransitionRequest"
       },
       "JudgePublic": {
         "properties": {
@@ -4102,6 +4721,97 @@
           "case_ids"
         ],
         "title": "LeakageRunRequest"
+      },
+      "LifecycleSweepCounts": {
+        "properties": {
+          "expired": {
+            "type": "integer",
+            "title": "Expired"
+          },
+          "archived_belief_floor": {
+            "type": "integer",
+            "title": "Archived Belief Floor"
+          },
+          "validated": {
+            "type": "integer",
+            "title": "Validated"
+          },
+          "falsified": {
+            "type": "integer",
+            "title": "Falsified"
+          },
+          "stagnation_flagged": {
+            "type": "integer",
+            "title": "Stagnation Flagged"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expired",
+          "archived_belief_floor",
+          "validated",
+          "falsified",
+          "stagnation_flagged"
+        ],
+        "title": "LifecycleSweepCounts"
+      },
+      "LifecycleSweepResponse": {
+        "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/LifecycleSweepCounts"
+          },
+          "expired_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Expired Ids"
+          },
+          "archived_belief_floor_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Archived Belief Floor Ids"
+          },
+          "validated_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Validated Ids"
+          },
+          "falsified_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Falsified Ids"
+          },
+          "stagnation_flagged_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Stagnation Flagged Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "counts",
+          "expired_ids",
+          "archived_belief_floor_ids",
+          "validated_ids",
+          "falsified_ids",
+          "stagnation_flagged_ids"
+        ],
+        "title": "LifecycleSweepResponse"
       },
       "LlmBudgetActionEnum": {
         "type": "string",
@@ -5388,7 +6098,9 @@
           "derives_from_theme",
           "subsidiary_of",
           "supports_hypothesis",
-          "contradicts_hypothesis"
+          "contradicts_hypothesis",
+          "validates_if_beat",
+          "falsifies_if_miss"
         ],
         "title": "RelationTypeEnum"
       },

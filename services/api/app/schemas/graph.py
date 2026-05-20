@@ -8,6 +8,7 @@ from app.schemas.common import (
     EntityResolutionDecisionKindEnum,
     EntityResolutionReviewStatusEnum,
     EntityTypeEnum,
+    EventResolutionKindEnum,
     HypothesisStatusEnum,
     ProposedTypeKindEnum,
     ProposedTypeStatusEnum,
@@ -123,8 +124,27 @@ class HypothesisPublic(BaseModel):
     entity_id: uuid.UUID | None
     belief: float | None
     belief_history: list[dict[str, object]]
+    parent_hypothesis_id: uuid.UUID | None
+    superseded_by_id: uuid.UUID | None
+    last_activity_at: datetime | None
+    stagnation_flagged_at: datetime | None
+    archived_at: datetime | None
+    archived_reason: str | None
     created_at: datetime
     updated_at: datetime
+
+
+class EventResolutionPublic(BaseModel):
+    model_config = ConfigDict(from_attributes=True, frozen=True)
+
+    id: uuid.UUID
+    event_entity_id: uuid.UUID
+    kind: EventResolutionKindEnum
+    resolved_at: datetime
+    source_id: uuid.UUID | None
+    notes: str | None
+    payload: dict[str, object] | None
+    created_at: datetime
 
 
 class BeliefInputBreakdown(BaseModel):
@@ -227,6 +247,7 @@ __all__ = [
     "EntityMergePublic",
     "EntityPublic",
     "EntityResolutionReviewPublic",
+    "EventResolutionPublic",
     "EvidenceChunkPublic",
     "EvidencePublic",
     "EvidenceTracePublic",
