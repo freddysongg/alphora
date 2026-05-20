@@ -46,6 +46,9 @@ from app.services.strategies.funnel_research.sector.llm_call import (
 from app.services.strategies.funnel_research.sector.persist import (
     persist_sector_brief,
 )
+from app.services.strategies.funnel_research.sector.resolve import (
+    resolve_sector_company_entity_ids,
+)
 from app.services.strategies.funnel_research.sector.selector import (
     MAX_SECTOR_DEEP_DIVES,
     select_sectors,
@@ -280,10 +283,14 @@ async def _run_one_sector(
                     judge_public = judge_outcome.public
 
                 wall_clock_ms = int((time.monotonic() - sector_started) * 1000)
+                resolved_brief = await resolve_sector_company_entity_ids(
+                    session=session,
+                    brief=regen.brief,
+                )
                 await persist_sector_brief(
                     session=session,
                     run_id=run_id,
-                    brief=regen.brief,
+                    brief=resolved_brief,
                     judge=judge_public,
                     wall_clock_ms=wall_clock_ms,
                 )

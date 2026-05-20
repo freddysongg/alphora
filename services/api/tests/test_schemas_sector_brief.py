@@ -115,6 +115,30 @@ def test_sector_company_idea_ticker_optional() -> None:
     assert company.ticker is None
 
 
+def test_sector_company_idea_company_entity_id_defaults_to_none() -> None:
+    company = SectorCompanyIdea(
+        name="Apple",
+        ticker="AAPL",
+        direction=SectorCallDirection.overweight,
+        conviction=0.8,
+        evidence_ids=[],
+    )
+    assert company.company_entity_id is None
+
+
+def test_sector_company_idea_company_entity_id_accepts_uuid() -> None:
+    entity_id = uuid.uuid4()
+    company = SectorCompanyIdea(
+        name="Apple",
+        ticker="AAPL",
+        direction=SectorCallDirection.overweight,
+        conviction=0.8,
+        evidence_ids=[],
+        company_entity_id=entity_id,
+    )
+    assert company.company_entity_id == entity_id
+
+
 def test_sector_brief_public_round_trip() -> None:
     public = SectorBriefPublic(
         brief=SectorBrief(

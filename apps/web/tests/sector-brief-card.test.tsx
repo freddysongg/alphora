@@ -310,6 +310,80 @@ describe("SectorBriefCard", () => {
     expect(link).toHaveTextContent("Information Technology");
   });
 
+  it("renders the company name as plain text when runId or company_entity_id is missing", () => {
+    render(
+      <SectorBriefCard
+        sectorBrief={makeSectorBrief({
+          companies: [
+            {
+              name: "Apple",
+              ticker: "AAPL",
+              direction: "overweight",
+              conviction: 0.8,
+              evidence_ids: [],
+              company_entity_id: "00000000-0000-4000-8000-000000000aaa",
+            },
+          ],
+        })}
+      />,
+    );
+    expect(
+      screen.queryByTestId("sector-company-link"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("wraps the company name in a link when both runId and company_entity_id are present", () => {
+    const runId = "11111111-1111-4111-8111-111111111111";
+    const companyEntityId = "00000000-0000-4000-8000-000000000aaa";
+    render(
+      <SectorBriefCard
+        runId={runId}
+        sectorBrief={makeSectorBrief({
+          companies: [
+            {
+              name: "Apple",
+              ticker: "AAPL",
+              direction: "overweight",
+              conviction: 0.8,
+              evidence_ids: [],
+              company_entity_id: companyEntityId,
+            },
+          ],
+        })}
+      />,
+    );
+    const link = screen.getByTestId("sector-company-link");
+    expect(link).toHaveAttribute(
+      "href",
+      `/research/runs/${runId}/companies/${companyEntityId}`,
+    );
+    expect(link).toHaveTextContent("Apple");
+  });
+
+  it("renders the company name as plain text when company_entity_id is absent even if runId is provided", () => {
+    const runId = "11111111-1111-4111-8111-111111111111";
+    render(
+      <SectorBriefCard
+        runId={runId}
+        sectorBrief={makeSectorBrief({
+          companies: [
+            {
+              name: "Apple",
+              ticker: "AAPL",
+              direction: "overweight",
+              conviction: 0.8,
+              evidence_ids: [],
+            },
+          ],
+        })}
+      />,
+    );
+    expect(
+      screen.queryByTestId("sector-company-link"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Apple")).toBeInTheDocument();
+  });
+
   it("renders chunk-preview text inside the expanded sector cited claim row", () => {
     render(
       <SectorBriefCard

@@ -106,6 +106,7 @@ export function SectorBriefCard(props: SectorBriefCardProps): ReactElement {
               <SectorCompanyRow
                 key={`${company.name}:${company.ticker ?? "—"}`}
                 company={company}
+                runId={runId}
               />
             ))}
           </ul>
@@ -199,14 +200,30 @@ function SectorWatchItemRow(props: SectorWatchItemRowProps): ReactElement {
 
 interface SectorCompanyRowProps {
   company: SectorCompanyIdea;
+  runId?: string;
 }
 
 function SectorCompanyRow(props: SectorCompanyRowProps): ReactElement {
-  const { company } = props;
+  const { company, runId } = props;
   const { button, list } = useEvidenceDisclosure(
     company.evidence_ids,
     "sector-company",
   );
+
+  const companyName =
+    runId !== undefined && company.company_entity_id !== null && company.company_entity_id !== undefined ? (
+      <Link
+        href={
+          `/research/runs/${runId}/companies/${company.company_entity_id}` as Route
+        }
+        className="text-fg hover:text-accent-text hover:underline transition-colors duration-150"
+        data-testid="sector-company-link"
+      >
+        {company.name}
+      </Link>
+    ) : (
+      <span className="text-fg">{company.name}</span>
+    );
 
   return (
     <li
@@ -215,7 +232,7 @@ function SectorCompanyRow(props: SectorCompanyRowProps): ReactElement {
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-3">
-          <span className="text-fg">{company.name}</span>
+          {companyName}
           {button}
         </div>
         <span className="text-fg-subtle">{company.ticker ?? "—"}</span>

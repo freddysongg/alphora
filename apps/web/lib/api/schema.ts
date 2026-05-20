@@ -1495,6 +1495,8 @@ export interface components {
             conviction: number;
             /** Evidence Ids */
             evidence_ids: string[];
+            /** Company Entity Id */
+            company_entity_id?: string | null;
         };
         /** SourceProvenancePublic */
         SourceProvenancePublic: {

@@ -4296,6 +4296,18 @@
             },
             "type": "array",
             "title": "Evidence Ids"
+          },
+          "company_entity_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Entity Id"
           }
         },
         "additionalProperties": false,

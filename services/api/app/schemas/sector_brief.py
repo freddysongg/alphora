@@ -36,6 +36,7 @@ class SectorCompanyIdea(BaseModel):
     direction: SectorCallDirection
     conviction: float = Field(ge=0.0, le=1.0)
     evidence_ids: list[uuid.UUID]
+    company_entity_id: uuid.UUID | None = Field(default=None)
 
 
 class SectorBrief(BaseModel):
