@@ -33,13 +33,6 @@ _BELIEF_RELATION_TYPES: frozenset[str] = frozenset(
     }
 )
 
-_BRIEF_SCOPED_ENTITY_TYPES: frozenset[str] = frozenset(
-    {
-        EntityType.sector.value,
-        EntityType.company.value,
-    }
-)
-
 
 @dataclass(frozen=True)
 class BeliefUpdateCandidate:
