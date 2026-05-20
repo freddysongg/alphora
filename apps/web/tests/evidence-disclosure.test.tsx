@@ -11,14 +11,17 @@ interface HarnessProps {
   ids: readonly string[];
   testIdPrefix: string;
   runId?: string;
+  variant?: "label" | "count";
+  align?: "left" | "right";
 }
 
 function Harness(props: HarnessProps): ReactElement {
-  const { ids, testIdPrefix, runId } = props;
+  const { ids, testIdPrefix, runId, variant, align } = props;
   const { button, list, hasEvidence } = useEvidenceDisclosure(
     ids,
     testIdPrefix,
     runId,
+    { variant, align },
   );
   return (
     <div data-testid="harness">
@@ -123,6 +126,45 @@ describe("useEvidenceDisclosure", () => {
       "href",
       `/research/evidence/by-evidence/${EVIDENCE_ID_1}`,
     );
+  });
+
+  it("variant='count' shows only the count number on the trigger, no 'Evidence' prefix", () => {
+    render(
+      <Harness
+        ids={[EVIDENCE_ID_1, EVIDENCE_ID_2]}
+        testIdPrefix="cell"
+        variant="count"
+      />,
+    );
+    const button = within(screen.getByTestId("button-slot")).getByRole(
+      "button",
+    );
+    expect(button).toHaveTextContent(/^2$/);
+    expect(button).not.toHaveTextContent("Evidence");
+  });
+
+  it("variant='count' with empty evidence still renders the 0 as static text", () => {
+    render(<Harness ids={[]} testIdPrefix="cell" variant="count" />);
+    expect(screen.getByTestId("button-slot")).toHaveTextContent(/^0$/);
+    expect(
+      within(screen.getByTestId("button-slot")).queryByRole("button"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("align='right' renders the expanded list with text-right alignment", () => {
+    render(
+      <Harness
+        ids={[EVIDENCE_ID_1]}
+        testIdPrefix="cell"
+        variant="count"
+        align="right"
+      />,
+    );
+    fireEvent.click(
+      within(screen.getByTestId("button-slot")).getByRole("button"),
+    );
+    const list = within(screen.getByTestId("list-slot")).getByRole("list");
+    expect(list.className).toContain("text-right");
   });
 
   it("uses the provided prefix for each link's data-testid", () => {

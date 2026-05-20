@@ -354,14 +354,12 @@ interface SectorCallRowProps {
 
 function SectorCallRow(props: SectorCallRowProps): ReactElement {
   const { call, runId } = props;
-  const [isOpen, setIsOpen] = useState<boolean>(false);
-  const evidenceCount = call.evidence_ids.length;
-  const hasEvidence = evidenceCount > 0;
-  const runQuery = runId !== undefined ? `?run_id=${runId}` : "";
-
-  const handleToggle = (): void => {
-    setIsOpen((previous) => !previous);
-  };
+  const { button, list } = useEvidenceDisclosure(
+    call.evidence_ids,
+    "macro-sector-call",
+    runId,
+    { variant: "count", align: "right" },
+  );
 
   return (
     <tr
@@ -376,37 +374,8 @@ function SectorCallRow(props: SectorCallRowProps): ReactElement {
         {call.conviction.toFixed(2)}
       </td>
       <td className="px-3 py-2 text-right font-mono tabular-nums text-fg-muted">
-        {hasEvidence ? (
-          <>
-            <button
-              type="button"
-              onClick={handleToggle}
-              aria-expanded={isOpen}
-              className="font-mono tabular-nums text-fg-muted hover:text-accent-text transition-colors duration-150"
-            >
-              {evidenceCount}
-            </button>
-            {isOpen ? (
-              <ul className="mt-2 flex flex-col gap-1 text-right text-xs">
-                {call.evidence_ids.map((evidenceId) => (
-                  <li key={evidenceId} className="font-mono">
-                    <Link
-                      href={
-                        `/research/evidence/by-evidence/${evidenceId}${runQuery}` as Route
-                      }
-                      className="text-accent-text hover:underline"
-                      data-testid="macro-sector-call-evidence-link"
-                    >
-                      {evidenceId}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </>
-        ) : (
-          evidenceCount
-        )}
+        {button}
+        {list}
       </td>
     </tr>
   );
