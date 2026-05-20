@@ -721,6 +721,23 @@
             }
           },
           {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Run Id"
+            }
+          },
+          {
             "name": "cursor",
             "in": "query",
             "required": false,
@@ -756,6 +773,147 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HypothesisListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/research/hypotheses/{hypothesis_id}": {
+      "get": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Get Hypothesis",
+        "operationId": "get_hypothesis_api_research_hypotheses__hypothesis_id__get",
+        "parameters": [
+          {
+            "name": "hypothesis_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Hypothesis Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HypothesisPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/research/hypotheses/{hypothesis_id}/belief": {
+      "get": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Get Hypothesis Belief",
+        "operationId": "get_hypothesis_belief_api_research_hypotheses__hypothesis_id__belief_get",
+        "parameters": [
+          {
+            "name": "hypothesis_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Hypothesis Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HypothesisBeliefResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/research/hypotheses/{hypothesis_id}/belief/history": {
+      "get": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Get Hypothesis Belief History",
+        "operationId": "get_hypothesis_belief_history_api_research_hypotheses__hypothesis_id__belief_history_get",
+        "parameters": [
+          {
+            "name": "hypothesis_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Hypothesis Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HypothesisHistoryResponse"
                 }
               }
             }
@@ -2162,6 +2320,178 @@
         ],
         "title": "ApplicationSettingsPublic"
       },
+      "BeliefInputBreakdown": {
+        "properties": {
+          "relation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Relation Id"
+          },
+          "relation_type": {
+            "$ref": "#/components/schemas/RelationTypeEnum"
+          },
+          "from_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "From Id"
+          },
+          "to_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "To Id"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "chunk_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunk Id"
+          },
+          "quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quote"
+          },
+          "is_explicit": {
+            "type": "boolean",
+            "title": "Is Explicit"
+          },
+          "sign": {
+            "type": "number",
+            "title": "Sign"
+          },
+          "reliability": {
+            "type": "number",
+            "title": "Reliability"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "relevance": {
+            "type": "number",
+            "title": "Relevance"
+          },
+          "age_days": {
+            "type": "number",
+            "title": "Age Days"
+          },
+          "decay": {
+            "type": "number",
+            "title": "Decay"
+          },
+          "weight": {
+            "type": "number",
+            "title": "Weight"
+          },
+          "signed_contribution": {
+            "type": "number",
+            "title": "Signed Contribution"
+          }
+        },
+        "type": "object",
+        "required": [
+          "relation_id",
+          "relation_type",
+          "from_id",
+          "to_id",
+          "source_id",
+          "chunk_id",
+          "quote",
+          "is_explicit",
+          "sign",
+          "reliability",
+          "confidence",
+          "relevance",
+          "age_days",
+          "decay",
+          "weight",
+          "signed_contribution"
+        ],
+        "title": "BeliefInputBreakdown"
+      },
+      "BeliefRecomputationPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "hypothesis_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Hypothesis Id"
+          },
+          "computed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Computed At"
+          },
+          "belief": {
+            "type": "number",
+            "title": "Belief"
+          },
+          "contributing_evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Contributing Evidence Ids"
+          },
+          "computation_method": {
+            "type": "string",
+            "title": "Computation Method"
+          },
+          "inputs": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/BeliefInputBreakdown"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "hypothesis_id",
+          "computed_at",
+          "belief",
+          "contributing_evidence_ids",
+          "computation_method",
+          "inputs"
+        ],
+        "title": "BeliefRecomputationPublic"
+      },
       "BriefKindEnum": {
         "type": "string",
         "enum": [
@@ -2813,6 +3143,10 @@
             ],
             "title": "Attributes"
           },
+          "reliability_score": {
+            "type": "number",
+            "title": "Reliability Score"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -2832,6 +3166,7 @@
           "description",
           "homepage_url",
           "attributes",
+          "reliability_score",
           "created_at",
           "updated_at"
         ],
@@ -3350,6 +3685,47 @@
         ],
         "title": "HumanReviewWeekSummary"
       },
+      "HypothesisBeliefResponse": {
+        "properties": {
+          "hypothesis": {
+            "$ref": "#/components/schemas/HypothesisPublic"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BeliefRecomputationPublic"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "hypothesis",
+          "latest"
+        ],
+        "title": "HypothesisBeliefResponse"
+      },
+      "HypothesisHistoryResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BeliefRecomputationPublic"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "HypothesisHistoryResponse"
+      },
       "HypothesisListResponse": {
         "properties": {
           "items": {
@@ -3420,6 +3796,37 @@
             ],
             "title": "Source Run Id"
           },
+          "entity_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Id"
+          },
+          "belief": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Belief"
+          },
+          "belief_history": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Belief History"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -3439,6 +3846,9 @@
           "scope_entity_ids",
           "scope_theme_ids",
           "source_run_id",
+          "entity_id",
+          "belief",
+          "belief_history",
           "created_at",
           "updated_at"
         ],
@@ -4958,6 +5368,29 @@
           "status"
         ],
         "title": "ReadyResponse"
+      },
+      "RelationTypeEnum": {
+        "type": "string",
+        "enum": [
+          "employs",
+          "holds_role_at",
+          "supplies",
+          "competes_with",
+          "regulated_by",
+          "traded_by",
+          "voted_on",
+          "sponsored",
+          "affects",
+          "belongs_to_sector",
+          "located_in",
+          "mentioned_in",
+          "catalyst_for",
+          "derives_from_theme",
+          "subsidiary_of",
+          "supports_hypothesis",
+          "contradicts_hypothesis"
+        ],
+        "title": "RelationTypeEnum"
       },
       "ResearchRunDetail": {
         "properties": {

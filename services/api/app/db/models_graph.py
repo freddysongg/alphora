@@ -111,6 +111,9 @@ class DataSource(Base, TimestampMixin):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     homepage_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     attributes: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    reliability_score: Mapped[float] = mapped_column(
+        Float, nullable=False, default=1.0, server_default="1.0"
+    )
 
 
 class Evidence(Base, TimestampMixin):
@@ -242,6 +245,14 @@ class Relation(Base):
         nullable=True,
         index=True,
     )
+    chunk_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("evidence_chunks.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    quote: Mapped[str | None] = mapped_column(Text, nullable=True)
+    relevance: Mapped[float | None] = mapped_column(Float, nullable=True)
     corroboration_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     extracted_by_model: Mapped[str | None] = mapped_column(String(128), nullable=True)
     prompt_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -274,6 +285,12 @@ class Hypothesis(Base, TimestampMixin):
     proposed_by_run_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid,
         ForeignKey("research_runs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    entity_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("entities.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
@@ -311,6 +328,7 @@ class BeliefRecomputation(Base):
         JSON, nullable=False, default=list
     )
     computation_method: Mapped[str] = mapped_column(String(64), nullable=False)
+    inputs: Mapped[list[dict[str, object]] | None] = mapped_column(JSON, nullable=True)
 
 
 class EntityResolutionReview(Base):

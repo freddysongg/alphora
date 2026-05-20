@@ -9,9 +9,15 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import SessionDep
-from app.db.models_graph import Hypothesis, HypothesisStatus
+from app.db.models_graph import BeliefRecomputation, Hypothesis, HypothesisStatus
 from app.db.models_runs import RunEventLevel
+from app.schemas.graph import (
+    BeliefInputBreakdown,
+    BeliefRecomputationPublic,
+)
 from app.schemas.hypotheses import (
+    HypothesisBeliefResponse,
+    HypothesisHistoryResponse,
     HypothesisListResponse,
     HypothesisPublic,
     HypothesisState,
@@ -49,6 +55,9 @@ def _to_public(row: Hypothesis) -> HypothesisPublic:
         scope_entity_ids=[uuid.UUID(s) for s in row.scope_entity_ids or []],
         scope_theme_ids=[uuid.UUID(s) for s in row.scope_theme_ids or []],
         source_run_id=row.proposed_by_run_id,
+        entity_id=row.entity_id,
+        belief=row.belief,
+        belief_history=list(row.belief_history or []),
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -58,6 +67,7 @@ def _to_public(row: Hypothesis) -> HypothesisPublic:
 async def list_hypotheses(
     session: SessionDep,
     state: HypothesisStateFilter = HypothesisStateFilter.all,
+    run_id: uuid.UUID | None = None,
     cursor: str | None = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 25,
 ) -> HypothesisListResponse:
@@ -66,6 +76,8 @@ async def list_hypotheses(
         stmt = stmt.where(Hypothesis.status == HypothesisStatus.proposed.value)
     elif state is HypothesisStateFilter.active:
         stmt = stmt.where(Hypothesis.status == HypothesisStatus.active.value)
+    if run_id is not None:
+        stmt = stmt.where(Hypothesis.proposed_by_run_id == run_id)
 
     if cursor is not None:
         cursor_at, cursor_id = _decode_cursor(cursor)
@@ -98,6 +110,72 @@ async def list_hypotheses(
     )
 
 
+@router.get(
+    "/hypotheses/{hypothesis_id}",
+    response_model=HypothesisPublic,
+)
+async def get_hypothesis(
+    hypothesis_id: uuid.UUID, session: SessionDep
+) -> HypothesisPublic:
+    row = await _load_hypothesis(session=session, hypothesis_id=hypothesis_id)
+    return _to_public(row)
+
+
+@router.get(
+    "/hypotheses/{hypothesis_id}/belief",
+    response_model=HypothesisBeliefResponse,
+)
+async def get_hypothesis_belief(
+    hypothesis_id: uuid.UUID, session: SessionDep
+) -> HypothesisBeliefResponse:
+    row = await _load_hypothesis(session=session, hypothesis_id=hypothesis_id)
+    latest = (
+        await session.execute(
+            select(BeliefRecomputation)
+            .where(BeliefRecomputation.hypothesis_id == hypothesis_id)
+            .order_by(
+                BeliefRecomputation.computed_at.desc(),
+                BeliefRecomputation.id.desc(),
+            )
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    return HypothesisBeliefResponse(
+        hypothesis=_to_public(row),
+        latest=_to_belief_public(latest) if latest is not None else None,
+    )
+
+
+@router.get(
+    "/hypotheses/{hypothesis_id}/belief/history",
+    response_model=HypothesisHistoryResponse,
+)
+async def get_hypothesis_belief_history(
+    hypothesis_id: uuid.UUID,
+    session: SessionDep,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> HypothesisHistoryResponse:
+    await _load_hypothesis(session=session, hypothesis_id=hypothesis_id)
+    rows = (
+        (
+            await session.execute(
+                select(BeliefRecomputation)
+                .where(BeliefRecomputation.hypothesis_id == hypothesis_id)
+                .order_by(
+                    BeliefRecomputation.computed_at.desc(),
+                    BeliefRecomputation.id.desc(),
+                )
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return HypothesisHistoryResponse(
+        items=[_to_belief_public(row) for row in rows]
+    )
+
+
 @router.post(
     "/hypotheses/{hypothesis_id}/activate",
     response_model=HypothesisPublic,
@@ -105,15 +183,7 @@ async def list_hypotheses(
 async def activate_hypothesis(
     hypothesis_id: uuid.UUID, session: SessionDep
 ) -> HypothesisPublic:
-    row = (
-        await session.execute(
-            select(Hypothesis).where(Hypothesis.id == hypothesis_id)
-        )
-    ).scalar_one_or_none()
-    if row is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="hypothesis not found"
-        )
+    row = await _load_hypothesis(session=session, hypothesis_id=hypothesis_id)
     if row.status != HypothesisStatus.proposed.value:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -131,6 +201,38 @@ async def activate_hypothesis(
     await session.commit()
     await session.refresh(row)
     return _to_public(row)
+
+
+async def _load_hypothesis(
+    *, session: AsyncSession, hypothesis_id: uuid.UUID
+) -> Hypothesis:
+    row = (
+        await session.execute(
+            select(Hypothesis).where(Hypothesis.id == hypothesis_id)
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="hypothesis not found"
+        )
+    return row
+
+
+def _to_belief_public(row: BeliefRecomputation) -> BeliefRecomputationPublic:
+    inputs = (
+        [BeliefInputBreakdown.model_validate(item) for item in row.inputs]
+        if row.inputs is not None
+        else None
+    )
+    return BeliefRecomputationPublic(
+        id=row.id,
+        hypothesis_id=row.hypothesis_id,
+        computed_at=row.computed_at,
+        belief=row.belief,
+        contributing_evidence_ids=list(row.contributing_evidence_ids or []),
+        computation_method=row.computation_method,
+        inputs=inputs,
+    )
 
 
 async def _emit_activation_event(

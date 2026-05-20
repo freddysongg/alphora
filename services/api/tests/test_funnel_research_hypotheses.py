@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models_graph import Hypothesis, HypothesisStatus
+from app.db.models_graph import Entity, EntityType, Hypothesis, HypothesisStatus
 from app.db.models_runs import ResearchRun, RunStatus, Strategy
 from app.schemas.macro_brief import ProposedHypothesis
 
@@ -59,3 +59,39 @@ async def test_empty_proposed_writes_zero_rows(db_session: AsyncSession) -> None
     ids = await persist_hypotheses(session=db_session, run_id=run_id, proposed=[])
     await db_session.commit()
     assert ids == []
+
+
+@pytest.mark.asyncio
+async def test_persist_hypothesis_mirrors_entity_and_writes_entity_id(
+    db_session: AsyncSession,
+) -> None:
+    from app.services.strategies.funnel_research._hypotheses import persist_hypotheses
+
+    run_id = await _make_run(db_session)
+    proposed = [
+        ProposedHypothesis(
+            claim_text="Capex tightens",
+            scope_entity_ids=[uuid.uuid4()],
+            evidence_ids=[uuid.uuid4()],
+        )
+    ]
+    ids = await persist_hypotheses(
+        session=db_session, run_id=run_id, proposed=proposed
+    )
+    await db_session.commit()
+
+    hypothesis = (
+        await db_session.execute(
+            select(Hypothesis).where(Hypothesis.id == ids[0])
+        )
+    ).scalar_one()
+    assert hypothesis.entity_id is not None
+
+    entity = (
+        await db_session.execute(
+            select(Entity).where(Entity.id == hypothesis.entity_id)
+        )
+    ).scalar_one()
+    assert entity.type == EntityType.hypothesis.value
+    assert entity.canonical_name == "Capex tightens"
+    assert entity.external_ids == {"hypothesis_id": str(hypothesis.id)}

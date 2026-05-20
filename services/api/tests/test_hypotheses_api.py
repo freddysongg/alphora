@@ -6,13 +6,23 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models_graph import Hypothesis, HypothesisStatus
+from app.db.models_graph import (
+    BeliefRecomputation,
+    Hypothesis,
+    HypothesisStatus,
+    RelationType,
+)
 from app.db.models_runs import (
     ResearchRun,
     RunEvent,
     RunEventLevel,
     RunStatus,
     Strategy,
+)
+from app.services.belief import (
+    BELIEF_COMPUTATION_METHOD,
+    ensure_hypothesis_entity,
+    recompute_belief_for_hypothesis,
 )
 
 
@@ -248,3 +258,142 @@ async def test_activate_hypothesis_returns_409_when_already_active(
         f"/api/research/hypotheses/{hypothesis_id}/activate"
     )
     assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_list_hypotheses_filters_by_run_id(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    run_a = await _seed_run(db_session)
+    run_b = await _seed_run(db_session)
+    await _seed_hypothesis(
+        db_session, claim_text="from run A", proposed_by_run_id=run_a
+    )
+    await _seed_hypothesis(
+        db_session, claim_text="from run B", proposed_by_run_id=run_b
+    )
+    await db_session.commit()
+
+    response = await async_client.get(
+        f"/api/research/hypotheses?run_id={run_a}"
+    )
+    body = response.json()
+    assert len(body["items"]) == 1
+    assert body["items"][0]["claim_text"] == "from run A"
+
+
+@pytest.mark.asyncio
+async def test_get_hypothesis_returns_full_record(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    run_id = await _seed_run(db_session)
+    row = await _seed_hypothesis(
+        db_session, claim_text="needs belief", proposed_by_run_id=run_id
+    )
+    entity_id = await ensure_hypothesis_entity(
+        session=db_session, hypothesis=row
+    )
+    await db_session.commit()
+
+    response = await async_client.get(
+        f"/api/research/hypotheses/{row.id}"
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["claim_text"] == "needs belief"
+    assert body["entity_id"] == str(entity_id)
+    assert body["belief"] is None
+    assert body["belief_history"] == []
+
+
+@pytest.mark.asyncio
+async def test_get_hypothesis_returns_404_for_missing(
+    async_client: AsyncClient,
+) -> None:
+    response = await async_client.get(
+        f"/api/research/hypotheses/{uuid.uuid4()}"
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_hypothesis_belief_returns_latest_audit_with_inputs(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    run_id = await _seed_run(db_session)
+    row = await _seed_hypothesis(
+        db_session, claim_text="thesis", proposed_by_run_id=run_id
+    )
+    await ensure_hypothesis_entity(session=db_session, hypothesis=row)
+    await recompute_belief_for_hypothesis(
+        session=db_session, hypothesis_id=row.id
+    )
+    await db_session.commit()
+
+    response = await async_client.get(
+        f"/api/research/hypotheses/{row.id}/belief"
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["hypothesis"]["belief"] == 0.5
+    assert body["latest"] is not None
+    assert body["latest"]["belief"] == 0.5
+    assert body["latest"]["computation_method"] == BELIEF_COMPUTATION_METHOD
+    assert body["latest"]["inputs"] == []
+
+
+@pytest.mark.asyncio
+async def test_get_hypothesis_belief_returns_null_latest_without_history(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    row = await _seed_hypothesis(db_session, claim_text="bare")
+    await db_session.commit()
+
+    response = await async_client.get(
+        f"/api/research/hypotheses/{row.id}/belief"
+    )
+    body = response.json()
+    assert body["latest"] is None
+
+
+@pytest.mark.asyncio
+async def test_get_hypothesis_belief_history_returns_ordered_list(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    row = await _seed_hypothesis(db_session, claim_text="historical")
+    await ensure_hypothesis_entity(session=db_session, hypothesis=row)
+    now = datetime(2026, 5, 19, 12, 0, 0, tzinfo=UTC)
+    for i in range(3):
+        rec = BeliefRecomputation(
+            hypothesis_id=row.id,
+            computed_at=now - timedelta(hours=i),
+            belief=0.5 + 0.1 * i,
+            contributing_evidence_ids=[],
+            computation_method=BELIEF_COMPUTATION_METHOD,
+            inputs=[],
+        )
+        db_session.add(rec)
+    await db_session.commit()
+
+    response = await async_client.get(
+        f"/api/research/hypotheses/{row.id}/belief/history"
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert len(body["items"]) == 3
+    timestamps = [item["computed_at"] for item in body["items"]]
+    assert timestamps == sorted(timestamps, reverse=True)
+
+
+@pytest.mark.asyncio
+async def test_get_hypothesis_belief_history_404_for_missing(
+    async_client: AsyncClient,
+) -> None:
+    response = await async_client.get(
+        f"/api/research/hypotheses/{uuid.uuid4()}/belief/history"
+    )
+    assert response.status_code == 404
+
+
+# Reference imports keep the relation type symbol live for future expansion.
+_ = RelationType, RunEvent, RunEventLevel

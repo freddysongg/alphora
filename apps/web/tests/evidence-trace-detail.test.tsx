@@ -59,6 +59,7 @@ function makeData(
       description: "SEC EDGAR public filings",
       homepage_url: "https://www.sec.gov",
       attributes: null,
+      reliability_score: 1,
       created_at: "2026-05-19T10:00:00Z",
       updated_at: "2026-05-19T10:00:00Z",
     },

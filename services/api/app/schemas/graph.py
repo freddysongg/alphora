@@ -24,6 +24,7 @@ class DataSourcePublic(BaseModel):
     description: str | None
     homepage_url: str | None
     attributes: dict[str, object] | None
+    reliability_score: float
     created_at: datetime
     updated_at: datetime
 
@@ -98,6 +99,9 @@ class RelationPublic(BaseModel):
     valid_to: datetime | None
     extraction_confidence: float | None
     source_id: uuid.UUID | None
+    chunk_id: uuid.UUID | None
+    quote: str | None
+    relevance: float | None
     corroboration_count: int
     extracted_by_model: str | None
     prompt_version: str | None
@@ -116,10 +120,32 @@ class HypothesisPublic(BaseModel):
     status: HypothesisStatusEnum
     valid_until: datetime | None
     proposed_by_run_id: uuid.UUID | None
+    entity_id: uuid.UUID | None
     belief: float | None
     belief_history: list[dict[str, object]]
     created_at: datetime
     updated_at: datetime
+
+
+class BeliefInputBreakdown(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    relation_id: uuid.UUID
+    relation_type: RelationTypeEnum
+    from_id: uuid.UUID
+    to_id: uuid.UUID
+    source_id: uuid.UUID | None
+    chunk_id: uuid.UUID | None
+    quote: str | None
+    is_explicit: bool
+    sign: float
+    reliability: float
+    confidence: float
+    relevance: float
+    age_days: float
+    decay: float
+    weight: float
+    signed_contribution: float
 
 
 class BeliefRecomputationPublic(BaseModel):
@@ -131,6 +157,7 @@ class BeliefRecomputationPublic(BaseModel):
     belief: float
     contributing_evidence_ids: list[str]
     computation_method: str
+    inputs: list[BeliefInputBreakdown] | None
 
 
 class EntityResolutionReviewPublic(BaseModel):
@@ -194,6 +221,7 @@ class AuditLogPublic(BaseModel):
 
 __all__ = [
     "AuditLogPublic",
+    "BeliefInputBreakdown",
     "BeliefRecomputationPublic",
     "DataSourcePublic",
     "EntityMergePublic",

@@ -243,6 +243,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/research/hypotheses/{hypothesis_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Hypothesis */
+        get: operations["get_hypothesis_api_research_hypotheses__hypothesis_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research/hypotheses/{hypothesis_id}/belief": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Hypothesis Belief */
+        get: operations["get_hypothesis_belief_api_research_hypotheses__hypothesis_id__belief_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research/hypotheses/{hypothesis_id}/belief/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Hypothesis Belief History */
+        get: operations["get_hypothesis_belief_history_api_research_hypotheses__hypothesis_id__belief_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/research/hypotheses/{hypothesis_id}/activate": {
         parameters: {
             query?: never;
@@ -621,6 +672,75 @@ export interface components {
              */
             has_alpha_vantage_key: boolean;
         };
+        /** BeliefInputBreakdown */
+        BeliefInputBreakdown: {
+            /**
+             * Relation Id
+             * Format: uuid
+             */
+            relation_id: string;
+            relation_type: components["schemas"]["RelationTypeEnum"];
+            /**
+             * From Id
+             * Format: uuid
+             */
+            from_id: string;
+            /**
+             * To Id
+             * Format: uuid
+             */
+            to_id: string;
+            /** Source Id */
+            source_id: string | null;
+            /** Chunk Id */
+            chunk_id: string | null;
+            /** Quote */
+            quote: string | null;
+            /** Is Explicit */
+            is_explicit: boolean;
+            /** Sign */
+            sign: number;
+            /** Reliability */
+            reliability: number;
+            /** Confidence */
+            confidence: number;
+            /** Relevance */
+            relevance: number;
+            /** Age Days */
+            age_days: number;
+            /** Decay */
+            decay: number;
+            /** Weight */
+            weight: number;
+            /** Signed Contribution */
+            signed_contribution: number;
+        };
+        /** BeliefRecomputationPublic */
+        BeliefRecomputationPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Hypothesis Id
+             * Format: uuid
+             */
+            hypothesis_id: string;
+            /**
+             * Computed At
+             * Format: date-time
+             */
+            computed_at: string;
+            /** Belief */
+            belief: number;
+            /** Contributing Evidence Ids */
+            contributing_evidence_ids: string[];
+            /** Computation Method */
+            computation_method: string;
+            /** Inputs */
+            inputs: components["schemas"]["BeliefInputBreakdown"][] | null;
+        };
         /**
          * BriefKindEnum
          * @enum {string}
@@ -866,6 +986,8 @@ export interface components {
             attributes: {
                 [key: string]: unknown;
             } | null;
+            /** Reliability Score */
+            reliability_score: number;
             /**
              * Created At
              * Format: date-time
@@ -1060,6 +1182,16 @@ export interface components {
             /** Mean Missed Noticed */
             mean_missed_noticed: number;
         };
+        /** HypothesisBeliefResponse */
+        HypothesisBeliefResponse: {
+            hypothesis: components["schemas"]["HypothesisPublic"];
+            latest: components["schemas"]["BeliefRecomputationPublic"] | null;
+        };
+        /** HypothesisHistoryResponse */
+        HypothesisHistoryResponse: {
+            /** Items */
+            items: components["schemas"]["BeliefRecomputationPublic"][];
+        };
         /** HypothesisListResponse */
         HypothesisListResponse: {
             /** Items */
@@ -1083,6 +1215,14 @@ export interface components {
             scope_theme_ids: string[];
             /** Source Run Id */
             source_run_id: string | null;
+            /** Entity Id */
+            entity_id: string | null;
+            /** Belief */
+            belief: number | null;
+            /** Belief History */
+            belief_history: {
+                [key: string]: unknown;
+            }[];
             /**
              * Created At
              * Format: date-time
@@ -1650,6 +1790,11 @@ export interface components {
              */
             status: "ready";
         };
+        /**
+         * RelationTypeEnum
+         * @enum {string}
+         */
+        RelationTypeEnum: "employs" | "holds_role_at" | "supplies" | "competes_with" | "regulated_by" | "traded_by" | "voted_on" | "sponsored" | "affects" | "belongs_to_sector" | "located_in" | "mentioned_in" | "catalyst_for" | "derives_from_theme" | "subsidiary_of" | "supports_hypothesis" | "contradicts_hypothesis";
         /** ResearchRunDetail */
         ResearchRunDetail: {
             /**
@@ -2519,6 +2664,7 @@ export interface operations {
         parameters: {
             query?: {
                 state?: components["schemas"]["HypothesisStateFilter"];
+                run_id?: string | null;
                 cursor?: string | null;
                 limit?: number;
             };
@@ -2535,6 +2681,101 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HypothesisListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_hypothesis_api_research_hypotheses__hypothesis_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hypothesis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HypothesisPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_hypothesis_belief_api_research_hypotheses__hypothesis_id__belief_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hypothesis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HypothesisBeliefResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_hypothesis_belief_history_api_research_hypotheses__hypothesis_id__belief_history_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                hypothesis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HypothesisHistoryResponse"];
                 };
             };
             /** @description Validation Error */

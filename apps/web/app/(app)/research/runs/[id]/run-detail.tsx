@@ -42,6 +42,10 @@ import type { CostMeterState } from "@/components/research/run-cost-meter";
 import { CounterfactualGateSummary } from "@/components/research/counterfactual-gate-summary";
 import { HumanReviewForm } from "@/components/research/human-review-form";
 import { HumanReviewSummaryWidget } from "@/components/research/human-review-summary";
+import {
+  HypothesisBeliefExplainer,
+  type HypothesisBeliefBundle,
+} from "@/components/research/hypothesis-belief-explainer";
 import { cn } from "@/lib/cn";
 import { CancelRunButton } from "./cancel-run-button";
 import { MacroBriefDetail } from "./macro-brief-detail";
@@ -232,6 +236,7 @@ export interface RunDetailProps {
   counterfactualGates: readonly CounterfactualGateRow[];
   humanReviewSummary: HumanReviewSummary;
   defaultWeekStart: string;
+  beliefBundles: readonly HypothesisBeliefBundle[];
 }
 
 export function RunDetail(props: RunDetailProps): ReactElement {
@@ -243,6 +248,7 @@ export function RunDetail(props: RunDetailProps): ReactElement {
     counterfactualGates,
     humanReviewSummary,
     defaultWeekStart,
+    beliefBundles,
   } = props;
   const router = useRouter();
   const isFunnelResearch = detail.strategy === "funnel_research";
@@ -341,6 +347,7 @@ export function RunDetail(props: RunDetailProps): ReactElement {
           isTerminal={isLogStreamTerminal}
         />
         <CounterfactualGateSummary gates={counterfactualGates} />
+        <HypothesisBeliefExplainer bundles={beliefBundles} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <HumanReviewForm
             runId={detail.id}

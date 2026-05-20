@@ -5,7 +5,13 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models_graph import Entity, EntityType, Relation
+from app.db.models_graph import (
+    Entity,
+    EntityType,
+    Evidence,
+    EvidenceChunk,
+    Relation,
+)
 from app.db.models_runs import (
     ResearchRun,
     RunEvent,
@@ -189,3 +195,67 @@ async def test_persist_company_skips_self_loop_relations(
 
     assert outcome.persisted_relation_count == 0
     assert outcome.skipped_relation_count == 1
+
+
+async def _seed_chunk(
+    session: AsyncSession, *, chunk_id: uuid.UUID
+) -> Evidence:
+    evidence = Evidence(
+        source="news",
+        document_id=str(uuid.uuid4()),
+        content_hash=uuid.uuid4().hex,
+    )
+    session.add(evidence)
+    await session.flush()
+    chunk = EvidenceChunk(
+        id=chunk_id,
+        evidence_id=evidence.id,
+        chunk_index=0,
+        text="seeded chunk text",
+        content_hash=uuid.uuid4().hex,
+    )
+    session.add(chunk)
+    await session.flush()
+    return evidence
+
+
+@pytest.mark.asyncio
+async def test_persist_company_populates_relation_provenance(
+    db_session: AsyncSession,
+) -> None:
+    run_id = await _seed_run(db_session)
+    await _seed_entity(db_session, "Apple Inc.")
+    await _seed_entity(db_session, "Microsoft Corp")
+
+    chunk_id = uuid.uuid4()
+    evidence = await _seed_chunk(db_session, chunk_id=chunk_id)
+
+    apple = _entity_candidate("Apple Inc.")
+    msft = _entity_candidate("Microsoft Corp")
+    relation = CandidateRelation(
+        subj_span="Apple Inc.",
+        predicate=RelationTypeEnum.competes_with,
+        obj_span="Microsoft Corp",
+        exact_quote="Apple competes with Microsoft.",
+        chunk_id=chunk_id,
+        is_explicit=True,
+        extraction_confidence=0.75,
+    )
+    result = _extraction_result(entities=[apple, msft], relations=[relation])
+
+    outcome = await persist_company_candidates(
+        session=db_session,
+        run_id=run_id,
+        extraction_results=[result],
+    )
+    assert outcome.persisted_relation_count == 1
+    persisted = (await db_session.execute(select(Relation))).scalar_one()
+    assert persisted.source_id == evidence.id
+    assert persisted.chunk_id == chunk_id
+    assert persisted.extracted_by_model == "gpt-4o-mini"
+    assert persisted.prompt_version == "extract-v1"
+    assert persisted.quote == "Apple competes with Microsoft."
+    assert persisted.is_explicit is True
+    assert persisted.sign == 1.0
+    assert persisted.relevance == 1.0
+    assert persisted.extraction_confidence == 0.75

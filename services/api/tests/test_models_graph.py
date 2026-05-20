@@ -597,3 +597,179 @@ def test_allowlist_validators_reject_unknown_values() -> None:
     assert not is_allowed_review_status("escalated")
     assert not is_allowed_proposed_type_kind("event")
     assert not is_allowed_proposed_type_status("draft")
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_data_source_reliability_score_defaults_to_one() -> None:
+    async with session_factory() as session:
+        source = DataSource(name="phase3-default", kind="news")
+        session.add(source)
+        await session.commit()
+        await session.refresh(source)
+        assert source.reliability_score == 1.0
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_data_source_reliability_score_round_trips_custom_value() -> None:
+    async with session_factory() as session:
+        source = DataSource(
+            name="phase3-custom", kind="news", reliability_score=0.42
+        )
+        session.add(source)
+        await session.commit()
+        source_id = source.id
+
+    async with session_factory() as session:
+        reloaded = (
+            await session.execute(
+                select(DataSource).where(DataSource.id == source_id)
+            )
+        ).scalar_one()
+        assert reloaded.reliability_score == 0.42
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_relation_persists_chunk_quote_relevance() -> None:
+    async with session_factory() as session:
+        evidence = Evidence(
+            source="news",
+            document_id="doc-1",
+            content_hash="hash-1" + "0" * 58,
+        )
+        session.add(evidence)
+        await session.flush()
+        chunk = EvidenceChunk(
+            evidence_id=evidence.id,
+            chunk_index=0,
+            text="ctx",
+            content_hash="chunkhash" + "0" * 55,
+        )
+        session.add(chunk)
+        await session.flush()
+        from_entity = Entity(
+            type=EntityType.company.value,
+            canonical_name="From",
+            aliases=[],
+            external_ids={},
+            attributes={},
+        )
+        to_entity = Entity(
+            type=EntityType.company.value,
+            canonical_name="To",
+            aliases=[],
+            external_ids={},
+            attributes={},
+        )
+        session.add_all([from_entity, to_entity])
+        await session.flush()
+        relation = Relation(
+            from_id=from_entity.id,
+            to_id=to_entity.id,
+            type=RelationType.competes_with.value,
+            attributes={},
+            source_id=evidence.id,
+            chunk_id=chunk.id,
+            quote="exact quote",
+            relevance=0.8,
+            extracted_by_model="gpt-4o-mini",
+            prompt_version="phase3-v1",
+            is_explicit=True,
+            sign=1.0,
+        )
+        session.add(relation)
+        await session.commit()
+        relation_id = relation.id
+
+    async with session_factory() as session:
+        reloaded = (
+            await session.execute(
+                select(Relation).where(Relation.id == relation_id)
+            )
+        ).scalar_one()
+        assert reloaded.source_id == evidence.id
+        assert reloaded.chunk_id == chunk.id
+        assert reloaded.quote == "exact quote"
+        assert reloaded.relevance == 0.8
+        assert reloaded.extracted_by_model == "gpt-4o-mini"
+        assert reloaded.prompt_version == "phase3-v1"
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_hypothesis_entity_id_is_set_null_on_entity_delete() -> None:
+    async with session_factory() as session:
+        entity = Entity(
+            type=EntityType.hypothesis.value,
+            canonical_name="claim",
+            aliases=[],
+            external_ids={},
+            attributes={},
+        )
+        session.add(entity)
+        await session.flush()
+        hypothesis = Hypothesis(
+            claim_text="claim",
+            scope_entity_ids=[],
+            scope_theme_ids=[],
+            status=HypothesisStatus.proposed.value,
+            entity_id=entity.id,
+        )
+        session.add(hypothesis)
+        await session.commit()
+        hypothesis_id = hypothesis.id
+        entity_id = entity.id
+
+    async with session_factory() as session:
+        await session.execute(
+            Entity.__table__.delete().where(Entity.id == entity_id)
+        )
+        await session.commit()
+        remaining_entity = (
+            await session.execute(
+                select(Hypothesis.__table__.c.entity_id).where(
+                    Hypothesis.id == hypothesis_id
+                )
+            )
+        ).scalar_one()
+        assert remaining_entity is None
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_belief_recomputation_inputs_round_trip_as_json() -> None:
+    async with session_factory() as session:
+        hypothesis = Hypothesis(
+            claim_text="claim",
+            scope_entity_ids=[],
+            scope_theme_ids=[],
+            status=HypothesisStatus.proposed.value,
+        )
+        session.add(hypothesis)
+        await session.flush()
+        recomputation = BeliefRecomputation(
+            hypothesis_id=hypothesis.id,
+            belief=0.75,
+            contributing_evidence_ids=["ev-1", "ev-2"],
+            computation_method="weighted_avg_decay_v1",
+            inputs=[
+                {
+                    "relation_id": "00000000-0000-0000-0000-000000000001",
+                    "sign": 1.0,
+                    "weight": 0.42,
+                }
+            ],
+        )
+        session.add(recomputation)
+        await session.commit()
+        recomp_id = recomputation.id
+
+    async with session_factory() as session:
+        reloaded = (
+            await session.execute(
+                select(BeliefRecomputation).where(
+                    BeliefRecomputation.id == recomp_id
+                )
+            )
+        ).scalar_one()
+        assert reloaded.belief == 0.75
+        assert reloaded.inputs is not None
+        assert reloaded.inputs[0]["sign"] == 1.0
+        assert reloaded.inputs[0]["weight"] == 0.42

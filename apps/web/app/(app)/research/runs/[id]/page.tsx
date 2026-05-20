@@ -14,6 +14,10 @@ import { RunDetail } from "./run-detail";
 type CounterfactualRunSummary =
   components["schemas"]["CounterfactualRunSummary"];
 type HumanReviewSummary = components["schemas"]["HumanReviewSummary"];
+type HypothesisPublic = components["schemas"]["HypothesisPublic"];
+type BeliefRecomputationPublic =
+  components["schemas"]["BeliefRecomputationPublic"];
+import type { HypothesisBeliefBundle } from "@/components/research/hypothesis-belief-explainer";
 
 export const metadata: Metadata = {
   title: "Run Detail · Alphora",
@@ -160,6 +164,62 @@ async function loadCounterfactualSummary(
   }
 }
 
+async function loadHypothesisBeliefBundles(
+  runId: string,
+): Promise<readonly HypothesisBeliefBundle[]> {
+  const hypotheses = await loadHypothesesForRun(runId);
+  if (hypotheses.length === 0) {
+    return [];
+  }
+  const bundles = await Promise.all(
+    hypotheses.map(async (hypothesis) => {
+      const latest = await loadLatestBelief(hypothesis.id);
+      return { hypothesis, latest };
+    }),
+  );
+  return bundles;
+}
+
+async function loadHypothesesForRun(
+  runId: string,
+): Promise<readonly HypothesisPublic[]> {
+  try {
+    const { data } = await getServerApi().GET(
+      "/api/research/hypotheses",
+      {
+        params: { query: { run_id: runId, limit: 100 } },
+        cache: "no-store",
+      },
+    );
+    return data?.items ?? [];
+  } catch (caught) {
+    if (isApiError(caught) && caught.status === NOT_FOUND_STATUS) {
+      return [];
+    }
+    throw caught;
+  }
+}
+
+async function loadLatestBelief(
+  hypothesisId: string,
+): Promise<BeliefRecomputationPublic | null> {
+  try {
+    const { data } = await getServerApi().GET(
+      "/api/research/hypotheses/{hypothesis_id}/belief",
+      {
+        params: { path: { hypothesis_id: hypothesisId } },
+        cache: "no-store",
+      },
+    );
+    return data?.latest ?? null;
+  } catch (caught) {
+    if (isApiError(caught) && caught.status === NOT_FOUND_STATUS) {
+      return null;
+    }
+    throw caught;
+  }
+}
+
 async function loadHumanReviewSummary(): Promise<HumanReviewSummary> {
   try {
     const { data } = await getServerApi().GET("/api/human-reviews/summary", {
@@ -195,6 +255,7 @@ export default async function RunDetailPage(
   const initialCost = await loadInitialCostBundle(id);
   const counterfactuals = await loadCounterfactualSummary(id);
   const reviewSummary = await loadHumanReviewSummary();
+  const beliefBundles = await loadHypothesisBeliefBundles(id);
   return (
     <RunDetail
       detail={detail}
@@ -204,6 +265,7 @@ export default async function RunDetailPage(
       counterfactualGates={counterfactuals?.gates ?? []}
       humanReviewSummary={reviewSummary}
       defaultWeekStart={defaultWeekStart()}
+      beliefBundles={beliefBundles}
     />
   );
 }
