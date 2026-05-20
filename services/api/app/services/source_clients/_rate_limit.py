@@ -9,7 +9,9 @@ time when `settings.redis_url` is configured.
 
 The Redis path uses WATCH/MULTI for atomic refill+deduct rather than a Lua
 script — `fakeredis` 2.35.1 does not support `EVAL`, and we want our tests
-to run on the same code path as production.
+to run on the same code path as production. Both the GET and the SET live
+inside the watched window so a write derived from a stale read either sees
+the new value or fails the EXEC and retries.
 """
 from __future__ import annotations
 
@@ -86,10 +88,12 @@ class RedisTokenBucket:
     """Redis-backed token bucket using WATCH/MULTI for atomic refill+deduct.
 
     State is stored as a JSON blob at `alphora:rate-limit:<name>` with two
-    fields: `tokens` and `last_refill_ts`. On `acquire()`, the limiter
-    optimistically reads, refills, and deducts under WATCH. If another
-    writer mutated the key, the loop retries. When the bucket is empty,
-    the call sleeps for the minimum refill interval before retrying.
+    fields: `tokens` and `last_refill_ts`. `acquire()` opens a WATCH-aware
+    pipeline, reads the state INSIDE the watched window, computes the refill,
+    and writes the decremented state in the same transaction. WATCH guarantees
+    the EXEC fails if any other writer mutated the key after our read; on
+    failure the loop retries. When the bucket is empty, the call releases the
+    WATCH, sleeps for the minimum refill interval, and retries.
     """
 
     def __init__(
@@ -116,38 +120,52 @@ class RedisTokenBucket:
 
     async def acquire(self) -> None:
         while True:
-            tokens, last_refill, now = await self._read_state()
-            elapsed = max(0.0, now - last_refill)
-            refilled = min(self._burst, tokens + elapsed * self._rate_per_second)
-            if refilled >= 1.0:
-                if await self._try_write(refilled - 1.0, now):
-                    return
-                continue
-            wait_seconds = (1.0 - refilled) / self._rate_per_second
-            await self._sleep(wait_seconds)
+            wait_seconds = await self._attempt_acquire()
+            if wait_seconds is None:
+                return
+            if wait_seconds > 0.0:
+                await self._sleep(wait_seconds)
 
-    async def _read_state(self) -> tuple[float, float, float]:
-        raw = await self._redis.get(self._key)
-        now = self._clock()
-        if raw is None:
-            return self._burst, now, now
-        decoded = raw.decode("utf-8") if isinstance(raw, bytes) else raw
-        state = json.loads(decoded)
-        return float(state["tokens"]), float(state["last_refill_ts"]), now
+    async def _attempt_acquire(self) -> float | None:
+        """Run one watched read+refill+deduct cycle.
 
-    async def _try_write(self, new_tokens: float, now: float) -> bool:
+        Returns `None` when a token was acquired, the required wait duration
+        when the bucket is empty, or `0.0` to indicate the caller should retry
+        immediately because the EXEC failed under WATCH contention.
+        """
         async with self._redis.pipeline(transaction=True) as pipe:
             try:
                 await pipe.watch(self._key)
-                pipe.multi()  # type: ignore[no-untyped-call]
-                pipe.set(
-                    self._key,
-                    json.dumps({"tokens": new_tokens, "last_refill_ts": now}),
+                raw = await pipe.get(self._key)
+                now = self._clock()
+                tokens, last_refill = self._parse_state(raw, now)
+                elapsed = max(0.0, now - last_refill)
+                refilled = min(
+                    self._burst, tokens + elapsed * self._rate_per_second
                 )
-                await pipe.execute()
-                return True
+                if refilled >= 1.0:
+                    pipe.multi()  # type: ignore[no-untyped-call]
+                    pipe.set(
+                        self._key,
+                        json.dumps(
+                            {"tokens": refilled - 1.0, "last_refill_ts": now}
+                        ),
+                    )
+                    await pipe.execute()
+                    return None
+                await pipe.unwatch()  # type: ignore[no-untyped-call]
+                return (1.0 - refilled) / self._rate_per_second
             except WatchError:
-                return False
+                return 0.0
+
+    def _parse_state(
+        self, raw: bytes | str | None, now: float
+    ) -> tuple[float, float]:
+        if raw is None:
+            return self._burst, now
+        decoded = raw.decode("utf-8") if isinstance(raw, bytes) else raw
+        state = json.loads(decoded)
+        return float(state["tokens"]), float(state["last_refill_ts"])
 
 
 def make_rate_limiter(
