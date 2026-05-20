@@ -92,6 +92,149 @@ async def test_build_company_resolutions_reads_cik_from_sec_bootstrap_key(
 
 
 @pytest.mark.asyncio
+async def test_build_company_resolutions_matches_by_ticker_when_canonical_name_differs(
+    db_session: AsyncSession,
+) -> None:
+    """An idea name="Apple" with ticker="AAPL" must resolve to the entity
+    whose external_ids["ticker"]="AAPL" even when canonical_name is "Apple Inc."""
+    sector_id = uuid.uuid4()
+    company_entity_id = uuid.uuid4()
+    db_session.add(
+        Entity(
+            id=company_entity_id,
+            type=EntityType.company.value,
+            canonical_name="Apple Inc.",
+            aliases=[],
+            external_ids={"cik": "0000320193", "ticker": "AAPL"},
+        )
+    )
+    await db_session.commit()
+
+    sector_briefs = [
+        _sector_brief_public(
+            sector_entity_id=sector_id,
+            sector_name="Information Technology",
+            companies=[
+                SectorCompanyIdea(
+                    name="Apple",
+                    ticker="AAPL",
+                    direction=SectorCallDirection.overweight,
+                    conviction=0.8,
+                    evidence_ids=[],
+                )
+            ],
+        )
+    ]
+    key = company_resolution_key(select_companies(sector_briefs)[0])
+
+    resolutions = await _build_company_resolutions(
+        session=db_session, sector_briefs=sector_briefs
+    )
+
+    assert key in resolutions
+    assert resolutions[key].company_entity_id == company_entity_id
+    assert resolutions[key].cik == "0000320193"
+
+
+@pytest.mark.asyncio
+async def test_build_company_resolutions_prefers_ticker_over_canonical_name(
+    db_session: AsyncSession,
+) -> None:
+    """When ticker matches one entity and canonical_name matches another,
+    ticker wins (since company_resolution_key prefers ticker)."""
+    sector_id = uuid.uuid4()
+    ticker_entity_id = uuid.uuid4()
+    name_entity_id = uuid.uuid4()
+    db_session.add_all(
+        [
+            Entity(
+                id=ticker_entity_id,
+                type=EntityType.company.value,
+                canonical_name="Microsoft Corporation",
+                aliases=[],
+                external_ids={"ticker": "MSFT"},
+            ),
+            Entity(
+                id=name_entity_id,
+                type=EntityType.company.value,
+                canonical_name="Microsoft",
+                aliases=[],
+                external_ids={"ticker": "OTHER"},
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    sector_briefs = [
+        _sector_brief_public(
+            sector_entity_id=sector_id,
+            sector_name="Information Technology",
+            companies=[
+                SectorCompanyIdea(
+                    name="Microsoft",
+                    ticker="MSFT",
+                    direction=SectorCallDirection.overweight,
+                    conviction=0.8,
+                    evidence_ids=[],
+                )
+            ],
+        )
+    ]
+    key = company_resolution_key(select_companies(sector_briefs)[0])
+
+    resolutions = await _build_company_resolutions(
+        session=db_session, sector_briefs=sector_briefs
+    )
+
+    assert resolutions[key].company_entity_id == ticker_entity_id
+
+
+@pytest.mark.asyncio
+async def test_build_company_resolutions_matches_by_alias_when_no_ticker_or_canonical_match(
+    db_session: AsyncSession,
+) -> None:
+    """When the idea has no ticker and the canonical_name does not match,
+    fall through to alias matching."""
+    sector_id = uuid.uuid4()
+    company_entity_id = uuid.uuid4()
+    db_session.add(
+        Entity(
+            id=company_entity_id,
+            type=EntityType.company.value,
+            canonical_name="Alphabet Inc.",
+            aliases=["Google"],
+            external_ids={"cik": "0001652044"},
+        )
+    )
+    await db_session.commit()
+
+    sector_briefs = [
+        _sector_brief_public(
+            sector_entity_id=sector_id,
+            sector_name="Communication Services",
+            companies=[
+                SectorCompanyIdea(
+                    name="Google",
+                    ticker=None,
+                    direction=SectorCallDirection.overweight,
+                    conviction=0.7,
+                    evidence_ids=[],
+                )
+            ],
+        )
+    ]
+    key = company_resolution_key(select_companies(sector_briefs)[0])
+
+    resolutions = await _build_company_resolutions(
+        session=db_session, sector_briefs=sector_briefs
+    )
+
+    assert key in resolutions
+    assert resolutions[key].company_entity_id == company_entity_id
+    assert resolutions[key].cik == "0001652044"
+
+
+@pytest.mark.asyncio
 async def test_build_company_resolutions_returns_none_cik_when_missing(
     db_session: AsyncSession,
 ) -> None:

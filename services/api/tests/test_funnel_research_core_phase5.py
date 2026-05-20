@@ -255,6 +255,78 @@ async def test_run_macro_brief_succeeds_when_fanout_partially_persists(
 
 
 @pytest.mark.asyncio
+async def test_run_macro_brief_halts_when_cancelled_between_macro_persist_and_sector_fanout(
+    initialized_schema: None,
+) -> None:
+    """A run cancelled while macro stage is in flight must not spend further
+    budget on sector fan-out."""
+    from app.services.run_orchestrator import RunOrchestrator
+    from app.services.strategies.funnel_research import core as core_module
+    from app.services.strategies.funnel_research._persist import (
+        persist_macro_brief as real_persist_macro_brief,
+    )
+    from app.services.strategies.funnel_research.core import run_macro_brief
+    from app.trading_agents.adapter import TradingAgentsAdapter
+
+    run_id = await _seed_run()
+    runtime_state: dict[str, uuid.UUID] = {}
+
+    fanout_called = {"value": False}
+
+    async def tracking_run_sector_fanout(**_: Any) -> SectorFanoutOutcome:
+        fanout_called["value"] = True
+        return SectorFanoutOutcome(
+            selected_count=0, persisted_count=0, skipped_count=0, failed_count=0
+        )
+
+    async def persist_then_cancel(**kwargs: Any) -> uuid.UUID:
+        result = await real_persist_macro_brief(**kwargs)
+        session = kwargs["session"]
+        run_row = (
+            await session.execute(
+                select(ResearchRun).where(ResearchRun.id == kwargs["run_id"])
+            )
+        ).scalar_one()
+        run_row.status = RunStatus.cancelled
+        run_row.error_message = "cancelled by user"
+        await session.flush()
+        return result
+
+    orchestrator = RunOrchestrator(
+        session_factory=session_factory, adapter=TradingAgentsAdapter()
+    )
+
+    with patch.object(
+        core_module, "run_sector_fanout", new=tracking_run_sector_fanout
+    ), patch.object(
+        core_module, "persist_macro_brief", new=persist_then_cancel
+    ):
+        async with httpx.AsyncClient() as http_client:
+            await run_macro_brief(
+                session_factory=session_factory,
+                run_id=run_id,
+                llm_client=_StubLlm(runtime_state),
+                orchestrator=orchestrator,
+                http_client=http_client,
+                fetcher=_fred_fetcher(),
+                sector_constituents={},
+                chunk_id_capture=runtime_state,
+            )
+
+    assert fanout_called["value"] is False, (
+        "sector fan-out ran despite run being cancelled between macro "
+        "persistence and sector fan-out"
+    )
+    async with session_factory() as session:
+        run_row = (
+            await session.execute(
+                select(ResearchRun).where(ResearchRun.id == run_id)
+            )
+        ).scalar_one()
+        assert run_row.status == RunStatus.cancelled
+
+
+@pytest.mark.asyncio
 async def test_run_macro_brief_succeeds_when_all_sectors_skip(
     initialized_schema: None,
 ) -> None:

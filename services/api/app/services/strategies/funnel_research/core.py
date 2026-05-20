@@ -426,6 +426,10 @@ async def _run_funnel(
             await session.commit()
 
     async with session_factory() as session:
+        if await _run_is_halted(session=session, run_id=run_id):
+            return
+
+    async with session_factory() as session:
         _emit_funnel_stage(
             session,
             run_id=run_id,
@@ -648,10 +652,14 @@ async def _build_company_resolutions(
 ) -> dict[str, CompanyResolution]:
     """Resolve company entities for selected company ideas.
 
-    Looks up each idea's company entity by canonical name + type=company.
-    CIK comes from `entity.external_ids["cik"]` when present (this is the key
-    written by ``bootstrap_from_sec_cik``). Companies without a resolved entity
-    are omitted; the runner skips them with warn.
+    Lookup order per idea, matching `company_resolution_key`'s preference:
+    1. ``external_ids["ticker"]`` (uppercased) when the idea carries a ticker.
+    2. ``canonical_name`` exact match.
+    3. ``aliases`` case-insensitive match on the idea name.
+
+    CIK comes from ``entity.external_ids["cik"]`` when present (the key written
+    by ``bootstrap_from_sec_cik``). Companies without a resolved entity are
+    omitted; the runner skips them with warn.
     """
     from app.db.models_graph import Entity, EntityType
 
@@ -659,23 +667,37 @@ async def _build_company_resolutions(
     if not selected:
         return {}
 
-    names = sorted({idea.company_name for idea in selected})
     rows = (
         (
             await session.execute(
-                select(Entity)
-                .where(Entity.type == EntityType.company.value)
-                .where(Entity.canonical_name.in_(names))
+                select(Entity).where(Entity.type == EntityType.company.value)
             )
         )
         .scalars()
         .all()
     )
-    by_name: dict[str, Entity] = {row.canonical_name: row for row in rows}
+
+    by_canonical_name: dict[str, Entity] = {}
+    by_ticker: dict[str, Entity] = {}
+    by_alias: dict[str, Entity] = {}
+    for row in rows:
+        by_canonical_name[row.canonical_name] = row
+        ticker_value = (row.external_ids or {}).get("ticker")
+        if isinstance(ticker_value, str) and ticker_value:
+            by_ticker.setdefault(ticker_value.upper(), row)
+        for alias in row.aliases or []:
+            if isinstance(alias, str) and alias:
+                by_alias.setdefault(alias.lower(), row)
 
     resolutions: dict[str, CompanyResolution] = {}
     for idea in selected:
-        entity = by_name.get(idea.company_name)
+        entity: Entity | None = None
+        if idea.ticker:
+            entity = by_ticker.get(idea.ticker.upper())
+        if entity is None:
+            entity = by_canonical_name.get(idea.company_name)
+        if entity is None:
+            entity = by_alias.get(idea.company_name.lower())
         if entity is None:
             continue
         cik_value = (entity.external_ids or {}).get("cik")
