@@ -11,6 +11,18 @@ from app.services.source_clients.ainvest import (
     AinvestCongressTransaction,
     fetch_ainvest_congress_transactions,
 )
+from app.services.source_clients.capitol_trades import (
+    CapitolTradesIssuer,
+    CapitolTradesPolitician,
+    CapitolTradesResponse,
+    CapitolTradesTrade,
+    fetch_capitol_trades,
+)
+from app.services.source_clients.cme_fedwatch import (
+    FedWatchMeeting,
+    FedWatchProbability,
+    fetch_cme_fedwatch_probabilities,
+)
 from app.services.source_clients.congress_gov import (
     CongressBill,
     CongressBillsResponse,
@@ -19,10 +31,28 @@ from app.services.source_clients.congress_gov import (
     fetch_congress_bills,
     fetch_congress_members,
 )
+from app.services.source_clients.fed_press import (
+    FedPressItem,
+    FedPressKind,
+    fetch_fed_press_releases,
+    fetch_fed_speeches,
+)
+from app.services.source_clients.finnhub import (
+    FinnhubEarningsCalendar,
+    FinnhubEarningsRow,
+    FinnhubNewsItem,
+    fetch_finnhub_company_news,
+    fetch_finnhub_earnings_calendar,
+)
 from app.services.source_clients.fred import (
     FredObservation,
     FredSeriesObservations,
     fetch_series_observations,
+)
+from app.services.source_clients.gdelt import (
+    GdeltArticle,
+    GdeltDocResponse,
+    fetch_gdelt_articles,
 )
 from app.services.source_clients.gleif import (
     GleifLeiRecord,
@@ -56,6 +86,12 @@ from app.services.source_clients.polymarket import (
     fetch_polymarket_events,
     fetch_polymarket_markets,
 )
+from app.services.source_clients.polymarket_data import (
+    PolymarketDataInterval,
+    PolymarketPriceHistory,
+    PolymarketPricePoint,
+    fetch_polymarket_price_history,
+)
 from app.services.source_clients.sec_edgar import (
     SecCompanyTicker,
     SecCompanyTickersResponse,
@@ -79,12 +115,25 @@ __all__ = [
     "AinvestCongressData",
     "AinvestCongressResponse",
     "AinvestCongressTransaction",
+    "CapitolTradesIssuer",
+    "CapitolTradesPolitician",
+    "CapitolTradesResponse",
+    "CapitolTradesTrade",
     "CongressBill",
     "CongressBillsResponse",
     "CongressMember",
     "CongressMembersResponse",
+    "FedPressItem",
+    "FedPressKind",
+    "FedWatchMeeting",
+    "FedWatchProbability",
+    "FinnhubEarningsCalendar",
+    "FinnhubEarningsRow",
+    "FinnhubNewsItem",
     "FredObservation",
     "FredSeriesObservations",
+    "GdeltArticle",
+    "GdeltDocResponse",
     "GleifLeiRecord",
     "GleifSearchResponse",
     "KalshiMarket",
@@ -96,8 +145,11 @@ __all__ = [
     "PolygonAggregatesResponse",
     "PolygonTicker",
     "PolygonTickersResponse",
+    "PolymarketDataInterval",
     "PolymarketEvent",
     "PolymarketMarket",
+    "PolymarketPriceHistory",
+    "PolymarketPricePoint",
     "SecCompanyTicker",
     "SecCompanyTickersResponse",
     "SecRecentSubmission",
@@ -111,9 +163,16 @@ __all__ = [
     "TiingoIexQuote",
     "TiingoNewsItem",
     "fetch_ainvest_congress_transactions",
+    "fetch_capitol_trades",
+    "fetch_cme_fedwatch_probabilities",
     "fetch_company_tickers",
     "fetch_congress_bills",
     "fetch_congress_members",
+    "fetch_fed_press_releases",
+    "fetch_fed_speeches",
+    "fetch_finnhub_company_news",
+    "fetch_finnhub_earnings_calendar",
+    "fetch_gdelt_articles",
     "fetch_gleif_by_lei",
     "fetch_gleif_search",
     "fetch_kalshi_market_detail",
@@ -123,6 +182,7 @@ __all__ = [
     "fetch_polygon_tickers",
     "fetch_polymarket_events",
     "fetch_polymarket_markets",
+    "fetch_polymarket_price_history",
     "fetch_series_observations",
     "fetch_submissions",
     "fetch_tiingo_daily_prices",

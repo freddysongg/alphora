@@ -23,20 +23,14 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.db.models_graph import EvidenceChunk
 from app.db.models_runs import RunEventLevel
 from app.schemas.extraction import EvidenceChunkRef, IngestedEvidence
-from app.services.ingestion.ainvest_congress import (
-    ingest_ainvest_congress_transactions,
-)
 from app.services.ingestion.polygon_aggregates import ingest_polygon_aggregates
 from app.services.ingestion.sec_filings import ingest_sec_submissions
 from app.services.ingestion.tiingo_news_items import ingest_tiingo_news_items
 from app.services.run_events import emit_run_event
-from app.services.source_clients.ainvest import (
-    AinvestCongressResponse,
-    fetch_ainvest_congress_transactions,
-)
 from app.services.source_clients.polygon import (
     PolygonAggregatesResponse,
     fetch_polygon_aggregates,
@@ -51,6 +45,11 @@ from app.services.source_clients.tiingo_news import (
 )
 from app.services.strategies.funnel_research.company.selector import CompanyIdea
 from app.services.strategies.funnel_research.config import TIINGO_NEWS_FETCH_LIMIT
+from app.services.strategies.funnel_research.congress_trading import (
+    CongressTradesResult,
+    fetch_congress_trades_for_ticker,
+    ingest_congress_trades,
+)
 
 _AGGREGATE_LOOKBACK_DAYS = 30
 
@@ -67,8 +66,8 @@ PolygonAggregatesCallable = Callable[
 TiingoNewsCallable = Callable[
     [httpx.AsyncClient, list[str], int], Awaitable[tuple[list[TiingoNewsItem], str]]
 ]
-AinvestCongressCallable = Callable[
-    [httpx.AsyncClient, str], Awaitable[tuple[AinvestCongressResponse, str]]
+CongressTradesCallable = Callable[
+    [httpx.AsyncClient, str], Awaitable[CongressTradesResult]
 ]
 SecSubmissionsCallable = Callable[
     [httpx.AsyncClient, str], Awaitable[tuple[SecSubmissionsResponse, str]]
@@ -79,7 +78,7 @@ SecSubmissionsCallable = Callable[
 class CompanySourceFetcher:
     polygon_aggregates: PolygonAggregatesCallable
     tiingo_news: TiingoNewsCallable
-    ainvest_congress: AinvestCongressCallable
+    congress_trades: CongressTradesCallable
     sec_submissions: SecSubmissionsCallable
 
 
@@ -106,12 +105,14 @@ def default_company_fetcher() -> CompanySourceFetcher:
     ) -> tuple[list[TiingoNewsItem], str]:
         return await fetch_tiingo_news(client=client, tickers=tickers, limit=limit)
 
-    async def fetch_ainvest(
+    async def fetch_congress(
         client: httpx.AsyncClient,
         ticker: str,
-    ) -> tuple[AinvestCongressResponse, str]:
-        return await fetch_ainvest_congress_transactions(
-            client=client, ticker=ticker
+    ) -> CongressTradesResult:
+        return await fetch_congress_trades_for_ticker(
+            client=client,
+            ticker=ticker,
+            capitol_trades_base_url=get_settings().capitol_trades_base_url,
         )
 
     async def fetch_sec(
@@ -123,7 +124,7 @@ def default_company_fetcher() -> CompanySourceFetcher:
     return CompanySourceFetcher(
         polygon_aggregates=fetch_aggs,
         tiingo_news=fetch_news,
-        ainvest_congress=fetch_ainvest,
+        congress_trades=fetch_congress,
         sec_submissions=fetch_sec,
     )
 
@@ -171,7 +172,7 @@ async def fetch_company_evidence(
         ingested.append(news)
     await session.commit()
 
-    ainvest = await _fetch_ainvest(
+    congress = await _fetch_congress_trades(
         session=session,
         run_id=run_id,
         company_name=company_idea.company_name,
@@ -179,8 +180,8 @@ async def fetch_company_evidence(
         http_client=http_client,
         fetcher=active_fetcher,
     )
-    if ainvest is not None:
-        ingested.append(ainvest)
+    if congress is not None:
+        ingested.append(congress)
     await session.commit()
 
     sec = await _fetch_sec(
@@ -323,7 +324,7 @@ async def _fetch_news(
         return None
 
 
-async def _fetch_ainvest(
+async def _fetch_congress_trades(
     *,
     session: AsyncSession,
     run_id: uuid.UUID,
@@ -337,36 +338,37 @@ async def _fetch_ainvest(
             session,
             run_id=run_id,
             company=company_name,
-            source="ainvest_congress",
+            source="congress_trades",
             reason="no ticker available",
         )
         return None
     try:
-        payload, content_hash = await fetcher.ainvest_congress(http_client, ticker)
+        result = await fetcher.congress_trades(http_client, ticker)
     except Exception as exc:
         _warn(
             session,
             run_id=run_id,
             company=company_name,
-            source="ainvest_congress",
+            source="congress_trades",
             reason=str(exc),
         )
         return None
-    if not payload.data.data:
+    if not result.trades:
         _warn(
             session,
             run_id=run_id,
             company=company_name,
-            source="ainvest_congress",
+            source=result.source,
             reason="no transactions returned",
         )
         return None
     try:
-        return await ingest_ainvest_congress_transactions(
+        return await ingest_congress_trades(
             session=session,
             ticker=ticker,
-            payload=payload,
-            content_hash=content_hash,
+            trades=result.trades,
+            source=result.source,
+            content_hash=result.content_hash,
             raw_url=None,
         )
     except Exception as exc:
@@ -374,7 +376,7 @@ async def _fetch_ainvest(
             session,
             run_id=run_id,
             company=company_name,
-            source="ainvest_congress",
+            source=result.source,
             reason=f"ingest failed: {exc}",
         )
         return None

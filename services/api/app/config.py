@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     kalshi_api_key: SecretStr | None = None
     congress_api_key: SecretStr | None = None
     openfigi_api_key: SecretStr | None = None
+    finnhub_api_key: SecretStr | None = None
+
+    cme_fedwatch_base_url: str | None = None
+    capitol_trades_base_url: str | None = None
 
 
 @lru_cache

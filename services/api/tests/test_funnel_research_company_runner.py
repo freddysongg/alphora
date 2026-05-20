@@ -23,7 +23,6 @@ from app.schemas.sector_brief import (
     SectorCompanyIdea,
 )
 from app.services.llm.client import LlmCompletionResult
-from app.services.source_clients.ainvest import AinvestCongressResponse
 from app.services.source_clients.polygon import (
     PolygonAggregateBar,
     PolygonAggregatesResponse,
@@ -36,6 +35,9 @@ from app.services.strategies.funnel_research.company.evidence import (
 from app.services.strategies.funnel_research.company.runner import (
     CompanyResolution,
     run_company_fanout,
+)
+from app.services.strategies.funnel_research.congress_trading import (
+    CongressTradesResult,
 )
 
 
@@ -95,16 +97,9 @@ def _empty_company_fetcher() -> CompanySourceFetcher:
     async def fetch_tiingo(*_: Any) -> tuple[list[TiingoNewsItem], str]:
         return ([], "0" * 64)
 
-    async def fetch_ainvest(*_: Any) -> tuple[AinvestCongressResponse, str]:
-        from app.services.source_clients.ainvest import AinvestCongressData
-
-        return (
-            AinvestCongressResponse(
-                data=AinvestCongressData(data=[]),
-                status_code=200,
-                status_msg="ok",
-            ),
-            "0" * 64,
+    async def fetch_congress(*_: Any) -> CongressTradesResult:
+        return CongressTradesResult(
+            trades=[], source="ainvest_congress", content_hash="0" * 64
         )
 
     async def fetch_sec(*_: Any) -> tuple[SecSubmissionsResponse, str]:
@@ -122,7 +117,7 @@ def _empty_company_fetcher() -> CompanySourceFetcher:
     return CompanySourceFetcher(
         polygon_aggregates=fetch_polygon,
         tiingo_news=fetch_tiingo,
-        ainvest_congress=fetch_ainvest,
+        congress_trades=fetch_congress,
         sec_submissions=fetch_sec,
     )
 
@@ -523,16 +518,9 @@ def _populated_company_fetcher() -> CompanySourceFetcher:
     async def fetch_news(*_: Any) -> tuple[list[TiingoNewsItem], str]:
         return news_items, news_hash
 
-    async def fetch_ainvest(*_: Any) -> tuple[AinvestCongressResponse, str]:
-        from app.services.source_clients.ainvest import AinvestCongressData
-
-        return (
-            AinvestCongressResponse(
-                data=AinvestCongressData(data=[]),
-                status_code=200,
-                status_msg="ok",
-            ),
-            "0" * 64,
+    async def fetch_congress(*_: Any) -> CongressTradesResult:
+        return CongressTradesResult(
+            trades=[], source="ainvest_congress", content_hash="0" * 64
         )
 
     async def fetch_sec(*_: Any) -> tuple[SecSubmissionsResponse, str]:
@@ -550,7 +538,7 @@ def _populated_company_fetcher() -> CompanySourceFetcher:
     return CompanySourceFetcher(
         polygon_aggregates=fetch_aggs,
         tiingo_news=fetch_news,
-        ainvest_congress=fetch_ainvest,
+        congress_trades=fetch_congress,
         sec_submissions=fetch_sec,
     )
 

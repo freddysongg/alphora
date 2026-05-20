@@ -296,3 +296,130 @@ async def test_insert_chunks_returns_zero_for_empty_drafts(
         )
 
     assert count == 0
+
+
+async def test_insert_or_get_evidence_links_source_id_when_data_source_exists(
+    populated_session: AsyncSession,
+) -> None:
+    """Belief engine joins through Evidence.source_id to read reliability_score.
+    The link must exist for that join to work end-to-end.
+    """
+    from app.db.models_graph import DataSource
+    from app.services.ingestion._persist import insert_or_get_evidence
+
+    async with populated_session.begin():
+        source_row = DataSource(name="fred", kind="macro", reliability_score=0.97)
+        populated_session.add(source_row)
+        await populated_session.flush()
+        source_id = source_row.id
+
+    async with populated_session.begin():
+        evidence, was_inserted = await insert_or_get_evidence(
+            session=populated_session,
+            source="fred",
+            document_id="GDP-2024-source-link",
+            raw_url=None,
+            content_hash="1" * 64,
+            structured={},
+        )
+
+    assert was_inserted is True
+    assert evidence.source == "fred"
+    assert evidence.source_id == source_id
+
+
+async def test_insert_or_get_evidence_leaves_source_id_null_when_data_source_missing(
+    populated_session: AsyncSession,
+) -> None:
+    from app.services.ingestion._persist import insert_or_get_evidence
+
+    async with populated_session.begin():
+        evidence, _ = await insert_or_get_evidence(
+            session=populated_session,
+            source="unregistered_source",
+            document_id="x-1",
+            raw_url=None,
+            content_hash="2" * 64,
+            structured={},
+        )
+
+    assert evidence.source == "unregistered_source"
+    assert evidence.source_id is None
+
+
+async def test_insert_or_get_evidence_caches_data_source_lookup(
+    populated_session: AsyncSession,
+) -> None:
+    """A 100-row ingestion must not issue 100 data_sources lookups."""
+    from unittest.mock import patch
+
+    from app.db.models_graph import DataSource
+    from app.services.ingestion._persist import insert_or_get_evidence
+
+    async with populated_session.begin():
+        populated_session.add(
+            DataSource(name="fred", kind="macro", reliability_score=0.97)
+        )
+        await populated_session.flush()
+
+    with patch(
+        "app.services.ingestion._persist.select",
+        wraps=__import__("sqlalchemy").select,
+    ) as wrapped_select:
+        async with populated_session.begin():
+            for index in range(5):
+                await insert_or_get_evidence(
+                    session=populated_session,
+                    source="fred",
+                    document_id=f"doc-{index}",
+                    raw_url=None,
+                    content_hash=f"{index}{'a' * 63}",
+                    structured={},
+                )
+
+        data_source_select_calls = [
+            call for call in wrapped_select.call_args_list
+            if call.args and getattr(call.args[0], "key", None) == "id"
+            and getattr(call.args[0], "table", None) is DataSource.__table__
+        ]
+        assert len(data_source_select_calls) == 1
+
+
+async def test_insert_or_get_evidence_backfills_source_id_on_legacy_hit(
+    populated_session: AsyncSession,
+) -> None:
+    """Existing rows ingested before the link existed get source_id populated
+    on the next idempotent re-ingest, so production data is corrected without
+    a separate backfill migration."""
+    from app.db.models_graph import DataSource, Evidence
+    from app.services.ingestion._persist import insert_or_get_evidence
+
+    async with populated_session.begin():
+        legacy = Evidence(
+            source="fred",
+            source_id=None,
+            document_id="legacy-1",
+            raw_url=None,
+            content_hash="9" * 64,
+            structured={},
+        )
+        populated_session.add(legacy)
+        populated_session.add(
+            DataSource(name="fred", kind="macro", reliability_score=0.97)
+        )
+        await populated_session.flush()
+        legacy_id = legacy.id
+
+    async with populated_session.begin():
+        evidence, was_inserted = await insert_or_get_evidence(
+            session=populated_session,
+            source="fred",
+            document_id="legacy-1",
+            raw_url=None,
+            content_hash="9" * 64,
+            structured={},
+        )
+
+    assert was_inserted is False
+    assert evidence.id == legacy_id
+    assert evidence.source_id is not None

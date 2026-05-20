@@ -5,8 +5,10 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models_graph import Evidence, EvidenceChunk
+from app.db.models_graph import DataSource, Evidence, EvidenceChunk
 from app.services.ingestion._chunkers import ChunkDraft
+
+_SESSION_SOURCE_CACHE_ATTR = "_alphora_data_source_id_cache"
 
 
 class IngestionError(Exception):
@@ -20,6 +22,34 @@ class EvidenceUpdateConflictError(IngestionError):
     existing evidence row to ingest a new version, or treat this as a real
     conflict.
     """
+
+
+async def _resolve_source_id(
+    session: AsyncSession, source: str
+) -> uuid.UUID | None:
+    """Resolve a `DataSource.id` for `source` so `Evidence.source_id` is
+    populated alongside the legacy `Evidence.source` string.
+
+    The belief engine joins `Relation -> Evidence -> DataSource` on `source_id`
+    to pick up `reliability_score`; without this link every ingested evidence
+    row would fall back to the default reliability of 1.0 regardless of the
+    seeded `data_sources` table. The lookup is cached on the session via a
+    sidecar dict so a multi-row ingestion does not issue one query per row.
+    """
+    cache: dict[str, uuid.UUID | None] | None = getattr(
+        session, _SESSION_SOURCE_CACHE_ATTR, None
+    )
+    if cache is None:
+        cache = {}
+        setattr(session, _SESSION_SOURCE_CACHE_ATTR, cache)
+    if source in cache:
+        return cache[source]
+    result = await session.execute(
+        select(DataSource.id).where(DataSource.name == source)
+    )
+    row_id = result.scalar_one_or_none()
+    cache[source] = row_id
+    return row_id
 
 
 async def insert_or_get_evidence(
@@ -40,8 +70,10 @@ async def insert_or_get_evidence(
     upstream document changed; this raises EvidenceUpdateConflictError so the
     caller can decide how to handle re-ingestion.
     """
+    source_id = await _resolve_source_id(session, source)
     new_evidence = Evidence(
         source=source,
+        source_id=source_id,
         document_id=document_id,
         raw_url=raw_url,
         content_hash=content_hash,
@@ -60,6 +92,7 @@ async def insert_or_get_evidence(
         existing_doc = by_doc.scalar_one_or_none()
         if existing_doc is not None:
             if existing_doc.content_hash == content_hash:
+                _backfill_source_id(existing_doc, source_id)
                 return existing_doc, False
             raise EvidenceUpdateConflictError(
                 f"evidence (source={source!r}, document_id={document_id!r}) "
@@ -73,6 +106,7 @@ async def insert_or_get_evidence(
         )
         existing_hash = by_hash.scalar_one_or_none()
         if existing_hash is not None:
+            _backfill_source_id(existing_hash, source_id)
             return existing_hash, False
         raise IngestionError(
             f"IntegrityError without matching evidence row for "
@@ -80,6 +114,19 @@ async def insert_or_get_evidence(
             f"(source, document_id)=({source!r}, {document_id!r})"
         ) from None
     return new_evidence, True
+
+
+def _backfill_source_id(
+    evidence: Evidence, resolved_source_id: uuid.UUID | None
+) -> None:
+    """Backfill `source_id` on an evidence row written before the lookup
+    existed. No-ops when the row already has a `source_id` or when the lookup
+    failed to resolve, so we never overwrite real data."""
+    if resolved_source_id is None:
+        return
+    if evidence.source_id is not None:
+        return
+    evidence.source_id = resolved_source_id
 
 
 async def insert_chunks(

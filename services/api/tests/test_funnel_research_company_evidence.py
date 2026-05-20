@@ -18,11 +18,6 @@ from app.db.models_runs import (
     Strategy,
 )
 from app.schemas.macro_brief import SectorCallDirection
-from app.services.source_clients.ainvest import (
-    AinvestCongressData,
-    AinvestCongressResponse,
-    AinvestCongressTransaction,
-)
 from app.services.source_clients.polygon import (
     PolygonAggregateBar,
     PolygonAggregatesResponse,
@@ -37,6 +32,10 @@ from app.services.strategies.funnel_research.company.evidence import (
     fetch_company_evidence,
 )
 from app.services.strategies.funnel_research.company.selector import CompanyIdea
+from app.services.strategies.funnel_research.congress_trading import (
+    CongressTrade,
+    CongressTradesResult,
+)
 
 
 def _company_idea(ticker: str | None = "AAPL") -> CompanyIdea:
@@ -82,24 +81,27 @@ def _tiingo_news_items() -> list[TiingoNewsItem]:
     ]
 
 
-def _ainvest_payload() -> AinvestCongressResponse:
-    return AinvestCongressResponse(
-        data=AinvestCongressData(
-            data=[
-                AinvestCongressTransaction(
-                    name="Jane Doe",
-                    party="D",
-                    state="CA",
-                    trade_date=date(2026, 4, 1),
-                    filing_date=date(2026, 4, 15),
-                    reporting_gap="14 days",
-                    trade_type="purchase",
-                    size="$1,001 - $15,000",
-                ),
-            ]
-        ),
-        status_code=200,
-        status_msg="ok",
+def _congress_trades_result() -> CongressTradesResult:
+    return CongressTradesResult(
+        trades=[
+            CongressTrade(
+                ticker="AAPL",
+                politician_name="Jane Doe",
+                politician_party="D",
+                politician_state="CA",
+                politician_chamber=None,
+                traded_at=date(2026, 4, 1),
+                filed_at=date(2026, 4, 15),
+                reporting_gap_days=14,
+                transaction_type="purchase",
+                amount_label="$1,001 - $15,000",
+                owner=None,
+                source_url=None,
+                external_id=None,
+            ),
+        ],
+        source="ainvest_congress",
+        content_hash="c" * 64,
     )
 
 
@@ -146,7 +148,7 @@ def _fake_fetcher(
     *,
     polygon_ok: bool = True,
     tiingo_ok: bool = True,
-    ainvest_ok: bool = True,
+    congress_ok: bool = True,
     sec_ok: bool = True,
 ) -> CompanySourceFetcher:
     async def fetch_polygon(*_: Any) -> tuple[PolygonAggregatesResponse, str]:
@@ -161,11 +163,10 @@ def _fake_fetcher(
         items = _tiingo_news_items()
         return items, _hash([i.model_dump(mode="json") for i in items])
 
-    async def fetch_ainvest(*_: Any) -> tuple[AinvestCongressResponse, str]:
-        if not ainvest_ok:
-            raise RuntimeError("ainvest down")
-        payload = _ainvest_payload()
-        return payload, _hash(payload.model_dump(mode="json"))
+    async def fetch_congress(*_: Any) -> CongressTradesResult:
+        if not congress_ok:
+            raise RuntimeError("congress trades down")
+        return _congress_trades_result()
 
     async def fetch_sec(*_: Any) -> tuple[SecSubmissionsResponse, str]:
         if not sec_ok:
@@ -176,7 +177,7 @@ def _fake_fetcher(
     return CompanySourceFetcher(
         polygon_aggregates=fetch_polygon,
         tiingo_news=fetch_tiingo,
-        ainvest_congress=fetch_ainvest,
+        congress_trades=fetch_congress,
         sec_submissions=fetch_sec,
     )
 
@@ -293,7 +294,7 @@ async def test_fetch_company_evidence_skips_sources_without_ticker(
         for event in warn_events
         if isinstance(event.data, dict)
     }
-    assert {"polygon_aggregates", "tiingo_news", "ainvest_congress"}.issubset(
+    assert {"polygon_aggregates", "tiingo_news", "congress_trades"}.issubset(
         warn_sources
     )
 
@@ -344,7 +345,7 @@ async def test_fetch_company_evidence_all_failures_yields_empty(
             fetcher=_fake_fetcher(
                 polygon_ok=False,
                 tiingo_ok=False,
-                ainvest_ok=False,
+                congress_ok=False,
                 sec_ok=False,
             ),
         )

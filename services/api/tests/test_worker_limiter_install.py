@@ -1,5 +1,7 @@
-"""Verify the worker installs a Redis client + request cache into the registry."""
-from unittest.mock import MagicMock
+"""Verify the worker installs a Redis client + request cache into the registry
+inside the per-job asyncio.run, so the connection pool is bound to the live
+event loop (not the worker process lifetime)."""
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -16,72 +18,146 @@ from app.services.source_clients._request_cache import RequestCache
 
 @pytest.fixture(autouse=True)
 def _reset_state() -> None:
-    """Reset both the registry and the worker's one-shot flag."""
     reset_registry()
-    tasks_module._LIMITER_CONFIGURED = False
-    tasks_module._CACHED_WORKER_REDIS = None
     yield
     reset_registry()
-    tasks_module._LIMITER_CONFIGURED = False
-    tasks_module._CACHED_WORKER_REDIS = None
 
 
-def test_install_async_redis_limiter_binds_redis_client_to_registry(
+@pytest.mark.asyncio
+async def test_run_with_source_client_runtime_binds_redis_client_during_dispatch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """First call should install a Redis client + request cache."""
+    """During `_run_with_source_client_runtime`, the registry must hold a
+    Redis-backed limiter and the request cache."""
+    seen: dict[str, object] = {}
+
     fake_redis = MagicMock()
-    monkeypatch.setattr(tasks_module, "_get_worker_redis", lambda: fake_redis)
-    tasks_module._install_async_redis_limiter()
-
-    limiter = get_rate_limiter(
-        name="worker-install", rate_per_second=1.0, burst=2
+    fake_redis.aclose = AsyncMock()
+    monkeypatch.setattr(
+        tasks_module, "_build_async_redis_client", lambda: fake_redis
     )
-    assert isinstance(limiter, RedisTokenBucket)
-    cache = get_request_cache()
-    assert isinstance(cache, RequestCache)
-    assert cache.ttl_seconds == pytest.approx(300.0)
+
+    async def _noop_bootstrap() -> None:
+        return None
+
+    monkeypatch.setattr(
+        tasks_module, "_bootstrap_data_sources_for_run", _noop_bootstrap
+    )
+
+    async def fake_dispatch(_: object) -> None:
+        seen["limiter"] = get_rate_limiter(
+            name="dispatch-probe", rate_per_second=1.0, burst=2
+        )
+        seen["request_cache"] = get_request_cache()
+
+    monkeypatch.setattr(tasks_module, "_dispatch", fake_dispatch)
+
+    from uuid import uuid4
+    await tasks_module._run_with_source_client_runtime(uuid4())
+
+    assert isinstance(seen["limiter"], RedisTokenBucket)
+    assert isinstance(seen["request_cache"], RequestCache)
+    assert seen["request_cache"].ttl_seconds == pytest.approx(300.0)
 
 
-def test_install_async_redis_limiter_is_idempotent(
+@pytest.mark.asyncio
+async def test_run_with_source_client_runtime_tears_down_state_after_dispatch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Second invocation must not thrash the limiter cache."""
+    """After dispatch returns, the registry must be cleared and the Redis
+    client must be closed inside the same event loop that built it."""
     fake_redis = MagicMock()
-    monkeypatch.setattr(tasks_module, "_get_worker_redis", lambda: fake_redis)
-    tasks_module._install_async_redis_limiter()
-    limiter_first = get_rate_limiter(
-        name="idem", rate_per_second=1.0, burst=2
+    fake_redis.aclose = AsyncMock()
+    monkeypatch.setattr(
+        tasks_module, "_build_async_redis_client", lambda: fake_redis
     )
-    tasks_module._install_async_redis_limiter()
-    limiter_second = get_rate_limiter(
-        name="idem", rate_per_second=1.0, burst=2
+
+    async def _noop_bootstrap() -> None:
+        return None
+
+    monkeypatch.setattr(
+        tasks_module, "_bootstrap_data_sources_for_run", _noop_bootstrap
     )
-    assert limiter_first is limiter_second
+
+    async def noop_dispatch(_: object) -> None:
+        return None
+
+    monkeypatch.setattr(tasks_module, "_dispatch", noop_dispatch)
+
+    from uuid import uuid4
+    await tasks_module._run_with_source_client_runtime(uuid4())
+
+    assert get_request_cache() is None
+    fake_redis.aclose.assert_awaited_once()
 
 
-def test_install_async_redis_limiter_caches_redis_client(
+@pytest.mark.asyncio
+async def test_run_with_source_client_runtime_tears_down_on_dispatch_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The worker should hold a single async Redis client across the process."""
-    counter = {"count": 0}
+    """Even when dispatch raises, the Redis client must still be closed and
+    the registry cleared — otherwise a flaky run leaks the connection pool
+    across jobs."""
     fake_redis = MagicMock()
+    fake_redis.aclose = AsyncMock()
+    monkeypatch.setattr(
+        tasks_module, "_build_async_redis_client", lambda: fake_redis
+    )
 
-    def fake_from_url(*_args: object, **_kwargs: object) -> object:
-        counter["count"] += 1
-        return fake_redis
+    async def _noop_bootstrap() -> None:
+        return None
 
-    from redis.asyncio import Redis as AsyncRedis
+    monkeypatch.setattr(
+        tasks_module, "_bootstrap_data_sources_for_run", _noop_bootstrap
+    )
 
-    monkeypatch.setattr(AsyncRedis, "from_url", fake_from_url)
-    first = tasks_module._get_worker_redis()
-    second = tasks_module._get_worker_redis()
-    assert first is second
-    assert counter["count"] == 1
+    async def failing_dispatch(_: object) -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(tasks_module, "_dispatch", failing_dispatch)
+
+    from uuid import uuid4
+    with pytest.raises(RuntimeError, match="boom"):
+        await tasks_module._run_with_source_client_runtime(uuid4())
+
+    assert get_request_cache() is None
+    fake_redis.aclose.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_close_async_redis_falls_back_to_close_when_aclose_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Older redis-py builds expose `close()` but not `aclose()`; the worker
+    must fall back so it never leaks a pool."""
+
+    fake_redis = MagicMock(spec=["close"])
+    fake_redis.close = AsyncMock()
+    monkeypatch.setattr(
+        tasks_module, "_build_async_redis_client", lambda: fake_redis
+    )
+
+    async def _noop_bootstrap() -> None:
+        return None
+
+    monkeypatch.setattr(
+        tasks_module, "_bootstrap_data_sources_for_run", _noop_bootstrap
+    )
+
+    async def noop_dispatch(_: object) -> None:
+        return None
+
+    monkeypatch.setattr(tasks_module, "_dispatch", noop_dispatch)
+
+    from uuid import uuid4
+    await tasks_module._run_with_source_client_runtime(uuid4())
+
+    fake_redis.close.assert_awaited_once()
 
 
 def test_registry_reset_clears_install_state() -> None:
-    """`reset_registry` clears the cache/client without affecting worker flag."""
+    """`reset_registry` clears the cache/client; the worker module no longer
+    holds module-level Redis state, so there's nothing else to clear."""
     _registry.configure_redis(MagicMock())
     _registry.install_request_cache(RequestCache(ttl_seconds=30.0))
     reset_registry()

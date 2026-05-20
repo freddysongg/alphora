@@ -320,74 +320,162 @@ def test_chunk_tiingo_news_items_emits_one_chunk_per_article() -> None:
     assert chunks[0].attributes["tickers"] == ["spy"]
 
 
-def test_chunk_ainvest_congress_transactions_emits_one_chunk_per_transaction() -> None:
-    from datetime import date
-
-    from app.services.ingestion._chunkers import (
-        chunk_ainvest_congress_transactions,
-    )
-    from app.services.source_clients.ainvest import (
-        AinvestCongressData,
-        AinvestCongressResponse,
-        AinvestCongressTransaction,
+def test_chunk_polymarket_price_history_emits_one_chunk_per_point() -> None:
+    from app.services.ingestion._chunkers import chunk_polymarket_price_history
+    from app.services.source_clients.polymarket_data import (
+        PolymarketPriceHistory,
+        PolymarketPricePoint,
     )
 
-    payload = AinvestCongressResponse(
-        data=AinvestCongressData(
-            data=[
-                AinvestCongressTransaction(
-                    name="Jane Doe",
-                    party="D",
-                    state="CA",
-                    trade_date=date(2026, 4, 1),
-                    filing_date=date(2026, 4, 15),
-                    reporting_gap="14 days",
-                    trade_type="purchase",
-                    size="$1,001 - $15,000",
-                ),
-                AinvestCongressTransaction(
-                    name="John Roe",
-                    party="R",
-                    state="TX",
-                    trade_date=date(2026, 4, 2),
-                    filing_date=date(2026, 4, 16),
-                    reporting_gap="14 days",
-                    trade_type="sale",
-                    size="$15,001 - $50,000",
-                ),
-            ]
-        ),
-        status_code=200,
-        status_msg="ok",
+    payload = PolymarketPriceHistory(
+        market="m1",
+        interval="1d",
+        history=[
+            PolymarketPricePoint(t=1714521600, p=0.42, v=100.0),
+            PolymarketPricePoint(t=1714608000, p=0.43, v=200.0),
+        ],
     )
-
-    chunks = chunk_ainvest_congress_transactions(ticker="AAPL", payload=payload)
+    chunks = chunk_polymarket_price_history(payload)
 
     assert len(chunks) == 2
-    assert chunks[0].chunk_index == 0
-    assert chunks[1].chunk_index == 1
+    assert chunks[0].attributes["market"] == "m1"
+    assert chunks[0].attributes["interval"] == "1d"
+    assert chunks[0].attributes["probability"] == 0.42
+    assert chunks[0].attributes["volume_usd"] == 100.0
     assert chunks[0].content_hash != chunks[1].content_hash
-    assert chunks[0].attributes["source"] == "ainvest_congress"
-    assert chunks[0].attributes["ticker"] == "AAPL"
-    assert chunks[0].attributes["trade_type"] == "purchase"
-    assert chunks[0].attributes["filing_date"] == "2026-04-15"
-    assert "Jane Doe" in chunks[0].text
-    assert "AAPL" in chunks[0].text
 
 
-def test_chunk_ainvest_congress_transactions_empty_returns_empty() -> None:
-    from app.services.ingestion._chunkers import (
-        chunk_ainvest_congress_transactions,
+def test_chunk_finnhub_news_emits_one_chunk_per_item() -> None:
+    from datetime import UTC, datetime
+
+    from app.services.ingestion._chunkers import chunk_finnhub_news
+    from app.services.source_clients.finnhub import FinnhubNewsItem
+
+    items = [
+        FinnhubNewsItem(
+            id=1,
+            category="company",
+            headline="h1",
+            summary="s1",
+            source="src",
+            url="https://x",
+            related="AAPL",
+            published_at=datetime(2026, 5, 15, tzinfo=UTC),
+        ),
+        FinnhubNewsItem(
+            id=2,
+            category="company",
+            headline="h2",
+            summary=None,
+            source="src",
+            url="https://y",
+            related=None,
+            published_at=datetime(2026, 5, 16, tzinfo=UTC),
+        ),
+    ]
+    chunks = chunk_finnhub_news(items)
+
+    assert len(chunks) == 2
+    assert chunks[0].attributes["source"] == "finnhub_news"
+    assert chunks[0].attributes["news_id"] == 1
+    assert chunks[0].attributes["related"] == "AAPL"
+    assert chunks[1].attributes["summary"] is None
+    assert "none" in chunks[1].text
+
+
+def test_chunk_cme_fedwatch_emits_one_chunk_per_probability() -> None:
+    from datetime import UTC, date, datetime
+
+    from app.services.ingestion._chunkers import chunk_cme_fedwatch
+    from app.services.source_clients.cme_fedwatch import (
+        FedWatchMeeting,
+        FedWatchProbability,
     )
-    from app.services.source_clients.ainvest import (
-        AinvestCongressData,
-        AinvestCongressResponse,
-    )
 
-    payload = AinvestCongressResponse(
-        data=AinvestCongressData(data=[]),
-        status_code=200,
-        status_msg="ok",
+    meeting = FedWatchMeeting(
+        as_of=datetime(2026, 5, 19, tzinfo=UTC),
+        meeting_date=date(2026, 6, 17),
+        current_target_low_bps=425,
+        current_target_high_bps=450,
+        probabilities=[
+            FedWatchProbability(target_low_bps=400, target_high_bps=425, probability=0.3),
+            FedWatchProbability(target_low_bps=425, target_high_bps=450, probability=0.6),
+            FedWatchProbability(target_low_bps=450, target_high_bps=475, probability=0.1),
+        ],
     )
+    chunks = chunk_cme_fedwatch(meeting)
 
-    assert chunk_ainvest_congress_transactions(ticker="AAPL", payload=payload) == []
+    assert len(chunks) == 3
+    assert chunks[0].attributes["meeting_date"] == "2026-06-17"
+    assert chunks[0].attributes["target_low_bps"] == 400
+    assert chunks[0].attributes["probability"] == 0.3
+    assert chunks[1].attributes["target_low_bps"] == 425
+
+
+def test_chunk_fed_press_emits_one_chunk_per_item() -> None:
+    from datetime import UTC, datetime
+
+    from app.services.ingestion._chunkers import chunk_fed_press
+    from app.services.source_clients.fed_press import FedPressItem
+
+    items = [
+        FedPressItem(
+            id="monetary20260507a",
+            kind="monetary",
+            title="FOMC statement",
+            url="https://www.federalreserve.gov/x",
+            published_at=datetime(2026, 5, 7, 18, tzinfo=UTC),
+            summary="held rates",
+        ),
+        FedPressItem(
+            id="powell20260512a",
+            kind="speech",
+            title="Outlook",
+            url="https://www.federalreserve.gov/y",
+            published_at=datetime(2026, 5, 12, 13, tzinfo=UTC),
+            speaker="Jerome H. Powell",
+            venue="CFR",
+            summary=None,
+        ),
+    ]
+    chunks = chunk_fed_press(items)
+
+    assert len(chunks) == 2
+    assert chunks[0].attributes["kind"] == "monetary"
+    assert chunks[1].attributes["kind"] == "speech"
+    assert chunks[1].attributes["speaker"] == "Jerome H. Powell"
+    assert "n/a" in chunks[0].text  # speaker missing on monetary release
+
+
+def test_chunk_gdelt_articles_emits_one_chunk_per_article() -> None:
+    from datetime import UTC, datetime
+
+    from app.services.ingestion._chunkers import chunk_gdelt_articles
+    from app.services.source_clients.gdelt import GdeltArticle
+
+    articles = [
+        GdeltArticle(
+            url="https://x",
+            title="t1",
+            seendate=datetime(2026, 5, 1, tzinfo=UTC),
+            domain="reuters.com",
+            language="English",
+            sourcecountry="US",
+            tone=-1.5,
+            themes=["TRADE", "GEOPOLITICS"],
+        ),
+        GdeltArticle(
+            url="https://y",
+            title="t2",
+            seendate=datetime(2026, 5, 2, tzinfo=UTC),
+            tone=2.0,
+        ),
+    ]
+    chunks = chunk_gdelt_articles(articles)
+
+    assert len(chunks) == 2
+    assert chunks[0].attributes["url"] == "https://x"
+    assert chunks[0].attributes["themes"] == ["TRADE", "GEOPOLITICS"]
+    assert chunks[0].attributes["tone"] == -1.5
+    assert chunks[1].attributes["themes"] == []
+    assert "none" in chunks[1].text  # empty themes formatted as "none"

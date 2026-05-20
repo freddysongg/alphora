@@ -9,6 +9,7 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.db.models_runs import ResearchRun, Strategy
 from app.db.session import session_factory
+from app.services.data_sources_bootstrap import bootstrap_data_sources
 from app.services.hypothesis import OpenAiEmbedder
 from app.services.llm.client import LlmClient
 from app.services.run_orchestrator import RunOrchestrator
@@ -35,13 +36,42 @@ def execute_research_run(run_id_hex: str) -> None:
     API key, unknown strategy) is routed through `orchestrator.fail` so the
     run row reaches `failed` instead of stranding at `queued`.
 
-    Installs a worker-time async Redis client into the source-client rate
-    limiter registry on first dispatch so the per-source token buckets
-    coordinate across processes.
+    `_run_with_source_client_runtime` constructs a fresh `AsyncRedis` client
+    and `RequestCache` inside the per-job `asyncio.run` so the Redis
+    connection pool is bound to the live event loop. The previous design
+    cached one Redis client for the worker process lifetime, which broke
+    on the second job because the first job's `asyncio.run` had already
+    closed the loop the pool was bound to.
     """
     run_id = UUID(run_id_hex)
-    _install_async_redis_limiter()
-    asyncio.run(_dispatch(run_id))
+    asyncio.run(_run_with_source_client_runtime(run_id))
+
+
+async def _run_with_source_client_runtime(run_id: UUID) -> None:
+    redis_client = _build_async_redis_client()
+    request_cache = RequestCache(ttl_seconds=300.0)
+    configure_redis(redis_client)
+    install_request_cache(request_cache)
+    try:
+        await _bootstrap_data_sources_for_run()
+        await _dispatch(run_id)
+    finally:
+        configure_redis(None)
+        install_request_cache(None)
+        await _close_async_redis_client(redis_client)
+
+
+async def _bootstrap_data_sources_for_run() -> None:
+    """Seed the canonical `data_sources` rows before dispatch.
+
+    The bootstrap is idempotent — second and later invocations return
+    `unchanged == len(KNOWN_DATA_SOURCES)` after one SELECT. Running on a
+    dedicated session keeps the commit boundary isolated from the dispatch
+    session so per-source-client `_resolve_source_id` lookups see the rows.
+    """
+    async with session_factory() as session:
+        await bootstrap_data_sources(session=session)
+        await session.commit()
 
 
 def _build_openai_client() -> AsyncOpenAI:
@@ -51,34 +81,23 @@ def _build_openai_client() -> AsyncOpenAI:
     return AsyncOpenAI(api_key=settings.openai_api_key)
 
 
-def _install_async_redis_limiter() -> None:
-    """Install the async Redis client + request cache into the registry.
+def _build_async_redis_client() -> AsyncRedis:
+    return AsyncRedis.from_url(
+        get_settings().redis_url, decode_responses=False
+    )
 
-    Worker boots once per task, so this runs each dispatch; the install
-    is short-circuited once configured so the limiter cache does not
-    thrash between dispatches. The worker process holds a single async
-    Redis client and a single shared 5-minute request cache over its
-    lifetime.
+
+async def _close_async_redis_client(client: AsyncRedis) -> None:
+    """Release the Redis pool inside the same event loop that allocated it.
+
+    `redis.asyncio.Redis.aclose()` is preferred when available; we fall back
+    to `close()` so the worker still cleans up under older redis-py builds.
     """
-    global _LIMITER_CONFIGURED
-    if _LIMITER_CONFIGURED:
+    aclose = getattr(client, "aclose", None)
+    if callable(aclose):
+        await aclose()
         return
-    configure_redis(_get_worker_redis())
-    install_request_cache(RequestCache(ttl_seconds=300.0))
-    _LIMITER_CONFIGURED = True
-
-
-def _get_worker_redis() -> AsyncRedis:
-    global _CACHED_WORKER_REDIS
-    if _CACHED_WORKER_REDIS is None:
-        _CACHED_WORKER_REDIS = AsyncRedis.from_url(
-            get_settings().redis_url, decode_responses=False
-        )
-    return _CACHED_WORKER_REDIS
-
-
-_CACHED_WORKER_REDIS: AsyncRedis | None = None
-_LIMITER_CONFIGURED: bool = False
+    await client.close()
 
 
 async def _dispatch(run_id: UUID) -> None:

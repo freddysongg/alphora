@@ -2,12 +2,16 @@ import hashlib
 from dataclasses import dataclass
 from typing import Any
 
-from app.services.source_clients.ainvest import AinvestCongressResponse
+from app.services.source_clients.cme_fedwatch import FedWatchMeeting
 from app.services.source_clients.congress_gov import CongressBill
+from app.services.source_clients.fed_press import FedPressItem
+from app.services.source_clients.finnhub import FinnhubNewsItem
 from app.services.source_clients.fred import FredSeriesObservations
+from app.services.source_clients.gdelt import GdeltArticle
 from app.services.source_clients.kalshi import KalshiMarket
 from app.services.source_clients.polygon import PolygonAggregatesResponse
 from app.services.source_clients.polymarket import PolymarketEvent
+from app.services.source_clients.polymarket_data import PolymarketPriceHistory
 from app.services.source_clients.sec_edgar import (
     SecCompanyTickersResponse,
     SecSubmissionsResponse,
@@ -290,32 +294,162 @@ def chunk_tiingo_news_items(items: list[TiingoNewsItem]) -> list[ChunkDraft]:
     return drafts
 
 
-def chunk_ainvest_congress_transactions(
-    *,
-    ticker: str,
-    payload: AinvestCongressResponse,
+def chunk_polymarket_price_history(
+    payload: PolymarketPriceHistory,
 ) -> list[ChunkDraft]:
     drafts: list[ChunkDraft] = []
-    for index, txn in enumerate(payload.data.data):
+    for index, point in enumerate(payload.history):
         text = (
-            f"Ainvest congress transaction ticker={ticker} "
-            f"name={txn.name} party={txn.party} state={txn.state} "
-            f"trade_date={txn.trade_date.isoformat()} "
-            f"filing_date={txn.filing_date.isoformat()} "
-            f"reporting_gap={txn.reporting_gap} "
-            f"trade_type={txn.trade_type} size={txn.size}"
+            f"Polymarket price market={payload.market} "
+            f"interval={payload.interval} timestamp_s={point.timestamp_s} "
+            f"probability={point.probability} volume_usd={point.volume_usd}"
         )
         attributes: dict[str, Any] = {
-            "source": "ainvest_congress",
-            "ticker": ticker,
-            "name": txn.name,
-            "party": txn.party,
-            "state": txn.state,
-            "trade_date": txn.trade_date.isoformat(),
-            "filing_date": txn.filing_date.isoformat(),
-            "reporting_gap": txn.reporting_gap,
-            "trade_type": txn.trade_type,
-            "size": txn.size,
+            "source": "polymarket_data",
+            "market": payload.market,
+            "interval": payload.interval,
+            "timestamp_s": point.timestamp_s,
+            "probability": point.probability,
+            "volume_usd": point.volume_usd,
+        }
+        drafts.append(
+            ChunkDraft(
+                chunk_index=index,
+                text=text,
+                start_offset=None,
+                end_offset=None,
+                attributes=attributes,
+                content_hash=_hash_text(text),
+            )
+        )
+    return drafts
+
+
+def chunk_finnhub_news(items: list[FinnhubNewsItem]) -> list[ChunkDraft]:
+    drafts: list[ChunkDraft] = []
+    for index, item in enumerate(items):
+        related_text = item.related if item.related else "none"
+        summary_text = item.summary if item.summary else "(no summary)"
+        text = (
+            f"FinnHub news id={item.id} headline={item.headline} "
+            f"source={item.source} published={item.published_at.isoformat()} "
+            f"tickers={related_text} summary={summary_text}"
+        )
+        attributes: dict[str, Any] = {
+            "source": "finnhub_news",
+            "news_id": item.id,
+            "headline": item.headline,
+            "category": item.category,
+            "outlet": item.source,
+            "published_at": item.published_at.isoformat(),
+            "url": item.url,
+            "related": item.related,
+            "summary": item.summary,
+        }
+        drafts.append(
+            ChunkDraft(
+                chunk_index=index,
+                text=text,
+                start_offset=None,
+                end_offset=None,
+                attributes=attributes,
+                content_hash=_hash_text(text),
+            )
+        )
+    return drafts
+
+
+def chunk_cme_fedwatch(meeting: FedWatchMeeting) -> list[ChunkDraft]:
+    drafts: list[ChunkDraft] = []
+    for index, prob in enumerate(meeting.probabilities):
+        text = (
+            f"CME FedWatch meeting_date={meeting.meeting_date.isoformat()} "
+            f"as_of={meeting.as_of.isoformat()} "
+            f"current_target_low_bps={meeting.current_target_low_bps} "
+            f"current_target_high_bps={meeting.current_target_high_bps} "
+            f"target_low_bps={prob.target_low_bps} "
+            f"target_high_bps={prob.target_high_bps} "
+            f"probability={prob.probability}"
+        )
+        attributes: dict[str, Any] = {
+            "source": "cme_fedwatch",
+            "meeting_date": meeting.meeting_date.isoformat(),
+            "as_of": meeting.as_of.isoformat(),
+            "current_target_low_bps": meeting.current_target_low_bps,
+            "current_target_high_bps": meeting.current_target_high_bps,
+            "target_low_bps": prob.target_low_bps,
+            "target_high_bps": prob.target_high_bps,
+            "probability": prob.probability,
+        }
+        drafts.append(
+            ChunkDraft(
+                chunk_index=index,
+                text=text,
+                start_offset=None,
+                end_offset=None,
+                attributes=attributes,
+                content_hash=_hash_text(text),
+            )
+        )
+    return drafts
+
+
+def chunk_fed_press(items: list[FedPressItem]) -> list[ChunkDraft]:
+    drafts: list[ChunkDraft] = []
+    for index, item in enumerate(items):
+        summary_text = item.summary if item.summary else "(no summary)"
+        speaker_text = item.speaker if item.speaker else "n/a"
+        venue_text = item.venue if item.venue else "n/a"
+        text = (
+            f"Fed press id={item.id} kind={item.kind} title={item.title} "
+            f"published={item.published_at.isoformat()} "
+            f"speaker={speaker_text} venue={venue_text} "
+            f"summary={summary_text}"
+        )
+        attributes: dict[str, Any] = {
+            "source": "fed_press",
+            "press_id": item.id,
+            "kind": item.kind,
+            "title": item.title,
+            "published_at": item.published_at.isoformat(),
+            "url": item.url,
+            "summary": item.summary,
+            "speaker": item.speaker,
+            "venue": item.venue,
+        }
+        drafts.append(
+            ChunkDraft(
+                chunk_index=index,
+                text=text,
+                start_offset=None,
+                end_offset=None,
+                attributes=attributes,
+                content_hash=_hash_text(text),
+            )
+        )
+    return drafts
+
+
+def chunk_gdelt_articles(articles: list[GdeltArticle]) -> list[ChunkDraft]:
+    drafts: list[ChunkDraft] = []
+    for index, article in enumerate(articles):
+        themes_text = ",".join(article.themes) if article.themes else "none"
+        text = (
+            f"GDELT article url={article.url} title={article.title} "
+            f"domain={article.domain} sourcecountry={article.sourcecountry} "
+            f"seendate={article.seendate.isoformat()} "
+            f"tone={article.tone} themes={themes_text}"
+        )
+        attributes: dict[str, Any] = {
+            "source": "gdelt",
+            "url": article.url,
+            "title": article.title,
+            "domain": article.domain,
+            "language": article.language,
+            "sourcecountry": article.sourcecountry,
+            "seendate": article.seendate.isoformat(),
+            "tone": article.tone,
+            "themes": list(article.themes),
         }
         drafts.append(
             ChunkDraft(
@@ -332,12 +466,16 @@ def chunk_ainvest_congress_transactions(
 
 __all__ = [
     "ChunkDraft",
-    "chunk_ainvest_congress_transactions",
+    "chunk_cme_fedwatch",
     "chunk_congress_bills",
+    "chunk_fed_press",
+    "chunk_finnhub_news",
     "chunk_fred_observations",
+    "chunk_gdelt_articles",
     "chunk_kalshi_markets",
     "chunk_polygon_aggregates",
     "chunk_polymarket_events",
+    "chunk_polymarket_price_history",
     "chunk_sec_submissions",
     "chunk_sec_tickers",
     "chunk_tiingo_news_items",

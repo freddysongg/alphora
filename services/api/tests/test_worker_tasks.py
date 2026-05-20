@@ -34,7 +34,13 @@ def test_execute_research_run_invokes_orchestrator_with_uuid(
     async def fake_load_strategy(_run_id: Any) -> str:
         return Strategy.tradingagents.value
 
+    async def fake_bootstrap() -> None:
+        return None
+
     monkeypatch.setattr(worker_tasks, "_load_strategy", fake_load_strategy)
+    monkeypatch.setattr(
+        worker_tasks, "_bootstrap_data_sources_for_run", fake_bootstrap
+    )
 
     run_id = uuid4()
     worker_tasks.execute_research_run(run_id.hex)
