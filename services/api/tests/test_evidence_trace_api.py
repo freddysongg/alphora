@@ -1,10 +1,13 @@
 import uuid
+from datetime import date
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models_graph import DataSource, Evidence, EvidenceChunk
+from app.db.models_macro import MacroBrief as MacroBriefRow
+from app.db.models_runs import ResearchRun, RunStatus, Strategy
 
 
 @pytest.fixture()
@@ -223,3 +226,78 @@ async def test_get_evidence_trace_by_evidence_id_returns_404_for_unknown(
         f"/api/research/evidence/by-evidence/{uuid.uuid4()}"
     )
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_evidence_trace_by_evidence_id_prefers_most_cited_chunk(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """When a chunk for the evidence appears in cited_claims across briefs,
+    the by-evidence endpoint should resolve to that chunk rather than the
+    lowest chunk_index. The first-chunk fallback only applies when no
+    citations reference any chunk of the evidence.
+    """
+    evidence = await _seed_evidence(db_session, source_id=None)
+    chunks = []
+    for index in range(3):
+        chunk = await _seed_chunk(
+            db_session,
+            evidence_id=evidence.id,
+            chunk_index=index,
+            text=f"chunk {index} body",
+            content_hash=f"{index:064d}",
+        )
+        chunks.append(chunk)
+    cited_chunk = chunks[2]
+
+    run = ResearchRun(
+        id=uuid.uuid4(),
+        ticker=None,
+        trade_date=date(2026, 5, 18),
+        strategy=Strategy.funnel_research.value,
+        status=RunStatus.succeeded,
+        config={},
+        scope_payload={"kind": "macro", "universe": "us_equities"},
+    )
+    db_session.add(run)
+    await db_session.flush()
+
+    macro = MacroBriefRow(
+        run_id=run.id,
+        themes=[],
+        sector_calls=[],
+        watch_items=[],
+        cited_claims=[
+            {
+                "claim_text": "claim a",
+                "exact_quote": "quote a",
+                "chunk_id": str(cited_chunk.id),
+                "source": "edgar",
+            },
+            {
+                "claim_text": "claim b",
+                "exact_quote": "quote b",
+                "chunk_id": str(cited_chunk.id),
+                "source": "edgar",
+            },
+        ],
+        proposed_hypotheses=[],
+        confidence=0.7,
+        verifier_status="verified",
+        regeneration_count=0,
+        evidence_ids=[],
+        judge_status="passed",
+        judge_reasons=None,
+        judge_call_id=None,
+    )
+    db_session.add(macro)
+    await db_session.commit()
+
+    response = await async_client.get(
+        f"/api/research/evidence/by-evidence/{evidence.id}"
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["chunk"]["id"] == str(cited_chunk.id)
+    assert body["chunk"]["chunk_index"] == 2
+    assert body["chunk"]["text"] == "chunk 2 body"

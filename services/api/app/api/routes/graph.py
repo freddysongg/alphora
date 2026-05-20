@@ -1,11 +1,16 @@
 import uuid
+from collections import Counter
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 
 from app.api.deps import SessionDep
+from app.db.models_company import CompanyThesis as CompanyThesisRow
 from app.db.models_graph import DataSource, Evidence, EvidenceChunk
+from app.db.models_macro import MacroBrief as MacroBriefRow
+from app.db.models_sector import SectorBrief as SectorBriefRow
 from app.schemas.graph import (
     DataSourcePublic,
     EvidenceChunkPublic,
@@ -33,26 +38,101 @@ async def get_evidence_trace_by_evidence(
 
     Brief schemas store `Evidence.id` values in their `evidence_ids` arrays
     (themes, sector calls, watch items, hypotheses). Those ids are not chunk
-    ids, so the chunk-id endpoint cannot resolve them. This endpoint picks the
-    first chunk (lowest `chunk_index`) for the given evidence and returns the
-    same `EvidenceTracePublic` payload the chunk-id endpoint returns.
+    ids, so the chunk-id endpoint cannot resolve them. This endpoint resolves
+    them to the chunk most frequently referenced in cited_claims across all
+    macro / sector / company briefs, falling back to the lowest `chunk_index`
+    when no citation references any chunk of the evidence.
     """
-    selected = (
-        await session.execute(
-            select(EvidenceChunk)
-            .where(EvidenceChunk.evidence_id == evidence_id)
-            .order_by(EvidenceChunk.chunk_index)
-            .limit(1)
+    chunks = (
+        (
+            await session.execute(
+                select(EvidenceChunk)
+                .where(EvidenceChunk.evidence_id == evidence_id)
+                .order_by(EvidenceChunk.chunk_index)
+            )
         )
-    ).scalar_one_or_none()
-    if selected is None:
+        .scalars()
+        .all()
+    )
+    if not chunks:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="evidence not found",
         )
+    selected = await _pick_most_cited_chunk(session=session, chunks=chunks)
     return await _build_trace_for_chunk(
         session=session, selected=selected, context_radius=context_radius
     )
+
+
+async def _pick_most_cited_chunk(
+    *,
+    session: SessionDep,
+    chunks: Sequence[EvidenceChunk],
+) -> EvidenceChunk:
+    chunk_id_to_chunk = {chunk.id: chunk for chunk in chunks}
+    citation_counts: Counter[uuid.UUID] = Counter()
+
+    macro_cited = (
+        (await session.execute(select(MacroBriefRow.cited_claims))).scalars().all()
+    )
+    for claims in macro_cited:
+        _accumulate_chunk_citations(claims, chunk_id_to_chunk, citation_counts)
+
+    sector_payloads = (
+        (await session.execute(select(SectorBriefRow.payload))).scalars().all()
+    )
+    for payload in sector_payloads:
+        _accumulate_chunk_citations(
+            _extract_cited_claims(payload), chunk_id_to_chunk, citation_counts
+        )
+
+    company_payloads = (
+        (await session.execute(select(CompanyThesisRow.payload))).scalars().all()
+    )
+    for payload in company_payloads:
+        _accumulate_chunk_citations(
+            _extract_cited_claims(payload), chunk_id_to_chunk, citation_counts
+        )
+
+    if not citation_counts:
+        return chunks[0]
+
+    best_chunk_id, _ = max(
+        citation_counts.items(),
+        key=lambda entry: (entry[1], -chunk_id_to_chunk[entry[0]].chunk_index),
+    )
+    return chunk_id_to_chunk[best_chunk_id]
+
+
+def _extract_cited_claims(payload: object) -> list[object]:
+    if not isinstance(payload, dict):
+        return []
+    claims = payload.get("cited_claims")
+    if not isinstance(claims, list):
+        return []
+    return claims
+
+
+def _accumulate_chunk_citations(
+    claims: object,
+    chunk_id_to_chunk: dict[uuid.UUID, EvidenceChunk],
+    counts: Counter[uuid.UUID],
+) -> None:
+    if not isinstance(claims, list):
+        return
+    for claim in claims:
+        if not isinstance(claim, dict):
+            continue
+        raw_chunk_id = claim.get("chunk_id")
+        if not isinstance(raw_chunk_id, str):
+            continue
+        try:
+            chunk_id = uuid.UUID(raw_chunk_id)
+        except ValueError:
+            continue
+        if chunk_id in chunk_id_to_chunk:
+            counts[chunk_id] += 1
 
 
 @router.get("/evidence/{chunk_id}", response_model=EvidenceTracePublic)
