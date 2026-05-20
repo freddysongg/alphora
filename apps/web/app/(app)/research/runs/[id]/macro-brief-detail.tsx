@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui";
 import { SectorBriefCard } from "@/components/research/sector-brief-card";
+import { useEvidenceDisclosure } from "@/components/research/evidence-disclosure";
 import type { components } from "@/lib/api";
 import { cn } from "@/lib/cn";
 
@@ -261,13 +262,10 @@ interface ThemeRowProps {
 
 function ThemeRow(props: ThemeRowProps): ReactElement {
   const { theme } = props;
-  const [isOpen, setIsOpen] = useState<boolean>(false);
-  const evidenceCount = theme.evidence_ids.length;
-  const hasEvidence = evidenceCount > 0;
-
-  const handleToggle = (): void => {
-    setIsOpen((previous) => !previous);
-  };
+  const { button, list } = useEvidenceDisclosure(
+    theme.evidence_ids,
+    "macro-theme",
+  );
 
   return (
     <li
@@ -277,36 +275,13 @@ function ThemeRow(props: ThemeRowProps): ReactElement {
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <span className="text-fg">{theme.name}</span>
-          {hasEvidence ? (
-            <button
-              type="button"
-              onClick={handleToggle}
-              aria-expanded={isOpen}
-              className="font-mono text-[11px] tracking-[0.14em] font-medium uppercase text-fg-subtle hover:text-accent-text transition-colors duration-150"
-            >
-              Evidence {evidenceCount}
-            </button>
-          ) : null}
+          {button}
         </div>
         <span className="font-mono tabular-nums text-fg-muted text-sm">
           {theme.confidence.toFixed(2)}
         </span>
       </div>
-      {isOpen && hasEvidence ? (
-        <ul className="mt-2 flex flex-col gap-1 text-xs">
-          {theme.evidence_ids.map((evidenceId) => (
-            <li key={evidenceId} className="font-mono">
-              <Link
-                href={`/research/evidence/by-evidence/${evidenceId}` as Route}
-                className="text-accent-text hover:underline"
-                data-testid="macro-theme-evidence-link"
-              >
-                {evidenceId}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      {list}
     </li>
   );
 }
@@ -317,13 +292,10 @@ interface WatchItemRowProps {
 
 function WatchItemRow(props: WatchItemRowProps): ReactElement {
   const { item } = props;
-  const [isOpen, setIsOpen] = useState<boolean>(false);
-  const evidenceCount = item.evidence_ids.length;
-  const hasEvidence = evidenceCount > 0;
-
-  const handleToggle = (): void => {
-    setIsOpen((previous) => !previous);
-  };
+  const { hasEvidence, button, list } = useEvidenceDisclosure(
+    item.evidence_ids,
+    "macro-watch-item",
+  );
 
   return (
     <li
@@ -334,29 +306,8 @@ function WatchItemRow(props: WatchItemRowProps): ReactElement {
       <p className="mt-1 text-sm text-fg-muted leading-relaxed">{item.reason}</p>
       {hasEvidence ? (
         <div className="mt-2">
-          <button
-            type="button"
-            onClick={handleToggle}
-            aria-expanded={isOpen}
-            className="font-mono text-[11px] tracking-[0.14em] font-medium uppercase text-fg-subtle hover:text-accent-text transition-colors duration-150"
-          >
-            Evidence {evidenceCount}
-          </button>
-          {isOpen ? (
-            <ul className="mt-2 flex flex-col gap-1 text-xs">
-              {item.evidence_ids.map((evidenceId) => (
-                <li key={evidenceId} className="font-mono">
-                  <Link
-                    href={`/research/evidence/by-evidence/${evidenceId}` as Route}
-                    className="text-accent-text hover:underline"
-                    data-testid="macro-watch-item-evidence-link"
-                  >
-                    {evidenceId}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : null}
+          {button}
+          {list}
         </div>
       ) : null}
     </li>
@@ -369,13 +320,10 @@ interface HypothesisRowProps {
 
 function HypothesisRow(props: HypothesisRowProps): ReactElement {
   const { hypothesis } = props;
-  const [isOpen, setIsOpen] = useState<boolean>(false);
-  const evidenceCount = hypothesis.evidence_ids.length;
-  const hasEvidence = evidenceCount > 0;
-
-  const handleToggle = (): void => {
-    setIsOpen((previous) => !previous);
-  };
+  const { hasEvidence, button, list } = useEvidenceDisclosure(
+    hypothesis.evidence_ids,
+    "macro-hypothesis",
+  );
 
   return (
     <li
@@ -385,29 +333,8 @@ function HypothesisRow(props: HypothesisRowProps): ReactElement {
       <p>{hypothesis.claim_text}</p>
       {hasEvidence ? (
         <div className="mt-2">
-          <button
-            type="button"
-            onClick={handleToggle}
-            aria-expanded={isOpen}
-            className="font-mono text-[11px] tracking-[0.14em] font-medium uppercase text-fg-subtle hover:text-accent-text transition-colors duration-150"
-          >
-            Evidence {evidenceCount}
-          </button>
-          {isOpen ? (
-            <ul className="mt-2 flex flex-col gap-1 text-xs">
-              {hypothesis.evidence_ids.map((evidenceId) => (
-                <li key={evidenceId} className="font-mono">
-                  <Link
-                    href={`/research/evidence/by-evidence/${evidenceId}` as Route}
-                    className="text-accent-text hover:underline"
-                    data-testid="macro-hypothesis-evidence-link"
-                  >
-                    {evidenceId}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : null}
+          {button}
+          {list}
         </div>
       ) : null}
     </li>

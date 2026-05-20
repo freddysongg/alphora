@@ -6,6 +6,7 @@ import type { Route } from "next";
 import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle, CapsLabel } from "@/components/ui";
+import { useEvidenceDisclosure } from "@/components/research/evidence-disclosure";
 import type { components } from "@/lib/api";
 
 type SectorBriefPublic = components["schemas"]["SectorBriefPublic"];
@@ -116,13 +117,10 @@ interface SectorThemeRowProps {
 
 function SectorThemeRow(props: SectorThemeRowProps): ReactElement {
   const { theme } = props;
-  const [isOpen, setIsOpen] = useState<boolean>(false);
-  const evidenceCount = theme.evidence_ids.length;
-  const hasEvidence = evidenceCount > 0;
-
-  const handleToggle = (): void => {
-    setIsOpen((previous) => !previous);
-  };
+  const { button, list } = useEvidenceDisclosure(
+    theme.evidence_ids,
+    "sector-theme",
+  );
 
   return (
     <li
@@ -132,36 +130,13 @@ function SectorThemeRow(props: SectorThemeRowProps): ReactElement {
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <span className="text-fg text-sm">{theme.name}</span>
-          {hasEvidence ? (
-            <button
-              type="button"
-              onClick={handleToggle}
-              aria-expanded={isOpen}
-              className="font-mono text-[11px] tracking-[0.14em] font-medium uppercase text-fg-subtle hover:text-accent-text transition-colors duration-150"
-            >
-              Evidence {evidenceCount}
-            </button>
-          ) : null}
+          {button}
         </div>
         <span className="font-mono tabular-nums text-fg-muted text-sm">
           {theme.confidence.toFixed(2)}
         </span>
       </div>
-      {isOpen && hasEvidence ? (
-        <ul className="mt-2 flex flex-col gap-1 text-xs">
-          {theme.evidence_ids.map((evidenceId) => (
-            <li key={evidenceId} className="font-mono">
-              <Link
-                href={`/research/evidence/by-evidence/${evidenceId}` as Route}
-                className="text-accent-text hover:underline"
-                data-testid="sector-theme-evidence-link"
-              >
-                {evidenceId}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      {list}
     </li>
   );
 }
@@ -172,13 +147,10 @@ interface SectorWatchItemRowProps {
 
 function SectorWatchItemRow(props: SectorWatchItemRowProps): ReactElement {
   const { item } = props;
-  const [isOpen, setIsOpen] = useState<boolean>(false);
-  const evidenceCount = item.evidence_ids.length;
-  const hasEvidence = evidenceCount > 0;
-
-  const handleToggle = (): void => {
-    setIsOpen((previous) => !previous);
-  };
+  const { hasEvidence, button, list } = useEvidenceDisclosure(
+    item.evidence_ids,
+    "sector-watch-item",
+  );
 
   return (
     <li
@@ -189,29 +161,8 @@ function SectorWatchItemRow(props: SectorWatchItemRowProps): ReactElement {
       <p className="mt-1 text-sm text-fg-muted leading-relaxed">{item.reason}</p>
       {hasEvidence ? (
         <div className="mt-2">
-          <button
-            type="button"
-            onClick={handleToggle}
-            aria-expanded={isOpen}
-            className="font-mono text-[11px] tracking-[0.14em] font-medium uppercase text-fg-subtle hover:text-accent-text transition-colors duration-150"
-          >
-            Evidence {evidenceCount}
-          </button>
-          {isOpen ? (
-            <ul className="mt-2 flex flex-col gap-1 text-xs">
-              {item.evidence_ids.map((evidenceId) => (
-                <li key={evidenceId} className="font-mono">
-                  <Link
-                    href={`/research/evidence/by-evidence/${evidenceId}` as Route}
-                    className="text-accent-text hover:underline"
-                    data-testid="sector-watch-item-evidence-link"
-                  >
-                    {evidenceId}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : null}
+          {button}
+          {list}
         </div>
       ) : null}
     </li>
@@ -224,13 +175,10 @@ interface SectorCompanyRowProps {
 
 function SectorCompanyRow(props: SectorCompanyRowProps): ReactElement {
   const { company } = props;
-  const [isOpen, setIsOpen] = useState<boolean>(false);
-  const evidenceCount = company.evidence_ids.length;
-  const hasEvidence = evidenceCount > 0;
-
-  const handleToggle = (): void => {
-    setIsOpen((previous) => !previous);
-  };
+  const { button, list } = useEvidenceDisclosure(
+    company.evidence_ids,
+    "sector-company",
+  );
 
   return (
     <li
@@ -240,34 +188,11 @@ function SectorCompanyRow(props: SectorCompanyRowProps): ReactElement {
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <span className="text-fg">{company.name}</span>
-          {hasEvidence ? (
-            <button
-              type="button"
-              onClick={handleToggle}
-              aria-expanded={isOpen}
-              className="font-mono text-[11px] tracking-[0.14em] font-medium uppercase text-fg-subtle hover:text-accent-text transition-colors duration-150"
-            >
-              Evidence {evidenceCount}
-            </button>
-          ) : null}
+          {button}
         </div>
         <span className="text-fg-subtle">{company.ticker ?? "—"}</span>
       </div>
-      {isOpen && hasEvidence ? (
-        <ul className="mt-2 flex flex-col gap-1 text-xs">
-          {company.evidence_ids.map((evidenceId) => (
-            <li key={evidenceId} className="font-mono">
-              <Link
-                href={`/research/evidence/by-evidence/${evidenceId}` as Route}
-                className="text-accent-text hover:underline"
-                data-testid="sector-company-evidence-link"
-              >
-                {evidenceId}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      {list}
     </li>
   );
 }
