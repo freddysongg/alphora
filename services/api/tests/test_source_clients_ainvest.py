@@ -154,8 +154,12 @@ async def test_fetch_ainvest_congress_transactions_401_does_not_retry() -> None:
     assert route.call_count == 1
 
 
-def test_ainvest_module_exposes_singleton_rate_limiter() -> None:
+def test_ainvest_module_exposes_lazy_rate_limiter() -> None:
     from app.services.source_clients import ainvest
-    from app.services.source_clients._rate_limit import RateLimiter
+    from app.services.source_clients._rate_limit import LocalTokenBucket
+    from app.services.source_clients._registry import reset_registry
 
-    assert isinstance(ainvest._RATE_LIMITER, RateLimiter)
+    reset_registry()
+    limiter = ainvest._rate_limiter()
+    assert isinstance(limiter, LocalTokenBucket)
+    assert ainvest._rate_limiter() is limiter

@@ -123,3 +123,96 @@ def test_budget_thresholds_is_immutable() -> None:
     t = BudgetThresholds()
     with pytest.raises(ValidationError):
         t.soft_run_usd = Decimal("999")
+
+
+def test_evaluate_per_stage_cap_triggers_pause_under_run_thresholds() -> None:
+    thresholds = BudgetThresholds(
+        soft_run_usd=Decimal("5.00"),
+        hard_run_usd=Decimal("20.00"),
+        catastrophic_run_usd=Decimal("100.00"),
+        daily_usd=Decimal("500.00"),
+        per_stage_usd={"sector_synthesis": Decimal("1.00")},
+    )
+    guard = BudgetGuard(thresholds)
+    decision = guard.evaluate(
+        run_cost_usd=Decimal("2.00"),
+        daily_cost_usd=Decimal("2.00"),
+        stage="sector_synthesis",
+        stage_cost_usd=Decimal("1.00"),
+    )
+    assert decision.action is BudgetAction.pause
+    assert decision.threshold_crossed is BudgetThresholdName.per_stage
+    assert decision.reason is not None
+    assert "sector_synthesis" in decision.reason
+
+
+def test_evaluate_per_stage_cap_no_op_below_cap() -> None:
+    thresholds = BudgetThresholds(
+        per_stage_usd={"macro_synthesis": Decimal("5.00")},
+    )
+    guard = BudgetGuard(thresholds)
+    decision = guard.evaluate(
+        run_cost_usd=Decimal("0.50"),
+        daily_cost_usd=Decimal("0.50"),
+        stage="macro_synthesis",
+        stage_cost_usd=Decimal("4.99"),
+    )
+    assert decision.action is BudgetAction.allow
+    assert decision.threshold_crossed is None
+
+
+def test_evaluate_per_stage_cap_ignored_when_stage_unknown_to_caps() -> None:
+    thresholds = BudgetThresholds(
+        per_stage_usd={"some_other_stage": Decimal("0.01")},
+    )
+    guard = BudgetGuard(thresholds)
+    decision = guard.evaluate(
+        run_cost_usd=Decimal("0.5"),
+        daily_cost_usd=Decimal("0.5"),
+        stage="unknown_stage",
+        stage_cost_usd=Decimal("100.00"),
+    )
+    assert decision.action is BudgetAction.allow
+
+
+def test_evaluate_per_stage_cap_ignored_when_no_stage_passed() -> None:
+    thresholds = BudgetThresholds(
+        per_stage_usd={"sector_synthesis": Decimal("0.01")},
+    )
+    guard = BudgetGuard(thresholds)
+    decision = guard.evaluate(
+        run_cost_usd=Decimal("1.0"),
+        daily_cost_usd=Decimal("1.0"),
+    )
+    assert decision.action is BudgetAction.allow
+
+
+def test_evaluate_daily_kill_beats_per_stage_pause() -> None:
+    """Daily kill must outrank the per-stage pause."""
+    thresholds = BudgetThresholds(
+        per_stage_usd={"x": Decimal("0.01")},
+    )
+    guard = BudgetGuard(thresholds)
+    decision = guard.evaluate(
+        run_cost_usd=Decimal("1.0"),
+        daily_cost_usd=Decimal("500.00"),
+        stage="x",
+        stage_cost_usd=Decimal("1.00"),
+    )
+    assert decision.action is BudgetAction.kill
+    assert decision.threshold_crossed is BudgetThresholdName.daily
+
+
+def test_evaluate_catastrophic_kill_beats_per_stage_pause() -> None:
+    thresholds = BudgetThresholds(
+        per_stage_usd={"x": Decimal("0.01")},
+    )
+    guard = BudgetGuard(thresholds)
+    decision = guard.evaluate(
+        run_cost_usd=Decimal("100.00"),
+        daily_cost_usd=Decimal("100.00"),
+        stage="x",
+        stage_cost_usd=Decimal("1.00"),
+    )
+    assert decision.action is BudgetAction.kill
+    assert decision.threshold_crossed is BudgetThresholdName.catastrophic_run

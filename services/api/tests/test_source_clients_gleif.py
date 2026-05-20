@@ -126,8 +126,12 @@ async def test_fetch_gleif_by_lei_404_does_not_retry() -> None:
     assert route.call_count == 1
 
 
-def test_gleif_module_exposes_singleton_rate_limiter() -> None:
+def test_gleif_module_exposes_lazy_rate_limiter() -> None:
     from app.services.source_clients import gleif
-    from app.services.source_clients._rate_limit import RateLimiter
+    from app.services.source_clients._rate_limit import LocalTokenBucket
+    from app.services.source_clients._registry import reset_registry
 
-    assert isinstance(gleif._RATE_LIMITER, RateLimiter)
+    reset_registry()
+    limiter = gleif._rate_limiter()
+    assert isinstance(limiter, LocalTokenBucket)
+    assert gleif._rate_limiter() is limiter

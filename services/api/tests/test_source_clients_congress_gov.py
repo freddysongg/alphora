@@ -140,8 +140,12 @@ async def test_fetch_congress_members_raises_without_key(
     assert exc_info.value.setting_name == "congress_api_key"
 
 
-def test_congress_module_exposes_singleton_rate_limiter() -> None:
+def test_congress_module_exposes_lazy_rate_limiter() -> None:
     from app.services.source_clients import congress_gov
-    from app.services.source_clients._rate_limit import RateLimiter
+    from app.services.source_clients._rate_limit import LocalTokenBucket
+    from app.services.source_clients._registry import reset_registry
 
-    assert isinstance(congress_gov._RATE_LIMITER, RateLimiter)
+    reset_registry()
+    limiter = congress_gov._rate_limiter()
+    assert isinstance(limiter, LocalTokenBucket)
+    assert congress_gov._rate_limiter() is limiter

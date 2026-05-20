@@ -3,6 +3,7 @@ from uuid import UUID
 
 import httpx
 from openai import AsyncOpenAI
+from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy import select
 
 from app.config import get_settings
@@ -11,6 +12,11 @@ from app.db.session import session_factory
 from app.services.hypothesis import OpenAiEmbedder
 from app.services.llm.client import LlmClient
 from app.services.run_orchestrator import RunOrchestrator
+from app.services.source_clients._registry import (
+    configure_redis,
+    install_request_cache,
+)
+from app.services.source_clients._request_cache import RequestCache
 from app.services.strategies.funnel_research import (
     FunnelResearchError,
     run_macro_brief,
@@ -28,8 +34,13 @@ def execute_research_run(run_id_hex: str) -> None:
     Dispatches on the run's strategy. Any dispatch-time failure (missing
     API key, unknown strategy) is routed through `orchestrator.fail` so the
     run row reaches `failed` instead of stranding at `queued`.
+
+    Installs a worker-time async Redis client into the source-client rate
+    limiter registry on first dispatch so the per-source token buckets
+    coordinate across processes.
     """
     run_id = UUID(run_id_hex)
+    _install_async_redis_limiter()
     asyncio.run(_dispatch(run_id))
 
 
@@ -38,6 +49,36 @@ def _build_openai_client() -> AsyncOpenAI:
     if not settings.openai_api_key:
         raise RuntimeError("openai_api_key is not configured")
     return AsyncOpenAI(api_key=settings.openai_api_key)
+
+
+def _install_async_redis_limiter() -> None:
+    """Install the async Redis client + request cache into the registry.
+
+    Worker boots once per task, so this runs each dispatch; the install
+    is short-circuited once configured so the limiter cache does not
+    thrash between dispatches. The worker process holds a single async
+    Redis client and a single shared 5-minute request cache over its
+    lifetime.
+    """
+    global _LIMITER_CONFIGURED
+    if _LIMITER_CONFIGURED:
+        return
+    configure_redis(_get_worker_redis())
+    install_request_cache(RequestCache(ttl_seconds=300.0))
+    _LIMITER_CONFIGURED = True
+
+
+def _get_worker_redis() -> AsyncRedis:
+    global _CACHED_WORKER_REDIS
+    if _CACHED_WORKER_REDIS is None:
+        _CACHED_WORKER_REDIS = AsyncRedis.from_url(
+            get_settings().redis_url, decode_responses=False
+        )
+    return _CACHED_WORKER_REDIS
+
+
+_CACHED_WORKER_REDIS: AsyncRedis | None = None
+_LIMITER_CONFIGURED: bool = False
 
 
 async def _dispatch(run_id: UUID) -> None:

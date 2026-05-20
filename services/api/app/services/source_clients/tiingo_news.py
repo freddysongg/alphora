@@ -10,11 +10,14 @@ from app.services.source_clients._http import (
     SourceClientConfigError,
     request,
 )
-from app.services.source_clients._rate_limit import RateLimiter
+from app.services.source_clients._rate_limit import RateLimiterProtocol
+from app.services.source_clients._registry import get_rate_limiter
 
 _TIINGO_NEWS_URL = "https://api.tiingo.com/tiingo/news"
 
-_RATE_LIMITER = RateLimiter(rate_per_second=1.0, burst=3)
+
+def _rate_limiter() -> RateLimiterProtocol:
+    return get_rate_limiter(name="tiingo_news", rate_per_second=1.0, burst=3)
 
 
 class TiingoNewsItem(BaseModel):
@@ -56,7 +59,7 @@ async def fetch_tiingo_news(
             headers=headers,
             params=params,
         ),
-        rate_limiter=_RATE_LIMITER,
+        rate_limiter=_rate_limiter(),
     )
 
     payload = json.loads(response.body_bytes)

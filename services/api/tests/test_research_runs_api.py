@@ -574,3 +574,77 @@ async def test_list_llm_calls_returns_call_fields_correctly(
     assert row["evidence_ids"] == ["e1", "e2"]
     assert row["error_message"] is None
     assert "created_at" in row
+
+
+def test_get_cost_estimate_returns_zeros_when_no_history(
+    initialized_schema: None, fake_queue: Any
+) -> None:
+    _ = initialized_schema
+    _ = fake_queue
+    with TestClient(app) as client:
+        response = client.get(
+            "/api/research-runs/cost-estimate",
+            params={"strategy": "funnel_research"},
+        )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["strategy"] == "funnel_research"
+    assert body["sample_run_count"] == 0
+    assert Decimal(body["estimated_total_usd"]) == Decimal("0.000000")
+    stage_names = {row["stage"] for row in body["stages"]}
+    assert "macro_synthesis" in stage_names
+
+
+def test_get_cost_estimate_aggregates_historical_calls(
+    initialized_schema: None, fake_queue: Any
+) -> None:
+    _ = initialized_schema
+    _ = fake_queue
+    import asyncio
+
+    async def seed() -> None:
+        async with session_factory() as session:
+            run = ResearchRun(
+                ticker=None,
+                trade_date=date(2026, 5, 16),
+                strategy="funnel_research",
+                status=RunStatus.succeeded,
+                config={},
+                scope_payload={},
+            )
+            session.add(run)
+            await session.commit()
+            run_id = run.id
+        async with session_factory() as session:
+            session.add(
+                LlmCallLog(
+                    run_id=run_id,
+                    model="gpt-5-mini",
+                    prompt_hash="a" * 64,
+                    input_hash="b" * 64,
+                    input_tokens=1000,
+                    output_tokens=200,
+                    cached_input_tokens=100,
+                    reasoning_tokens=0,
+                    cost_usd=Decimal("0.1500"),
+                    latency_ms=12,
+                    status=LlmCallStatus.success,
+                    stage="macro_synthesis",
+                    agent_name="synthesis",
+                    call_index=0,
+                )
+            )
+            await session.commit()
+
+    asyncio.run(seed())
+    with TestClient(app) as client:
+        response = client.get(
+            "/api/research-runs/cost-estimate",
+            params={"strategy": "funnel_research"},
+        )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["sample_run_count"] == 1
+    macro = next(row for row in body["stages"] if row["stage"] == "macro_synthesis")
+    assert macro["sample_size"] == 1
+    assert Decimal(macro["mean_cost_usd"]) == Decimal("0.150000")

@@ -144,8 +144,12 @@ async def test_fetch_polygon_aggregates_parses_bars() -> None:
     assert len(content_hash) == 64
 
 
-def test_polygon_module_exposes_singleton_rate_limiter() -> None:
+def test_polygon_module_exposes_lazy_rate_limiter() -> None:
     from app.services.source_clients import polygon
-    from app.services.source_clients._rate_limit import RateLimiter
+    from app.services.source_clients._rate_limit import LocalTokenBucket
+    from app.services.source_clients._registry import reset_registry
 
-    assert isinstance(polygon._RATE_LIMITER, RateLimiter)
+    reset_registry()
+    limiter = polygon._rate_limiter()
+    assert isinstance(limiter, LocalTokenBucket)
+    assert polygon._rate_limiter() is limiter

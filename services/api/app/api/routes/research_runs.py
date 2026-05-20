@@ -19,6 +19,7 @@ from app.db.models_runs import (
 )
 from app.db.session import session_factory
 from app.schemas.common import StrategyEnum
+from app.schemas.cost_estimate import RunCostEstimate
 from app.schemas.llm import LlmCallLogPublic, LlmCallReplayPublic
 from app.schemas.runs import (
     CreateResearchRunsRequest,
@@ -26,6 +27,7 @@ from app.schemas.runs import (
     ResearchRunDetail,
     ResearchRunSummary,
 )
+from app.services.cost_estimator import estimate_run_cost
 from app.services.llm.replay import ReplayError, replay_llm_call
 from app.services.run_orchestrator import RunOrchestratorError
 from app.services.strategies.funnel_research.config import PROMPT_VERSION
@@ -163,6 +165,14 @@ async def _grouped_runs(session: SessionDep) -> GroupedRuns:
         recent=[ResearchRunSummary.model_validate(r) for r in recent_rows],
         failed=[ResearchRunSummary.model_validate(r) for r in failed_rows],
     )
+
+
+@router.get("/cost-estimate", response_model=RunCostEstimate)
+async def get_research_run_cost_estimate(
+    session: SessionDep,
+    strategy: Annotated[StrategyEnum, Query()] = StrategyEnum.funnel_research,
+) -> RunCostEstimate:
+    return await estimate_run_cost(session=session, strategy=strategy)
 
 
 @router.get("/{run_id}", response_model=ResearchRunDetail)

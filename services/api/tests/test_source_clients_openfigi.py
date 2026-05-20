@@ -130,8 +130,12 @@ async def test_fetch_openfigi_mapping_403_does_not_retry(
     assert route.call_count == 1
 
 
-def test_openfigi_module_exposes_singleton_rate_limiter() -> None:
+def test_openfigi_module_exposes_lazy_rate_limiter() -> None:
     from app.services.source_clients import openfigi
-    from app.services.source_clients._rate_limit import RateLimiter
+    from app.services.source_clients._rate_limit import LocalTokenBucket
+    from app.services.source_clients._registry import reset_registry
 
-    assert isinstance(openfigi._RATE_LIMITER, RateLimiter)
+    reset_registry()
+    limiter = openfigi._rate_limiter()
+    assert isinstance(limiter, LocalTokenBucket)
+    assert openfigi._rate_limiter() is limiter

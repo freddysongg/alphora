@@ -5,11 +5,14 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.services.source_clients._http import HttpRequestConfig, request
-from app.services.source_clients._rate_limit import make_rate_limiter
+from app.services.source_clients._rate_limit import RateLimiterProtocol
+from app.services.source_clients._registry import get_rate_limiter
 
 _POLYMARKET_GAMMA_BASE = "https://gamma-api.polymarket.com"
 
-_RATE_LIMITER = make_rate_limiter(name="polymarket", rate_per_second=5.0, burst=10)
+
+def _rate_limiter() -> RateLimiterProtocol:
+    return get_rate_limiter(name="polymarket", rate_per_second=5.0, burst=10)
 
 
 class PolymarketEvent(BaseModel):
@@ -83,7 +86,7 @@ async def fetch_polymarket_events(
             url=f"{_POLYMARKET_GAMMA_BASE}/events",
             params=params or None,
         ),
-        rate_limiter=_RATE_LIMITER,
+        rate_limiter=_rate_limiter(),
     )
 
     payload = json.loads(response.body_bytes)
@@ -116,7 +119,7 @@ async def fetch_polymarket_markets(
             url=f"{_POLYMARKET_GAMMA_BASE}/markets",
             params=params or None,
         ),
-        rate_limiter=_RATE_LIMITER,
+        rate_limiter=_rate_limiter(),
     )
 
     payload = json.loads(response.body_bytes)

@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
+import type { components } from "@/lib/api";
+
+type RunCostEstimate = components["schemas"]["RunCostEstimate"];
 
 const SSE_EVENT_LOG = "log";
 const COST_EVENT_NAME = "cost";
@@ -23,6 +26,7 @@ export interface RunCostMeterProps {
   runId: string;
   initialState: CostMeterState;
   initialSeenLogIds: readonly string[];
+  costEstimate: RunCostEstimate | null;
   isTerminal: boolean;
 }
 
@@ -135,7 +139,13 @@ const actionToneClass: Record<BudgetAction, string> = {
 };
 
 export function RunCostMeter(props: RunCostMeterProps): ReactElement {
-  const { runId, initialState, initialSeenLogIds, isTerminal } = props;
+  const {
+    runId,
+    initialState,
+    initialSeenLogIds,
+    costEstimate,
+    isTerminal,
+  } = props;
   const [state, setState] = useState<CostMeterState>(initialState);
   const seenLogIdsRef = useRef<Set<string>>(new Set(initialSeenLogIds));
 
@@ -217,6 +227,15 @@ export function RunCostMeter(props: RunCostMeterProps): ReactElement {
   const action = state.lastBudgetAction;
   const actionDisplay = action !== null ? actionLabel[action] : "—";
   const actionTone = action !== null ? actionToneClass[action] : "text-fg-subtle";
+  const estimateValue = parseEstimate(costEstimate?.estimated_total_usd);
+  const estimateP95Value = parseEstimate(costEstimate?.estimated_p95_usd);
+  const estimateDisplay = estimateValue !== null
+    ? formatUsd(estimateValue)
+    : "—";
+  const estimateDeltaTone = resolveEstimateTone(
+    state.cumulativeCostUsd,
+    estimateP95Value,
+  );
 
   return (
     <Card>
@@ -224,13 +243,18 @@ export function RunCostMeter(props: RunCostMeterProps): ReactElement {
         <CardTitle>RUN COST</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <MeterCell
             label="CUMULATIVE COST"
             value={formatUsd(state.cumulativeCostUsd)}
+            valueClassName={estimateDeltaTone}
           />
           <MeterCell
-            label="CACHED RATIO"
+            label="PRE-FLIGHT ESTIMATE"
+            value={estimateDisplay}
+          />
+          <MeterCell
+            label="CACHE HIT RATE"
             value={formatRatio(
               state.cachedInputTokensTotal,
               state.inputTokensTotal,
@@ -250,6 +274,27 @@ export function RunCostMeter(props: RunCostMeterProps): ReactElement {
       </CardContent>
     </Card>
   );
+}
+
+function parseEstimate(raw: string | undefined): number | null {
+  if (raw === undefined) {
+    return null;
+  }
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function resolveEstimateTone(
+  actualUsd: number,
+  estimateP95Usd: number | null,
+): string {
+  if (estimateP95Usd === null || estimateP95Usd <= 0) {
+    return "text-fg";
+  }
+  if (actualUsd > estimateP95Usd) {
+    return "text-danger";
+  }
+  return "text-fg";
 }
 
 interface MeterCellProps {

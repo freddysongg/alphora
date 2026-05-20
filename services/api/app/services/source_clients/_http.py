@@ -7,6 +7,8 @@ from typing import Literal, Protocol
 
 import httpx
 
+from app.services.source_clients._request_cache import RequestCache
+
 
 class SourceClientError(Exception):
     """Base for all source-client errors."""
@@ -112,8 +114,30 @@ async def request(
     rate_limiter: _RateLimiterProtocol | None = None,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     jitter: Callable[[float], float] = _full_jitter,
+    request_cache: RequestCache | None = None,
 ) -> HttpResponse:
     last_error: SourceClientError | None = None
+    cache_key: str | None = None
+    if request_cache is None:
+        from app.services.source_clients._registry import get_request_cache
+
+        request_cache = get_request_cache()
+    if request_cache is not None and config.method == "GET":
+        cache_key = RequestCache.cache_key(
+            method=config.method,
+            url=config.url,
+            params=config.params,
+            json_body=config.json_body,
+        )
+        cached = await request_cache.get(cache_key)
+        if cached is not None:
+            return HttpResponse(
+                status_code=cached.status_code,
+                body_bytes=cached.body_bytes,
+                headers=cached.headers,
+                content_hash=cached.content_hash,
+                url=cached.url,
+            )
 
     for attempt in range(config.max_retries + 1):
         if rate_limiter is not None:
@@ -144,13 +168,23 @@ async def request(
         status = httpx_response.status_code
 
         if status not in _RETRYABLE_STATUS_CODES and 200 <= status < 400:
-            return HttpResponse(
+            response = HttpResponse(
                 status_code=status,
                 body_bytes=body,
                 headers=dict(httpx_response.headers),
                 content_hash=hashlib.sha256(body).hexdigest(),
                 url=str(httpx_response.url),
             )
+            if request_cache is not None and cache_key is not None:
+                await request_cache.set(
+                    key=cache_key,
+                    body_bytes=response.body_bytes,
+                    headers=response.headers,
+                    status_code=response.status_code,
+                    content_hash=response.content_hash,
+                    url=response.url,
+                )
+            return response
 
         if status not in _RETRYABLE_STATUS_CODES:
             raise SourceClientHTTPError(

@@ -12,12 +12,15 @@ from app.services.source_clients._http import (
     SourceClientConfigError,
     request,
 )
-from app.services.source_clients._rate_limit import make_rate_limiter
+from app.services.source_clients._rate_limit import RateLimiterProtocol
+from app.services.source_clients._registry import get_rate_limiter
 
 _FRED_OBSERVATIONS_URL = "https://api.stlouisfed.org/fred/series/observations"
 _FRED_MISSING_VALUE_SENTINEL = "."
 
-_RATE_LIMITER = make_rate_limiter(name="fred", rate_per_second=2.0, burst=10)
+
+def _rate_limiter() -> RateLimiterProtocol:
+    return get_rate_limiter(name="fred", rate_per_second=2.0, burst=10)
 
 
 class FredObservation(BaseModel):
@@ -70,7 +73,7 @@ async def fetch_series_observations(
     response = await request(
         client,
         HttpRequestConfig(method="GET", url=_FRED_OBSERVATIONS_URL, params=params),
-        rate_limiter=_RATE_LIMITER,
+        rate_limiter=_rate_limiter(),
     )
 
     payload: dict[str, Any] = json.loads(response.body_bytes)

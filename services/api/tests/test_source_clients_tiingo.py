@@ -130,8 +130,12 @@ async def test_fetch_tiingo_daily_prices_parses_history() -> None:
     assert len(content_hash) == 64
 
 
-def test_tiingo_module_exposes_singleton_rate_limiter() -> None:
+def test_tiingo_module_exposes_lazy_rate_limiter() -> None:
     from app.services.source_clients import tiingo
-    from app.services.source_clients._rate_limit import RateLimiter
+    from app.services.source_clients._rate_limit import LocalTokenBucket
+    from app.services.source_clients._registry import reset_registry
 
-    assert isinstance(tiingo._RATE_LIMITER, RateLimiter)
+    reset_registry()
+    limiter = tiingo._rate_limiter()
+    assert isinstance(limiter, LocalTokenBucket)
+    assert tiingo._rate_limiter() is limiter

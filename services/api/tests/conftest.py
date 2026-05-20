@@ -37,6 +37,29 @@ def _clear_settings_cache() -> Iterator[None]:
     get_settings.cache_clear()
 
 
+@pytest.fixture(autouse=True)
+def _reset_source_client_registry() -> Iterator[None]:
+    """Reset the source-client rate-limiter / cache registry between tests.
+
+    Worker tests install a process-wide Redis-backed limiter and a request
+    cache into the registry. Without an explicit reset between tests, that
+    state leaks into source-client tests, which then try to acquire tokens
+    from a fake Redis or hit a stale cached response. The reset is cheap (a
+    dict clear) and keeps every test starting from the default local-bucket
+    state.
+    """
+    import app.workers.tasks as worker_tasks_module
+    from app.services.source_clients._registry import reset_registry
+
+    reset_registry()
+    worker_tasks_module._LIMITER_CONFIGURED = False
+    worker_tasks_module._CACHED_WORKER_REDIS = None
+    yield
+    reset_registry()
+    worker_tasks_module._LIMITER_CONFIGURED = False
+    worker_tasks_module._CACHED_WORKER_REDIS = None
+
+
 @pytest.fixture()
 async def initialized_schema() -> AsyncIterator[None]:
     from app.db import models as _models  # noqa: F401

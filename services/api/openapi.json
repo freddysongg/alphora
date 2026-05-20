@@ -218,6 +218,48 @@
         }
       }
     },
+    "/api/research-runs/cost-estimate": {
+      "get": {
+        "tags": [
+          "research-runs"
+        ],
+        "summary": "Get Research Run Cost Estimate",
+        "operationId": "get_research_run_cost_estimate_api_research_runs_cost_estimate_get",
+        "parameters": [
+          {
+            "name": "strategy",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/StrategyEnum",
+              "default": "funnel_research"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunCostEstimate"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/research-runs/{run_id}": {
       "get": {
         "tags": [
@@ -6345,6 +6387,44 @@
         ],
         "title": "ResearchRunSummary"
       },
+      "RunCostEstimate": {
+        "properties": {
+          "strategy": {
+            "$ref": "#/components/schemas/StrategyEnum"
+          },
+          "sample_run_count": {
+            "type": "integer",
+            "title": "Sample Run Count"
+          },
+          "estimated_total_usd": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Estimated Total Usd"
+          },
+          "estimated_p95_usd": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Estimated P95 Usd"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/StageCostEstimate"
+            },
+            "type": "array",
+            "title": "Stages"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "strategy",
+          "sample_run_count",
+          "estimated_total_usd",
+          "estimated_p95_usd",
+          "stages"
+        ],
+        "title": "RunCostEstimate"
+      },
       "RunEventLevelEnum": {
         "type": "string",
         "enum": [
@@ -6903,6 +6983,47 @@
           "error_message"
         ],
         "title": "SourceProvenancePublic"
+      },
+      "StageCostEstimate": {
+        "properties": {
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "sample_size": {
+            "type": "integer",
+            "title": "Sample Size"
+          },
+          "mean_cost_usd": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Mean Cost Usd"
+          },
+          "p95_cost_usd": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "P95 Cost Usd"
+          },
+          "mean_input_tokens": {
+            "type": "number",
+            "title": "Mean Input Tokens"
+          },
+          "mean_cached_input_tokens": {
+            "type": "number",
+            "title": "Mean Cached Input Tokens"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "stage",
+          "sample_size",
+          "mean_cost_usd",
+          "p95_cost_usd",
+          "mean_input_tokens",
+          "mean_cached_input_tokens"
+        ],
+        "title": "StageCostEstimate"
       },
       "StrategyEnum": {
         "type": "string",

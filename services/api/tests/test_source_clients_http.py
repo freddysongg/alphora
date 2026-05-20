@@ -410,3 +410,131 @@ async def test_request_malformed_retry_after_falls_back_to_backoff(
 
     assert response.status_code == 200
     assert recording_sleep.calls == [pytest.approx(0.5)]
+
+
+@respx.mock
+async def test_request_uses_request_cache_on_hit() -> None:
+    """Second GET to the same URL inside the TTL window does not hit the network."""
+    from app.services.source_clients._http import HttpRequestConfig, request
+    from app.services.source_clients._request_cache import RequestCache
+
+    body = b"cached body"
+    route = respx.get("https://example.com/cache").mock(
+        return_value=httpx.Response(200, content=body)
+    )
+    cache = RequestCache(ttl_seconds=60.0)
+
+    async with httpx.AsyncClient() as client:
+        first = await request(
+            client,
+            HttpRequestConfig(method="GET", url="https://example.com/cache"),
+            request_cache=cache,
+        )
+        second = await request(
+            client,
+            HttpRequestConfig(method="GET", url="https://example.com/cache"),
+            request_cache=cache,
+        )
+
+    assert first.body_bytes == body
+    assert second.body_bytes == body
+    assert route.call_count == 1
+    stats = cache.stats()
+    assert stats.hits == 1
+    assert stats.misses == 1
+
+
+@respx.mock
+async def test_request_skips_cache_for_post_method() -> None:
+    """POSTs are not cached even when a cache is installed."""
+    from app.services.source_clients._http import HttpRequestConfig, request
+    from app.services.source_clients._request_cache import RequestCache
+
+    route = respx.post("https://example.com/post").mock(
+        return_value=httpx.Response(200, content=b"x")
+    )
+    cache = RequestCache(ttl_seconds=60.0)
+
+    async with httpx.AsyncClient() as client:
+        await request(
+            client,
+            HttpRequestConfig(method="POST", url="https://example.com/post"),
+            request_cache=cache,
+        )
+        await request(
+            client,
+            HttpRequestConfig(method="POST", url="https://example.com/post"),
+            request_cache=cache,
+        )
+
+    assert route.call_count == 2
+    assert cache.stats().hits == 0
+
+
+@respx.mock
+async def test_request_distinct_params_distinct_cache_entries() -> None:
+    from app.services.source_clients._http import HttpRequestConfig, request
+    from app.services.source_clients._request_cache import RequestCache
+
+    route = respx.get("https://example.com/params").mock(
+        return_value=httpx.Response(200, content=b"y")
+    )
+    cache = RequestCache(ttl_seconds=60.0)
+
+    async with httpx.AsyncClient() as client:
+        await request(
+            client,
+            HttpRequestConfig(
+                method="GET",
+                url="https://example.com/params",
+                params={"q": "a"},
+            ),
+            request_cache=cache,
+        )
+        await request(
+            client,
+            HttpRequestConfig(
+                method="GET",
+                url="https://example.com/params",
+                params={"q": "b"},
+            ),
+            request_cache=cache,
+        )
+
+    assert route.call_count == 2
+    assert cache.stats().hits == 0
+
+
+@respx.mock
+async def test_request_resolves_cache_from_registry_when_not_passed() -> None:
+    """`request()` falls back to the process-wide cache if none is passed."""
+    from app.services.source_clients._http import HttpRequestConfig, request
+    from app.services.source_clients._registry import (
+        install_request_cache,
+        reset_registry,
+    )
+    from app.services.source_clients._request_cache import RequestCache
+
+    reset_registry()
+    cache = RequestCache(ttl_seconds=60.0)
+    install_request_cache(cache)
+    try:
+        body = b"registry-hit"
+        route = respx.get("https://example.com/reg").mock(
+            return_value=httpx.Response(200, content=body)
+        )
+
+        async with httpx.AsyncClient() as client:
+            await request(
+                client,
+                HttpRequestConfig(method="GET", url="https://example.com/reg"),
+            )
+            await request(
+                client,
+                HttpRequestConfig(method="GET", url="https://example.com/reg"),
+            )
+
+        assert route.call_count == 1
+        assert cache.stats().hits == 1
+    finally:
+        reset_registry()

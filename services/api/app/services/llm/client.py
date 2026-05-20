@@ -301,9 +301,16 @@ class LlmClient:
             prior_daily_cost = await _sum_daily_cost(session)
             run_cost_total = prior_run_cost + cost
             daily_cost_total = prior_daily_cost + cost
+            stage_cost_total = (
+                await _sum_stage_cost(session, run_id=run_id, stage=stage) + cost
+                if stage is not None
+                else None
+            )
             decision = self._guard.evaluate(
                 run_cost_usd=run_cost_total,
                 daily_cost_usd=daily_cost_total,
+                stage=stage,
+                stage_cost_usd=stage_cost_total,
             )
             log = await _persist_log(
                 session,
@@ -511,6 +518,19 @@ async def _sum_run_cost(session: AsyncSession, run_id: UUID | None) -> Decimal:
         return Decimal("0")
     stmt = select(func.coalesce(func.sum(LlmCallLog.cost_usd), 0)).where(
         LlmCallLog.run_id == run_id
+    )
+    total = (await session.execute(stmt)).scalar_one()
+    return total if isinstance(total, Decimal) else Decimal(str(total))
+
+
+async def _sum_stage_cost(
+    session: AsyncSession, *, run_id: UUID | None, stage: str
+) -> Decimal:
+    if run_id is None:
+        return Decimal("0")
+    stmt = select(func.coalesce(func.sum(LlmCallLog.cost_usd), 0)).where(
+        LlmCallLog.run_id == run_id,
+        LlmCallLog.stage == stage,
     )
     total = (await session.execute(stmt)).scalar_one()
     return total if isinstance(total, Decimal) else Decimal(str(total))

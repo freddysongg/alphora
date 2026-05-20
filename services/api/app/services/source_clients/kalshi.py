@@ -4,11 +4,14 @@ import httpx
 from pydantic import BaseModel, ConfigDict
 
 from app.services.source_clients._http import HttpRequestConfig, request
-from app.services.source_clients._rate_limit import make_rate_limiter
+from app.services.source_clients._rate_limit import RateLimiterProtocol
+from app.services.source_clients._registry import get_rate_limiter
 
 _KALSHI_PUBLIC_BASE = "https://external-api.kalshi.com/trade-api/v2"
 
-_RATE_LIMITER = make_rate_limiter(name="kalshi", rate_per_second=8.0, burst=5)
+
+def _rate_limiter() -> RateLimiterProtocol:
+    return get_rate_limiter(name="kalshi", rate_per_second=8.0, burst=5)
 
 
 class KalshiMarket(BaseModel):
@@ -66,7 +69,7 @@ async def fetch_kalshi_markets(
             url=f"{_KALSHI_PUBLIC_BASE}/markets",
             params=params or None,
         ),
-        rate_limiter=_RATE_LIMITER,
+        rate_limiter=_rate_limiter(),
     )
     parsed = KalshiMarketsResponse.model_validate_json(response.body_bytes)
     return parsed, response.content_hash
@@ -81,7 +84,7 @@ async def fetch_kalshi_market_detail(
             method="GET",
             url=f"{_KALSHI_PUBLIC_BASE}/markets/{ticker}",
         ),
-        rate_limiter=_RATE_LIMITER,
+        rate_limiter=_rate_limiter(),
     )
     parsed = KalshiMarketDetailResponse.model_validate_json(response.body_bytes)
     return parsed, response.content_hash

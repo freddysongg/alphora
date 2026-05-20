@@ -11,11 +11,14 @@ from app.services.source_clients._http import (
     SourceClientConfigError,
     request,
 )
-from app.services.source_clients._rate_limit import make_rate_limiter
+from app.services.source_clients._rate_limit import RateLimiterProtocol
+from app.services.source_clients._registry import get_rate_limiter
 
 _TIINGO_BASE = "https://api.tiingo.com"
 
-_RATE_LIMITER = make_rate_limiter(name="tiingo", rate_per_second=1.0, burst=3)
+
+def _rate_limiter() -> RateLimiterProtocol:
+    return get_rate_limiter(name="tiingo", rate_per_second=1.0, burst=3)
 
 
 class TiingoIexQuote(BaseModel):
@@ -60,7 +63,7 @@ async def fetch_tiingo_latest(
             url=f"{_TIINGO_BASE}/iex/{ticker}",
             headers=headers,
         ),
-        rate_limiter=_RATE_LIMITER,
+        rate_limiter=_rate_limiter(),
     )
 
     payload = json.loads(response.body_bytes)
@@ -91,7 +94,7 @@ async def fetch_tiingo_daily_prices(
             headers=headers,
             params=params or None,
         ),
-        rate_limiter=_RATE_LIMITER,
+        rate_limiter=_rate_limiter(),
     )
 
     payload = json.loads(response.body_bytes)

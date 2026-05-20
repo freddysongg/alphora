@@ -124,8 +124,12 @@ async def test_fetch_kalshi_market_detail_parses_payload() -> None:
     assert len(content_hash) == 64
 
 
-def test_kalshi_module_exposes_singleton_rate_limiter() -> None:
+def test_kalshi_module_exposes_lazy_rate_limiter() -> None:
     from app.services.source_clients import kalshi
-    from app.services.source_clients._rate_limit import RateLimiter
+    from app.services.source_clients._rate_limit import LocalTokenBucket
+    from app.services.source_clients._registry import reset_registry
 
-    assert isinstance(kalshi._RATE_LIMITER, RateLimiter)
+    reset_registry()
+    limiter = kalshi._rate_limiter()
+    assert isinstance(limiter, LocalTokenBucket)
+    assert kalshi._rate_limiter() is limiter

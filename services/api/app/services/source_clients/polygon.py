@@ -9,11 +9,14 @@ from app.services.source_clients._http import (
     SourceClientConfigError,
     request,
 )
-from app.services.source_clients._rate_limit import make_rate_limiter
+from app.services.source_clients._rate_limit import RateLimiterProtocol
+from app.services.source_clients._registry import get_rate_limiter
 
 _POLYGON_BASE = "https://api.polygon.io"
 
-_RATE_LIMITER = make_rate_limiter(name="polygon", rate_per_second=4.0, burst=5)
+
+def _rate_limiter() -> RateLimiterProtocol:
+    return get_rate_limiter(name="polygon", rate_per_second=4.0, burst=5)
 
 
 class PolygonTicker(BaseModel):
@@ -80,7 +83,7 @@ async def fetch_polygon_tickers(
             url=f"{_POLYGON_BASE}/v3/reference/tickers",
             params=params,
         ),
-        rate_limiter=_RATE_LIMITER,
+        rate_limiter=_rate_limiter(),
     )
     parsed = PolygonTickersResponse.model_validate_json(response.body_bytes)
     return parsed, response.content_hash
@@ -112,7 +115,7 @@ async def fetch_polygon_aggregates(
     response = await request(
         client,
         HttpRequestConfig(method="GET", url=url, params=params),
-        rate_limiter=_RATE_LIMITER,
+        rate_limiter=_rate_limiter(),
     )
     parsed = PolygonAggregatesResponse.model_validate_json(response.body_bytes)
     return parsed, response.content_hash

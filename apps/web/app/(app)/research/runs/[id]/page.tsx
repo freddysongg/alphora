@@ -19,6 +19,7 @@ type BeliefRecomputationPublic =
   components["schemas"]["BeliefRecomputationPublic"];
 type HypothesisLifecycleResponse =
   components["schemas"]["HypothesisLifecycleResponse"];
+type RunCostEstimate = components["schemas"]["RunCostEstimate"];
 import type { HypothesisBeliefBundle } from "@/components/research/hypothesis-belief-explainer";
 import type { HypothesisLifecycleBundle } from "@/components/research/hypothesis-lifecycle-card";
 
@@ -257,6 +258,24 @@ async function loadHypothesisLifecycle(
   }
 }
 
+async function loadCostEstimate(
+  strategy: ResearchRunDetail["strategy"],
+): Promise<RunCostEstimate | null> {
+  try {
+    const { data } = await getServerApi().GET(
+      "/api/research-runs/cost-estimate",
+      {
+        params: { query: { strategy } },
+        cache: "no-store",
+      },
+    );
+    return data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+
 async function loadHumanReviewSummary(): Promise<HumanReviewSummary> {
   try {
     const { data } = await getServerApi().GET("/api/human-reviews/summary", {
@@ -290,6 +309,7 @@ export default async function RunDetailPage(
   const macroBrief =
     detail.strategy === "funnel_research" ? await getMacroBrief(id) : null;
   const initialCost = await loadInitialCostBundle(id);
+  const costEstimate = await loadCostEstimate(detail.strategy);
   const counterfactuals = await loadCounterfactualSummary(id);
   const reviewSummary = await loadHumanReviewSummary();
   const beliefBundles = await loadHypothesisBeliefBundles(id);
@@ -302,6 +322,7 @@ export default async function RunDetailPage(
       macroBrief={macroBrief}
       initialCostState={initialCost.state}
       initialSeenLogIds={initialCost.seenLogIds}
+      costEstimate={costEstimate}
       counterfactualGates={counterfactuals?.gates ?? []}
       humanReviewSummary={reviewSummary}
       defaultWeekStart={defaultWeekStart()}

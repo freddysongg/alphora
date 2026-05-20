@@ -203,8 +203,12 @@ async def test_fetch_company_tickers_403_does_not_retry() -> None:
     assert route.call_count == 1
 
 
-def test_sec_edgar_module_exposes_singleton_rate_limiter() -> None:
+def test_sec_edgar_module_exposes_lazy_rate_limiter() -> None:
     from app.services.source_clients import sec_edgar
-    from app.services.source_clients._rate_limit import RateLimiter
+    from app.services.source_clients._rate_limit import LocalTokenBucket
+    from app.services.source_clients._registry import reset_registry
 
-    assert isinstance(sec_edgar._RATE_LIMITER, RateLimiter)
+    reset_registry()
+    limiter = sec_edgar._rate_limiter()
+    assert isinstance(limiter, LocalTokenBucket)
+    assert sec_edgar._rate_limiter() is limiter

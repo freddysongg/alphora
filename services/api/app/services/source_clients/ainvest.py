@@ -9,11 +9,14 @@ from app.services.source_clients._http import (
     SourceClientConfigError,
     request,
 )
-from app.services.source_clients._rate_limit import make_rate_limiter
+from app.services.source_clients._rate_limit import RateLimiterProtocol
+from app.services.source_clients._registry import get_rate_limiter
 
 _AINVEST_BASE = "https://openapi.ainvest.com/open"
 
-_RATE_LIMITER = make_rate_limiter(name="ainvest", rate_per_second=2.0, burst=5)
+
+def _rate_limiter() -> RateLimiterProtocol:
+    return get_rate_limiter(name="ainvest", rate_per_second=2.0, burst=5)
 
 
 class AinvestCongressTransaction(BaseModel):
@@ -70,7 +73,7 @@ async def fetch_ainvest_congress_transactions(
             },
             params=params,
         ),
-        rate_limiter=_RATE_LIMITER,
+        rate_limiter=_rate_limiter(),
     )
     parsed = AinvestCongressResponse.model_validate_json(response.body_bytes)
     return parsed, response.content_hash

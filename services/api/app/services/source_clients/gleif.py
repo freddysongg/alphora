@@ -5,11 +5,14 @@ import httpx
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.services.source_clients._http import HttpRequestConfig, request
-from app.services.source_clients._rate_limit import make_rate_limiter
+from app.services.source_clients._rate_limit import RateLimiterProtocol
+from app.services.source_clients._registry import get_rate_limiter
 
 _GLEIF_BASE = "https://api.gleif.org/api/v1"
 
-_RATE_LIMITER = make_rate_limiter(name="gleif", rate_per_second=5.0, burst=10)
+
+def _rate_limiter() -> RateLimiterProtocol:
+    return get_rate_limiter(name="gleif", rate_per_second=5.0, burst=10)
 
 
 class GleifLeiRecord(BaseModel):
@@ -83,7 +86,7 @@ async def fetch_gleif_search(
             url=f"{_GLEIF_BASE}/lei-records",
             params=params,
         ),
-        rate_limiter=_RATE_LIMITER,
+        rate_limiter=_rate_limiter(),
     )
     parsed = GleifSearchResponse.model_validate_json(response.body_bytes)
     return parsed, response.content_hash
@@ -98,7 +101,7 @@ async def fetch_gleif_by_lei(
             method="GET",
             url=f"{_GLEIF_BASE}/lei-records/{lei}",
         ),
-        rate_limiter=_RATE_LIMITER,
+        rate_limiter=_rate_limiter(),
     )
     payload = json.loads(response.body_bytes)
     data = payload.get("data") if isinstance(payload, dict) else None

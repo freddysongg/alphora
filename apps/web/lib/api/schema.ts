@@ -56,6 +56,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/research-runs/cost-estimate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Research Run Cost Estimate */
+        get: operations["get_research_run_cost_estimate_api_research_runs_cost_estimate_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/research-runs/{run_id}": {
         parameters: {
             query?: never;
@@ -2112,6 +2129,18 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /** RunCostEstimate */
+        RunCostEstimate: {
+            strategy: components["schemas"]["StrategyEnum"];
+            /** Sample Run Count */
+            sample_run_count: number;
+            /** Estimated Total Usd */
+            estimated_total_usd: string;
+            /** Estimated P95 Usd */
+            estimated_p95_usd: string;
+            /** Stages */
+            stages: components["schemas"]["StageCostEstimate"][];
+        };
         /**
          * RunEventLevelEnum
          * @enum {string}
@@ -2335,6 +2364,21 @@ export interface components {
             as_of: string | null;
             /** Error Message */
             error_message: string | null;
+        };
+        /** StageCostEstimate */
+        StageCostEstimate: {
+            /** Stage */
+            stage: string;
+            /** Sample Size */
+            sample_size: number;
+            /** Mean Cost Usd */
+            mean_cost_usd: string;
+            /** P95 Cost Usd */
+            p95_cost_usd: string;
+            /** Mean Input Tokens */
+            mean_input_tokens: number;
+            /** Mean Cached Input Tokens */
+            mean_cached_input_tokens: number;
         };
         /**
          * StrategyEnum
@@ -2572,6 +2616,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResearchRunSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_research_run_cost_estimate_api_research_runs_cost_estimate_get: {
+        parameters: {
+            query?: {
+                strategy?: components["schemas"]["StrategyEnum"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunCostEstimate"];
                 };
             };
             /** @description Validation Error */

@@ -161,8 +161,12 @@ async def test_fetch_polymarket_markets_400_does_not_retry() -> None:
     assert route.call_count == 1
 
 
-def test_polymarket_module_exposes_singleton_rate_limiter() -> None:
+def test_polymarket_module_exposes_lazy_rate_limiter() -> None:
     from app.services.source_clients import polymarket
-    from app.services.source_clients._rate_limit import RateLimiter
+    from app.services.source_clients._rate_limit import LocalTokenBucket
+    from app.services.source_clients._registry import reset_registry
 
-    assert isinstance(polymarket._RATE_LIMITER, RateLimiter)
+    reset_registry()
+    limiter = polymarket._rate_limiter()
+    assert isinstance(limiter, LocalTokenBucket)
+    assert polymarket._rate_limiter() is limiter

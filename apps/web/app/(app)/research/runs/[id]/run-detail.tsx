@@ -64,6 +64,7 @@ type MacroBriefPublic = components["schemas"]["MacroBriefPublic"];
 type CounterfactualGateRow =
   components["schemas"]["CounterfactualGateRunPublic"];
 type HumanReviewSummary = components["schemas"]["HumanReviewSummary"];
+type RunCostEstimate = components["schemas"]["RunCostEstimate"];
 
 type TabKey =
   | "overview"
@@ -237,6 +238,7 @@ export interface RunDetailProps {
   macroBrief: MacroBriefPublic | null;
   initialCostState: CostMeterState;
   initialSeenLogIds: readonly string[];
+  costEstimate: RunCostEstimate | null;
   counterfactualGates: readonly CounterfactualGateRow[];
   humanReviewSummary: HumanReviewSummary;
   defaultWeekStart: string;
@@ -250,6 +252,7 @@ export function RunDetail(props: RunDetailProps): ReactElement {
     macroBrief,
     initialCostState,
     initialSeenLogIds,
+    costEstimate,
     counterfactualGates,
     humanReviewSummary,
     defaultWeekStart,
@@ -350,6 +353,7 @@ export function RunDetail(props: RunDetailProps): ReactElement {
           runId={detail.id}
           initialState={initialCostState}
           initialSeenLogIds={initialSeenLogIds}
+          costEstimate={costEstimate}
           isTerminal={isLogStreamTerminal}
         />
         <CounterfactualGateSummary gates={counterfactualGates} />

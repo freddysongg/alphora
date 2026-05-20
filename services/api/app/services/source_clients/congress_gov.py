@@ -9,11 +9,14 @@ from app.services.source_clients._http import (
     SourceClientConfigError,
     request,
 )
-from app.services.source_clients._rate_limit import make_rate_limiter
+from app.services.source_clients._rate_limit import RateLimiterProtocol
+from app.services.source_clients._registry import get_rate_limiter
 
 _CONGRESS_BASE = "https://api.congress.gov/v3"
 
-_RATE_LIMITER = make_rate_limiter(name="congress_gov", rate_per_second=1.0, burst=5)
+
+def _rate_limiter() -> RateLimiterProtocol:
+    return get_rate_limiter(name="congress_gov", rate_per_second=1.0, burst=5)
 
 
 class CongressBill(BaseModel):
@@ -78,7 +81,7 @@ async def fetch_congress_bills(
     response = await request(
         client,
         HttpRequestConfig(method="GET", url=url, params=params),
-        rate_limiter=_RATE_LIMITER,
+        rate_limiter=_rate_limiter(),
     )
     parsed = CongressBillsResponse.model_validate_json(response.body_bytes)
     return parsed, response.content_hash
@@ -101,7 +104,7 @@ async def fetch_congress_members(
     response = await request(
         client,
         HttpRequestConfig(method="GET", url=url, params=params),
-        rate_limiter=_RATE_LIMITER,
+        rate_limiter=_rate_limiter(),
     )
     parsed = CongressMembersResponse.model_validate_json(response.body_bytes)
     return parsed, response.content_hash

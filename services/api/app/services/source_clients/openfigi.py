@@ -9,12 +9,15 @@ from app.services.source_clients._http import (
     SourceClientHTTPError,
     SourceClientTimeoutError,
 )
-from app.services.source_clients._rate_limit import make_rate_limiter
+from app.services.source_clients._rate_limit import RateLimiterProtocol
+from app.services.source_clients._registry import get_rate_limiter
 
 _OPENFIGI_URL = "https://api.openfigi.com/v3/mapping"
 _DEFAULT_TIMEOUT_SECONDS = 30.0
 
-_RATE_LIMITER = make_rate_limiter(name="openfigi", rate_per_second=4.0, burst=5)
+
+def _rate_limiter() -> RateLimiterProtocol:
+    return get_rate_limiter(name="openfigi", rate_per_second=4.0, burst=5)
 
 
 class OpenFigiResult(BaseModel):
@@ -47,7 +50,7 @@ async def fetch_openfigi_mapping(
     client: httpx.AsyncClient,
     queries: list[dict[str, str]],
 ) -> tuple[list[OpenFigiMappingResponse], str]:
-    await _RATE_LIMITER.acquire()
+    await _rate_limiter().acquire()
 
     try:
         httpx_response = await client.request(
