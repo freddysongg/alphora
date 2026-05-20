@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { ReactElement } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
+import { useRunSseEvent } from "@/components/research/run-sse-context";
 import type { components } from "@/lib/api";
 
 type RunCostEstimate = components["schemas"]["RunCostEstimate"];
 
 const SSE_EVENT_LOG = "log";
 const COST_EVENT_NAME = "cost";
-const RECONNECT_DELAYS_MS: readonly number[] = [500, 2000];
 
 export type BudgetAction = "allow" | "warn" | "pause" | "kill";
 
@@ -23,11 +23,9 @@ export interface CostMeterState {
 }
 
 export interface RunCostMeterProps {
-  runId: string;
   initialState: CostMeterState;
   initialSeenLogIds: readonly string[];
   costEstimate: RunCostEstimate | null;
-  isTerminal: boolean;
 }
 
 interface RawCostEvent {
@@ -139,90 +137,26 @@ const actionToneClass: Record<BudgetAction, string> = {
 };
 
 export function RunCostMeter(props: RunCostMeterProps): ReactElement {
-  const {
-    runId,
-    initialState,
-    initialSeenLogIds,
-    costEstimate,
-    isTerminal,
-  } = props;
+  const { initialState, initialSeenLogIds, costEstimate } = props;
   const [state, setState] = useState<CostMeterState>(initialState);
   const seenLogIdsRef = useRef<Set<string>>(new Set(initialSeenLogIds));
 
-  useEffect(() => {
-    if (isTerminal) {
+  const onLog = useCallback((raw: string): void => {
+    const cost = parseCostEventFromLog(raw);
+    if (cost === null) {
       return;
     }
-
-    let isDisposed = false;
-    let attempt = 0;
-    let activeSource: EventSource | null = null;
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const clearReconnectTimer = (): void => {
-      if (reconnectTimer !== null) {
-        clearTimeout(reconnectTimer);
-        reconnectTimer = null;
-      }
-    };
-
-    const closeActiveSource = (): void => {
-      if (activeSource !== null) {
-        activeSource.close();
-        activeSource = null;
-      }
-    };
-
-    const open = (): void => {
-      if (isDisposed) {
+    const logId = typeof cost.log_id === "string" ? cost.log_id : null;
+    if (logId !== null) {
+      if (seenLogIdsRef.current.has(logId)) {
         return;
       }
-      const source = new EventSource(`/api/research-runs/${runId}/events`);
-      activeSource = source;
+      seenLogIdsRef.current.add(logId);
+    }
+    setState((prev) => reduceCostEvent(prev, cost));
+  }, []);
 
-      source.addEventListener(SSE_EVENT_LOG, (rawEvent) => {
-        const messageEvent = rawEvent as MessageEvent<string>;
-        const cost = parseCostEventFromLog(messageEvent.data);
-        if (cost === null) {
-          return;
-        }
-        const logId = typeof cost.log_id === "string" ? cost.log_id : null;
-        if (logId !== null) {
-          if (seenLogIdsRef.current.has(logId)) {
-            return;
-          }
-          seenLogIdsRef.current.add(logId);
-        }
-        setState((prev) => reduceCostEvent(prev, cost));
-      });
-
-      source.onerror = (): void => {
-        if (isDisposed) {
-          return;
-        }
-        clearReconnectTimer();
-        closeActiveSource();
-        const nextDelay = RECONNECT_DELAYS_MS[attempt];
-        attempt += 1;
-        if (nextDelay === undefined) {
-          isDisposed = true;
-          return;
-        }
-        reconnectTimer = setTimeout(() => {
-          reconnectTimer = null;
-          open();
-        }, nextDelay);
-      };
-    };
-
-    open();
-
-    return (): void => {
-      isDisposed = true;
-      clearReconnectTimer();
-      closeActiveSource();
-    };
-  }, [runId, isTerminal]);
+  useRunSseEvent(SSE_EVENT_LOG, onLog);
 
   const action = state.lastBudgetAction;
   const actionDisplay = action !== null ? actionLabel[action] : "—";

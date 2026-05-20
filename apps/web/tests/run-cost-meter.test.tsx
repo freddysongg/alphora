@@ -9,8 +9,6 @@ import type { components } from "@/lib/api";
 
 type RunCostEstimate = components["schemas"]["RunCostEstimate"];
 
-const RUN_ID = "11111111-1111-4111-8111-111111111111";
-
 function makeState(overrides: Partial<CostMeterState> = {}): CostMeterState {
   return {
     cumulativeCostUsd: 0,
@@ -39,7 +37,6 @@ describe("RunCostMeter", () => {
   it("renders the initial cumulative cost, cache hit rate, model, and budget action when the run is terminal", () => {
     render(
       <RunCostMeter
-        runId={RUN_ID}
         initialState={makeState({
           cumulativeCostUsd: 0.5432,
           inputTokensTotal: 1000,
@@ -49,7 +46,6 @@ describe("RunCostMeter", () => {
         })}
         initialSeenLogIds={[]}
         costEstimate={null}
-        isTerminal={true}
       />,
     );
 
@@ -67,11 +63,9 @@ describe("RunCostMeter", () => {
   it("renders em-dashes when there is no model, action, or input token data yet", () => {
     render(
       <RunCostMeter
-        runId={RUN_ID}
         initialState={makeState()}
         initialSeenLogIds={[]}
         costEstimate={null}
-        isTerminal={true}
       />,
     );
 
@@ -82,11 +76,9 @@ describe("RunCostMeter", () => {
   it("formats cumulative cost to four decimal places", () => {
     render(
       <RunCostMeter
-        runId={RUN_ID}
         initialState={makeState({ cumulativeCostUsd: 12.3456789 })}
         initialSeenLogIds={[]}
         costEstimate={null}
-        isTerminal={true}
       />,
     );
 
@@ -96,11 +88,9 @@ describe("RunCostMeter", () => {
   it("renders a kill budget action with the danger tone class", () => {
     render(
       <RunCostMeter
-        runId={RUN_ID}
         initialState={makeState({ lastBudgetAction: "kill" })}
         initialSeenLogIds={[]}
         costEstimate={null}
-        isTerminal={true}
       />,
     );
 
@@ -111,11 +101,9 @@ describe("RunCostMeter", () => {
   it("renders a warn budget action carried over from the initial state on a terminal run, preserving the warn signal across reload", () => {
     render(
       <RunCostMeter
-        runId={RUN_ID}
         initialState={makeState({ lastBudgetAction: "warn" })}
         initialSeenLogIds={["log-1", "log-2"]}
         costEstimate={null}
-        isTerminal={true}
       />,
     );
 
@@ -125,14 +113,12 @@ describe("RunCostMeter", () => {
   it("renders the pre-flight estimate amount when provided", () => {
     render(
       <RunCostMeter
-        runId={RUN_ID}
         initialState={makeState({ cumulativeCostUsd: 0.1 })}
         initialSeenLogIds={[]}
         costEstimate={makeEstimate({
           estimated_total_usd: "0.250000",
           estimated_p95_usd: "0.500000",
         })}
-        isTerminal={true}
       />,
     );
 
@@ -142,14 +128,12 @@ describe("RunCostMeter", () => {
   it("paints cumulative cost in danger tone when it exceeds p95 estimate", () => {
     render(
       <RunCostMeter
-        runId={RUN_ID}
         initialState={makeState({ cumulativeCostUsd: 5.0 })}
         initialSeenLogIds={[]}
         costEstimate={makeEstimate({
           estimated_total_usd: "0.500000",
           estimated_p95_usd: "1.000000",
         })}
-        isTerminal={true}
       />,
     );
 
@@ -160,14 +144,12 @@ describe("RunCostMeter", () => {
   it("keeps cumulative cost in default tone when within p95 estimate", () => {
     render(
       <RunCostMeter
-        runId={RUN_ID}
         initialState={makeState({ cumulativeCostUsd: 0.7 })}
         initialSeenLogIds={[]}
         costEstimate={makeEstimate({
           estimated_total_usd: "0.250000",
           estimated_p95_usd: "1.000000",
         })}
-        isTerminal={true}
       />,
     );
 

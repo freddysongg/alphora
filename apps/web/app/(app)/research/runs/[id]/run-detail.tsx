@@ -39,6 +39,7 @@ import {
 import { RunLogStream } from "@/components/research/run-log-stream";
 import { RunCostMeter } from "@/components/research/run-cost-meter";
 import type { CostMeterState } from "@/components/research/run-cost-meter";
+import { RunSseProvider } from "@/components/research/run-sse-context";
 import { CounterfactualGateSummary } from "@/components/research/counterfactual-gate-summary";
 import { HumanReviewForm } from "@/components/research/human-review-form";
 import { HumanReviewSummaryWidget } from "@/components/research/human-review-summary";
@@ -315,6 +316,7 @@ export function RunDetail(props: RunDetailProps): ReactElement {
   };
 
   return (
+    <RunSseProvider runId={detail.id} isTerminal={isLogStreamTerminal}>
     <div className="max-w-[1400px] mx-auto">
       <header className="sticky top-0 z-10 bg-canvas border-b border-line">
         <div className="flex items-center gap-4 px-6 py-4">
@@ -355,11 +357,9 @@ export function RunDetail(props: RunDetailProps): ReactElement {
 
       <div className="px-6 pt-4 pb-12 flex flex-col gap-6">
         <RunCostMeter
-          runId={detail.id}
           initialState={initialCostState}
           initialSeenLogIds={initialSeenLogIds}
           costEstimate={costEstimate}
-          isTerminal={isLogStreamTerminal}
         />
         <CounterfactualGateSummary gates={counterfactualGates} />
         <HypothesisBeliefExplainer bundles={beliefBundles} />
@@ -507,5 +507,6 @@ export function RunDetail(props: RunDetailProps): ReactElement {
         )}
       </div>
     </div>
+    </RunSseProvider>
   );
 }
