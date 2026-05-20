@@ -159,7 +159,10 @@ async def test_call_llm_for_extraction_passes_extraction_model(
 async def test_call_llm_routes_budget_paused_to_orchestrator_pause(
     populated_session: AsyncSession,
 ) -> None:
-    from app.services.extraction._llm_call import ExtractionError, call_llm_for_extraction
+    from app.services.extraction._llm_call import (
+        ExtractionBudgetHaltError,
+        call_llm_for_extraction,
+    )
 
     pause_calls: list[dict[str, Any]] = []
     fail_calls: list[dict[str, Any]] = []
@@ -174,7 +177,7 @@ async def test_call_llm_routes_budget_paused_to_orchestrator_pause(
         fail_calls.append(kwargs)
 
     run_id = uuid.uuid4()
-    with pytest.raises(ExtractionError) as exc_info:
+    with pytest.raises(ExtractionBudgetHaltError) as exc_info:
         await call_llm_for_extraction(
             session=populated_session,
             run_id=run_id,
@@ -196,7 +199,10 @@ async def test_call_llm_routes_budget_paused_to_orchestrator_pause(
 async def test_call_llm_routes_budget_killed_to_orchestrator_fail(
     populated_session: AsyncSession,
 ) -> None:
-    from app.services.extraction._llm_call import ExtractionError, call_llm_for_extraction
+    from app.services.extraction._llm_call import (
+        ExtractionBudgetHaltError,
+        call_llm_for_extraction,
+    )
 
     fail_calls: list[dict[str, Any]] = []
     pause_calls: list[dict[str, Any]] = []
@@ -211,7 +217,7 @@ async def test_call_llm_routes_budget_killed_to_orchestrator_fail(
         fail_calls.append(kwargs)
 
     run_id = uuid.uuid4()
-    with pytest.raises(ExtractionError) as exc_info:
+    with pytest.raises(ExtractionBudgetHaltError) as exc_info:
         await call_llm_for_extraction(
             session=populated_session,
             run_id=run_id,
@@ -233,7 +239,10 @@ async def test_call_llm_routes_budget_killed_to_orchestrator_fail(
 async def test_call_llm_preserves_budget_exception_as_cause(
     populated_session: AsyncSession,
 ) -> None:
-    from app.services.extraction._llm_call import ExtractionError, call_llm_for_extraction
+    from app.services.extraction._llm_call import (
+        ExtractionBudgetHaltError,
+        call_llm_for_extraction,
+    )
 
     paused = BudgetPausedError(_decision(BudgetAction.pause, "x"))
 
@@ -243,7 +252,7 @@ async def test_call_llm_preserves_budget_exception_as_cause(
     async def noop(**_: Any) -> None:
         return None
 
-    with pytest.raises(ExtractionError) as exc_info:
+    with pytest.raises(ExtractionBudgetHaltError) as exc_info:
         await call_llm_for_extraction(
             session=populated_session,
             run_id=uuid.uuid4(),

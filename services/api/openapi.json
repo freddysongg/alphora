@@ -3926,6 +3926,13 @@
             },
             "type": "array",
             "title": "Failed"
+          },
+          "cancelled": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchRunSummary"
+            },
+            "type": "array",
+            "title": "Cancelled"
           }
         },
         "type": "object",
@@ -3933,7 +3940,8 @@
           "queued",
           "running",
           "recent",
-          "failed"
+          "failed",
+          "cancelled"
         ],
         "title": "GroupedRuns"
       },

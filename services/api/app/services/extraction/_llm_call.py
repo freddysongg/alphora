@@ -28,6 +28,16 @@ class ExtractionError(Exception):
     """Raised when an extraction call cannot return a usable result."""
 
 
+class ExtractionBudgetHaltError(ExtractionError):
+    """Raised when extraction is halted by a budget pause or kill.
+
+    Distinct subclass so the sector/company extraction fan-outs can catch
+    per-chunk `ExtractionError` as a recoverable warning while letting a
+    budget halt abort the entire fan-out — otherwise the run keeps spending
+    budget after the guard has already paused/failed it.
+    """
+
+
 async def call_llm_for_extraction(
     *,
     session: AsyncSession,
@@ -57,12 +67,12 @@ async def call_llm_for_extraction(
         )
     except BudgetPausedError as exc:
         await orchestrator_pause(run_id=run_id, reason=str(exc))
-        raise ExtractionError("extraction paused by budget guard") from exc
+        raise ExtractionBudgetHaltError("extraction paused by budget guard") from exc
     except BudgetKilledError as exc:
         await orchestrator_fail(run_id=run_id, reason=str(exc))
-        raise ExtractionError("extraction killed by budget guard") from exc
+        raise ExtractionBudgetHaltError("extraction killed by budget guard") from exc
 
     return response
 
 
-__all__ = ["ExtractionError", "call_llm_for_extraction"]
+__all__ = ["ExtractionBudgetHaltError", "ExtractionError", "call_llm_for_extraction"]

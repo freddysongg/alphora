@@ -155,15 +155,24 @@ async def _grouped_runs(session: SessionDep) -> GroupedRuns:
         .order_by(desc(ResearchRun.created_at))
         .limit(_GROUPED_RECENT_LIMIT)
     )
+    cancelled_stmt = (
+        select(ResearchRun)
+        .where(ResearchRun.status == RunStatus.cancelled)
+        .where(ResearchRun.created_at >= recent_cutoff)
+        .order_by(desc(ResearchRun.created_at))
+        .limit(_GROUPED_RECENT_LIMIT)
+    )
     queued_rows = (await session.execute(queued_stmt)).scalars().all()
     running_rows = (await session.execute(running_stmt)).scalars().all()
     failed_rows = (await session.execute(failed_stmt)).scalars().all()
     recent_rows = (await session.execute(recent_stmt)).scalars().all()
+    cancelled_rows = (await session.execute(cancelled_stmt)).scalars().all()
     return GroupedRuns(
         queued=[ResearchRunSummary.model_validate(r) for r in queued_rows],
         running=[ResearchRunSummary.model_validate(r) for r in running_rows],
         recent=[ResearchRunSummary.model_validate(r) for r in recent_rows],
         failed=[ResearchRunSummary.model_validate(r) for r in failed_rows],
+        cancelled=[ResearchRunSummary.model_validate(r) for r in cancelled_rows],
     )
 
 

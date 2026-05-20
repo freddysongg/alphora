@@ -16,9 +16,10 @@ from app.db.models_runs import (
     RunStatus,
     Strategy,
 )
+from app.db.session import session_factory
 from app.schemas.budget import TokenUsage
 from app.schemas.extraction import EvidenceChunkRef
-from app.services.extraction import ExtractionError
+from app.services.extraction import ExtractionBudgetHaltError, ExtractionError
 from app.services.llm.client import LlmCompletionResult
 from app.services.strategies.funnel_research.company.extraction import (
     extract_company_chunks,
@@ -79,14 +80,20 @@ def _ok_llm(call_index: dict[str, int]) -> Callable[..., Awaitable[LlmCompletion
     return _llm
 
 
+async def _seeded_run_id() -> uuid.UUID:
+    async with session_factory() as session:
+        return await _seed_run(session)
+
+
 @pytest.mark.asyncio
 async def test_extract_company_chunks_empty_input_returns_empty(
-    db_session: AsyncSession,
+    initialized_schema: None,
 ) -> None:
-    run_id = await _seed_run(db_session)
+    _ = initialized_schema
+    run_id = await _seeded_run_id()
     counter: dict[str, int] = {"n": 0}
     outcome = await extract_company_chunks(
-        session=db_session,
+        session_factory=session_factory,
         run_id=run_id,
         chunks=[],
         llm_complete=_ok_llm(counter),
@@ -100,13 +107,14 @@ async def test_extract_company_chunks_empty_input_returns_empty(
 
 @pytest.mark.asyncio
 async def test_extract_company_chunks_processes_all_chunks(
-    db_session: AsyncSession,
+    initialized_schema: None,
 ) -> None:
-    run_id = await _seed_run(db_session)
+    _ = initialized_schema
+    run_id = await _seeded_run_id()
     counter: dict[str, int] = {"n": 0}
     chunks = [_chunk(f"chunk-{i}") for i in range(4)]
     outcome = await extract_company_chunks(
-        session=db_session,
+        session_factory=session_factory,
         run_id=run_id,
         chunks=chunks,
         llm_complete=_ok_llm(counter),
@@ -120,9 +128,10 @@ async def test_extract_company_chunks_processes_all_chunks(
 
 @pytest.mark.asyncio
 async def test_extract_company_chunks_records_failures_as_warn_events(
-    db_session: AsyncSession,
+    initialized_schema: None,
 ) -> None:
-    run_id = await _seed_run(db_session)
+    _ = initialized_schema
+    run_id = await _seeded_run_id()
     chunks = [_chunk("a"), _chunk("b")]
 
     failure_count = {"n": 0}
@@ -136,7 +145,7 @@ async def test_extract_company_chunks_records_failures_as_warn_events(
         )
 
     outcome = await extract_company_chunks(
-        session=db_session,
+        session_factory=session_factory,
         run_id=run_id,
         chunks=chunks,
         llm_complete=flaky_llm,
@@ -147,11 +156,12 @@ async def test_extract_company_chunks_records_failures_as_warn_events(
 
     assert len(outcome.results) + len(outcome.failures) == 2
     assert len(outcome.failures) == 1
-    warn_events = (
-        await db_session.execute(
-            select(RunEvent).where(RunEvent.level == RunEventLevel.warn)
-        )
-    ).scalars().all()
+    async with session_factory() as session:
+        warn_events = (
+            await session.execute(
+                select(RunEvent).where(RunEvent.level == RunEventLevel.warn)
+            )
+        ).scalars().all()
     assert any(
         isinstance(event.data, dict)
         and event.data.get("event") == "company_extraction_failure"
@@ -161,9 +171,10 @@ async def test_extract_company_chunks_records_failures_as_warn_events(
 
 @pytest.mark.asyncio
 async def test_extract_company_chunks_respects_concurrency_cap(
-    db_session: AsyncSession,
+    initialized_schema: None,
 ) -> None:
-    run_id = await _seed_run(db_session)
+    _ = initialized_schema
+    run_id = await _seeded_run_id()
     chunks = [_chunk(f"chunk-{i}") for i in range(6)]
     high_water = {"value": 0, "current": 0}
     gate = asyncio.Event()
@@ -181,7 +192,7 @@ async def test_extract_company_chunks_respects_concurrency_cap(
         )
 
     outcome = await extract_company_chunks(
-        session=db_session,
+        session_factory=session_factory,
         run_id=run_id,
         chunks=chunks,
         llm_complete=slow_llm,
@@ -192,3 +203,58 @@ async def test_extract_company_chunks_respects_concurrency_cap(
 
     assert len(outcome.results) == 6
     assert high_water["value"] <= 2
+
+
+@pytest.mark.asyncio
+async def test_extract_company_chunks_aborts_on_budget_halt(
+    initialized_schema: None,
+) -> None:
+    """A budget halt on one chunk should abort the fan-out instead of being absorbed."""
+    _ = initialized_schema
+    run_id = await _seeded_run_id()
+    chunks = [_chunk(f"chunk-{i}") for i in range(3)]
+
+    async def halting_llm(*_args: Any, **_kwargs: Any) -> LlmCompletionResult:
+        raise ExtractionBudgetHaltError("budget halt")
+
+    with pytest.raises(ExtractionBudgetHaltError):
+        await extract_company_chunks(
+            session_factory=session_factory,
+            run_id=run_id,
+            chunks=chunks,
+            llm_complete=halting_llm,
+            orchestrator_pause=_pause_noop,
+            orchestrator_fail=_fail_noop,
+            concurrency=1,
+        )
+
+
+@pytest.mark.asyncio
+async def test_extract_company_chunks_uses_per_task_sessions(
+    initialized_schema: None,
+) -> None:
+    """Each chunk should open its own session via session_factory."""
+    _ = initialized_schema
+    run_id = await _seeded_run_id()
+    chunks = [_chunk(f"chunk-{i}") for i in range(3)]
+
+    factory_call_count = {"n": 0}
+    real_factory = session_factory
+
+    def counting_factory() -> AsyncSession:
+        factory_call_count["n"] += 1
+        return real_factory()
+
+    counter: dict[str, int] = {"n": 0}
+    outcome = await extract_company_chunks(
+        session_factory=counting_factory,  # type: ignore[arg-type]
+        run_id=run_id,
+        chunks=chunks,
+        llm_complete=_ok_llm(counter),
+        orchestrator_pause=_pause_noop,
+        orchestrator_fail=_fail_noop,
+        concurrency=2,
+    )
+
+    assert len(outcome.results) == 3
+    assert factory_call_count["n"] == 3

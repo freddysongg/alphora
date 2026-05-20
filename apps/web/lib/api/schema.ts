@@ -1297,6 +1297,8 @@ export interface components {
             recent: components["schemas"]["ResearchRunSummary"][];
             /** Failed */
             failed: components["schemas"]["ResearchRunSummary"][];
+            /** Cancelled */
+            cancelled: components["schemas"]["ResearchRunSummary"][];
         };
         /** HTTPValidationError */
         HTTPValidationError: {

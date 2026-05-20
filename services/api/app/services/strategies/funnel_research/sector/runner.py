@@ -25,6 +25,7 @@ from app.db.models_runs import RunEventLevel
 from app.db.models_sector import SectorBrief as SectorBriefRow
 from app.schemas.macro_brief import MacroBrief, SectorCall, VerifierStatus
 from app.schemas.sector_brief import JudgePublic, JudgeStatus, SectorBrief
+from app.services.extraction import ExtractionBudgetHaltError
 from app.services.llm.client import LlmClient
 from app.services.run_events import emit_run_event
 from app.services.run_orchestrator import RunOrchestrator
@@ -211,7 +212,7 @@ async def _run_one_sector(
 
             try:
                 extraction = await extract_sector_chunks(
-                    session=session,
+                    session_factory=session_factory,
                     run_id=run_id,
                     chunks=evidence_result.chunks,
                     llm_complete=llm_client.complete,
@@ -296,7 +297,7 @@ async def _run_one_sector(
                 )
                 await session.commit()
                 return _SectorOutcome.persisted
-            except FunnelResearchError as exc:
+            except (FunnelResearchError, ExtractionBudgetHaltError) as exc:
                 _emit_fail(
                     session,
                     run_id=run_id,

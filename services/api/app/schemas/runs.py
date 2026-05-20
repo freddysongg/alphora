@@ -197,3 +197,4 @@ class GroupedRuns(BaseModel):
     running: list[ResearchRunSummary]
     recent: list[ResearchRunSummary]
     failed: list[ResearchRunSummary]
+    cancelled: list[ResearchRunSummary]

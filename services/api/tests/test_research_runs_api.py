@@ -133,8 +133,33 @@ def test_list_research_runs_grouped_view(
         grouped = client.get("/api/research-runs", params={"group": "status"})
     assert grouped.status_code == 200
     body = grouped.json()
-    assert set(body.keys()) == {"queued", "running", "recent", "failed"}
+    assert set(body.keys()) == {"queued", "running", "recent", "failed", "cancelled"}
     assert len(body["queued"]) == 1
+    assert body["cancelled"] == []
+
+
+def test_list_research_runs_grouped_view_returns_cancelled_runs(
+    initialized_schema: None, fake_queue: Any
+) -> None:
+    _ = initialized_schema
+    _ = fake_queue
+    payload: dict[str, Any] = {
+        "tickers": ["AAPL"],
+        "trade_date": "2026-05-15",
+        "llm_provider": "openai",
+        "llm_model": "gpt-4o-mini",
+    }
+    with TestClient(app) as client:
+        create_response = client.post("/api/research-runs", json=payload)
+        run_id = create_response.json()[0]["id"]
+        cancel_response = client.post(f"/api/research-runs/{run_id}/cancel")
+        assert cancel_response.status_code == 200
+        grouped = client.get("/api/research-runs", params={"group": "status"})
+    assert grouped.status_code == 200
+    body = grouped.json()
+    cancelled_ids = [row["id"] for row in body["cancelled"]]
+    assert run_id in cancelled_ids
+    assert body["queued"] == []
 
 
 def test_cancel_research_run_marks_cancelled(

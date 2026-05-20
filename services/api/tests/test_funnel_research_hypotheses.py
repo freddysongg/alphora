@@ -375,3 +375,93 @@ async def test_persist_hypotheses_skips_embedding_when_embedder_omitted(
         )
     ).scalar_one()
     assert stored.embedding is None
+
+
+class _FailingEmbedder:
+    """Embedder that raises on every call — simulates a transient embedding outage."""
+
+    async def embed(self, text: str) -> list[float]:
+        raise RuntimeError("simulated embedding outage")
+
+
+@pytest.mark.asyncio
+async def test_persist_hypotheses_degrades_to_no_embedding_on_embedder_failure(
+    db_session: AsyncSession,
+) -> None:
+    """A transient embedder failure must not abort the run.
+
+    The hypothesis is still inserted (embedding-less), a warn-level
+    `hypothesis_embedding_failure` event is recorded, and dedup is skipped
+    because `resolve_duplicate` treats `embedding=None` as "no candidates".
+    """
+    from app.db.models_runs import RunEvent, RunEventLevel
+    from app.services.strategies.funnel_research._hypotheses import persist_hypotheses
+
+    run_id = await _make_run(db_session)
+    proposed = [
+        ProposedHypothesis(
+            claim_text="Energy outperforms",
+            scope_entity_ids=[uuid.uuid4()],
+            evidence_ids=[uuid.uuid4()],
+        )
+    ]
+    outcomes = await persist_hypotheses(
+        session=db_session,
+        run_id=run_id,
+        proposed=proposed,
+        embedder=_FailingEmbedder(),
+    )
+    await db_session.commit()
+
+    assert len(outcomes) == 1
+    assert outcomes[0].action is DedupAction.inserted
+    stored = (
+        await db_session.execute(
+            select(Hypothesis).where(Hypothesis.id == outcomes[0].hypothesis_id)
+        )
+    ).scalar_one()
+    assert stored.embedding is None
+
+    warn_events = (
+        await db_session.execute(
+            select(RunEvent).where(
+                RunEvent.run_id == run_id, RunEvent.level == RunEventLevel.warn
+            )
+        )
+    ).scalars().all()
+    assert any(
+        isinstance(event.data, dict)
+        and event.data.get("event") == "hypothesis_embedding_failure"
+        for event in warn_events
+    )
+
+
+@pytest.mark.asyncio
+async def test_persist_hypotheses_embedder_failure_does_not_block_subsequent_claims(
+    db_session: AsyncSession,
+) -> None:
+    """A failed embedding on claim N should not block claim N+1."""
+    from app.services.strategies.funnel_research._hypotheses import persist_hypotheses
+
+    run_id = await _make_run(db_session)
+    proposed = [
+        ProposedHypothesis(
+            claim_text="Energy outperforms",
+            scope_entity_ids=[uuid.uuid4()],
+            evidence_ids=[uuid.uuid4()],
+        ),
+        ProposedHypothesis(
+            claim_text="Healthcare lags",
+            scope_entity_ids=[uuid.uuid4()],
+            evidence_ids=[uuid.uuid4()],
+        ),
+    ]
+    outcomes = await persist_hypotheses(
+        session=db_session,
+        run_id=run_id,
+        proposed=proposed,
+        embedder=_FailingEmbedder(),
+    )
+    await db_session.commit()
+    assert len(outcomes) == 2
+    assert all(outcome.action is DedupAction.inserted for outcome in outcomes)

@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models_graph import Hypothesis
+from app.db.models_runs import RunEventLevel
 from app.schemas.macro_brief import ProposedHypothesis
 from app.services.belief import ensure_hypothesis_entity
 from app.services.hypothesis import (
@@ -14,6 +15,39 @@ from app.services.hypothesis import (
     Embedder,
     resolve_duplicate,
 )
+from app.services.run_events import emit_run_event
+
+
+async def _embed_or_warn(
+    *,
+    embedder: Embedder | None,
+    claim_text: str,
+    session: AsyncSession,
+    run_id: uuid.UUID,
+) -> list[float] | None:
+    """Embed a claim, degrading to `None` on transient embedder failure.
+
+    The dedup pipeline already treats `embedding=None` as "no candidates"
+    and inserts a fresh row, so the safe degrade is to skip dedup for this
+    claim rather than fail the whole macro run after synthesis. A warn
+    event records the failure so the operator can investigate.
+    """
+    if embedder is None:
+        return None
+    try:
+        return list(await embedder.embed(claim_text))
+    except Exception as exc:
+        emit_run_event(
+            session,
+            run_id=run_id,
+            level=RunEventLevel.warn,
+            message=f"hypothesis embedding failed, inserting without dedup: {exc}",
+            data={
+                "event": "hypothesis_embedding_failure",
+                "reason": str(exc),
+            },
+        )
+        return None
 
 
 async def persist_hypotheses(
@@ -34,12 +68,22 @@ async def persist_hypotheses(
     entities so the belief engine can target them via
     `supports_hypothesis` / `contradicts_hypothesis` relations.
 
+    A transient embedder failure does not abort the run: the claim is
+    inserted without dedup and a warn event is emitted. This matches the
+    documented dedup contract that `embedding=None` collapses to "treat
+    as new".
+
     Returns the per-claim `DedupOutcome` list. Skip-dedup callers (no
     embedder) still get an `inserted` outcome per proposed row.
     """
     outcomes: list[DedupOutcome] = []
     for item in proposed:
-        embedding = await embedder.embed(item.claim_text) if embedder else None
+        embedding = await _embed_or_warn(
+            embedder=embedder,
+            claim_text=item.claim_text,
+            session=session,
+            run_id=run_id,
+        )
         outcome = await resolve_duplicate(
             session=session,
             new_claim_text=item.claim_text,

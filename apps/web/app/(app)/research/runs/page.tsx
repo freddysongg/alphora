@@ -33,7 +33,7 @@ const sectionConfigs: readonly SectionConfig[] = [
   { key: "cancelled", label: "CANCELLED", defaultOpen: false },
 ];
 
-const emptyGroups: GroupedRunsWithCancelled = {
+const emptyGroups: GroupedRuns = {
   queued: [],
   running: [],
   recent: [],
@@ -41,12 +41,8 @@ const emptyGroups: GroupedRunsWithCancelled = {
   cancelled: [],
 };
 
-interface GroupedRunsWithCancelled extends GroupedRuns {
-  cancelled: ResearchRunSummary[];
-}
-
 interface FetchResult {
-  groups: GroupedRunsWithCancelled;
+  groups: GroupedRuns;
   errorDetail: string | null;
 }
 
@@ -61,7 +57,7 @@ async function loadGroupedRuns(): Promise<FetchResult> {
       return { groups: emptyGroups, errorDetail: null };
     }
     return {
-      groups: { ...data, cancelled: [] },
+      groups: data,
       errorDetail: null,
     };
   } catch (caught) {

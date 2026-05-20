@@ -31,6 +31,7 @@ from app.schemas.sector_brief import (
     SectorBrief,
     SectorBriefPublic,
 )
+from app.services.extraction import ExtractionBudgetHaltError
 from app.services.llm.client import LlmClient
 from app.services.run_events import emit_run_event
 from app.services.run_orchestrator import RunOrchestrator
@@ -248,7 +249,7 @@ async def _run_one_company(
 
             try:
                 extraction = await extract_company_chunks(
-                    session=session,
+                    session_factory=session_factory,
                     run_id=run_id,
                     chunks=evidence_result.chunks,
                     llm_complete=llm_client.complete,
@@ -332,7 +333,7 @@ async def _run_one_company(
                 )
                 await session.commit()
                 return _CompanyOutcome.persisted
-            except FunnelResearchError as exc:
+            except (FunnelResearchError, ExtractionBudgetHaltError) as exc:
                 _emit_fail(
                     session,
                     run_id=run_id,
