@@ -77,6 +77,9 @@ async def select_belief_update_inputs(
     )
     candidates: list[BeliefUpdateCandidate] = []
     for hypothesis in hypotheses:
+        hypothesis_entity_id = hypothesis.entity_id
+        if hypothesis_entity_id is None:
+            continue
         evidence_ids = await _resolve_evidence_ids_for_scope(
             session=session,
             run_id=run_id,
@@ -89,10 +92,9 @@ async def select_belief_update_inputs(
         chunks = await _load_chunks_for_evidence(
             session=session, evidence_ids=evidence_ids
         )
-        assert hypothesis.entity_id is not None
         chunks = await _filter_chunks_with_existing_relation(
             session=session,
-            hypothesis_entity_id=hypothesis.entity_id,
+            hypothesis_entity_id=hypothesis_entity_id,
             chunks=chunks,
         )
         chunks = _cap_chunks(chunks, limit=max_chunks_per_hypothesis)
@@ -151,14 +153,9 @@ async def _load_open_hypotheses_in_scope(
         scope = row.scope_entity_ids
         if any(eid in direct_strs for eid in scope):
             matching.append(row)
-        elif touched.has_macro_brief and _scope_is_macro_only(scope, direct_strs):
+        elif touched.has_macro_brief and scope:
             matching.append(row)
     return matching
-
-
-def _scope_is_macro_only(scope_entity_ids: list[str], direct_strs: set[str]) -> bool:
-    """True when the scope contains at least one ID that isn't a direct brief entity."""
-    return any(eid not in direct_strs for eid in scope_entity_ids)
 
 
 async def _resolve_evidence_ids_for_scope(

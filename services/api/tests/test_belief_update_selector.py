@@ -329,7 +329,7 @@ async def test_select_caps_chunks_at_limit_keeping_newest(
     sector_entity_id = await _seed_entity(
         db_session, kind=EntityType.sector, name="Health Care"
     )
-    evidence_id, _chunk_ids = await _seed_evidence_with_chunks(
+    evidence_id, chunk_ids = await _seed_evidence_with_chunks(
         db_session, source="tiingo_news", chunk_count=5
     )
     db_session.add(
@@ -359,7 +359,7 @@ async def test_select_caps_chunks_at_limit_keeping_newest(
     )
 
     assert len(result) == 1
-    assert len(result[0].chunks) == 2
+    assert {chunk.id for chunk in result[0].chunks} == {chunk_ids[-2], chunk_ids[-1]}
 
 
 @pytest.mark.asyncio
