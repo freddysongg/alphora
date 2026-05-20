@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 import uuid
 from dataclasses import dataclass
-from typing import Any
 
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -62,6 +61,10 @@ class BeliefUpdateOutcome:
     chunks_judged: int
     relations_written: int
     recomputed_hypothesis_ids: list[uuid.UUID]
+
+
+class _PerHypothesisError(Exception):
+    """Recoverable per-hypothesis failure that becomes a warn event."""
 
 
 async def run_belief_update_pass(
@@ -183,10 +186,6 @@ async def run_belief_update_pass(
     )
 
 
-class _PerHypothesisError(Exception):
-    """Recoverable per-hypothesis failure that becomes a warn event."""
-
-
 async def _call_belief_update_llm(
     *,
     session: AsyncSession,
@@ -238,9 +237,15 @@ def _write_relations(
     model_id: str,
 ) -> list[uuid.UUID]:
     hypothesis = candidate.hypothesis
-    if hypothesis.entity_id is None:
-        return []
-    from_id = _from_id_for_hypothesis(hypothesis)
+    hypothesis_entity_id = hypothesis.entity_id
+    if hypothesis_entity_id is None:
+        raise RuntimeError(
+            "belief_update.runner._write_relations called with hypothesis whose "
+            "entity_id is None; selector should have filtered it"
+        )
+    from_id = _from_id_for_hypothesis(
+        hypothesis, fallback=hypothesis_entity_id
+    )
     chunk_by_id = {chunk.id: chunk for chunk in candidate.chunks}
     written: list[uuid.UUID] = []
     for verdict in verdicts:
@@ -260,7 +265,7 @@ def _write_relations(
         relation = Relation(
             id=relation_id,
             from_id=from_id,
-            to_id=hypothesis.entity_id,
+            to_id=hypothesis_entity_id,
             type=relation_type,
             chunk_id=chunk.id,
             source_id=chunk.evidence_id,
@@ -271,14 +276,19 @@ def _write_relations(
             sign=sign,
             prompt_version=PROMPT_VERSION,
             extracted_by_model=model_id,
-            attributes=_relation_attributes(verdict),
+            attributes={
+                "verdict": verdict.verdict,
+                "confidence": verdict.confidence,
+            },
         )
         session.add(relation)
         written.append(relation_id)
     return written
 
 
-def _from_id_for_hypothesis(hypothesis: Hypothesis) -> uuid.UUID:
+def _from_id_for_hypothesis(
+    hypothesis: Hypothesis, *, fallback: uuid.UUID
+) -> uuid.UUID:
     """Resolve Relation.from_id for a belief relation.
 
     `Relation.from_id` is NOT NULL but the belief engine only indexes by
@@ -288,16 +298,7 @@ def _from_id_for_hypothesis(hypothesis: Hypothesis) -> uuid.UUID:
     """
     if hypothesis.scope_entity_ids:
         return uuid.UUID(hypothesis.scope_entity_ids[0])
-    if hypothesis.entity_id is None:
-        raise RuntimeError("hypothesis.entity_id none in _from_id_for_hypothesis")
-    return hypothesis.entity_id
-
-
-def _relation_attributes(verdict: BeliefUpdateVerdict) -> dict[str, Any]:
-    return {
-        "verdict": verdict.verdict,
-        "confidence": verdict.confidence,
-    }
+    return fallback
 
 
 def _emit_warn(
