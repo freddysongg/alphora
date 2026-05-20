@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import type { Route } from "next";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Button,
@@ -38,6 +39,9 @@ import {
 import { RunLogStream } from "@/components/research/run-log-stream";
 import { RunCostMeter } from "@/components/research/run-cost-meter";
 import type { CostMeterState } from "@/components/research/run-cost-meter";
+import { CounterfactualGateSummary } from "@/components/research/counterfactual-gate-summary";
+import { HumanReviewForm } from "@/components/research/human-review-form";
+import { HumanReviewSummaryWidget } from "@/components/research/human-review-summary";
 import { cn } from "@/lib/cn";
 import { CancelRunButton } from "./cancel-run-button";
 import { MacroBriefDetail } from "./macro-brief-detail";
@@ -49,6 +53,9 @@ type FinalRating = components["schemas"]["FinalRatingEnum"];
 type RunReport = components["schemas"]["RunReportPublic"];
 type SourceProvenance = components["schemas"]["SourceProvenancePublic"];
 type MacroBriefPublic = components["schemas"]["MacroBriefPublic"];
+type CounterfactualGateRow =
+  components["schemas"]["CounterfactualGateRunPublic"];
+type HumanReviewSummary = components["schemas"]["HumanReviewSummary"];
 
 type TabKey =
   | "overview"
@@ -222,15 +229,31 @@ export interface RunDetailProps {
   macroBrief: MacroBriefPublic | null;
   initialCostState: CostMeterState;
   initialSeenLogIds: readonly string[];
+  counterfactualGates: readonly CounterfactualGateRow[];
+  humanReviewSummary: HumanReviewSummary;
+  defaultWeekStart: string;
 }
 
 export function RunDetail(props: RunDetailProps): ReactElement {
-  const { detail, macroBrief, initialCostState, initialSeenLogIds } = props;
+  const {
+    detail,
+    macroBrief,
+    initialCostState,
+    initialSeenLogIds,
+    counterfactualGates,
+    humanReviewSummary,
+    defaultWeekStart,
+  } = props;
+  const router = useRouter();
   const isFunnelResearch = detail.strategy === "funnel_research";
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [optimisticStatus, setOptimisticStatus] = useState<RunStatus | null>(
     null,
   );
+
+  const handleReviewSubmitted = useCallback((): void => {
+    router.refresh();
+  }, [router]);
 
   const resolvedStatus = optimisticStatus ?? detail.status;
   const analystKeys = useMemo(
@@ -317,6 +340,15 @@ export function RunDetail(props: RunDetailProps): ReactElement {
           initialSeenLogIds={initialSeenLogIds}
           isTerminal={isLogStreamTerminal}
         />
+        <CounterfactualGateSummary gates={counterfactualGates} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <HumanReviewForm
+            runId={detail.id}
+            defaultWeekStart={defaultWeekStart}
+            onSubmitted={handleReviewSubmitted}
+          />
+          <HumanReviewSummaryWidget summary={humanReviewSummary} />
+        </div>
         {isFunnelResearch && macroBrief !== null ? (
           <MacroBriefDetail data={macroBrief} runId={detail.id} />
         ) : isFunnelResearch &&

@@ -28,6 +28,11 @@ _EXPECTED_TABLES = {
     "application_settings",
     "llm_call_logs",
     "llm_call_replays",
+    "counterfactual_perturbations",
+    "counterfactual_gate_runs",
+    "leakage_holdout_cases",
+    "leakage_runs",
+    "human_reviews",
 }
 
 

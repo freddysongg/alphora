@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models_sector import SectorBrief as SectorBriefRow
 from app.schemas.sector_brief import JudgePublic, SectorBrief
+from app.services.evals.gate_runner import run_gate_for_sector_brief
 
 
 async def persist_sector_brief(
@@ -36,6 +37,12 @@ async def persist_sector_brief(
     )
     session.add(row)
     await session.flush()
+    await run_gate_for_sector_brief(
+        session=session,
+        run_id=run_id,
+        brief_id=row.id,
+        brief=brief,
+    )
     return row.id
 
 

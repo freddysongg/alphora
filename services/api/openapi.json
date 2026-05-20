@@ -1599,6 +1599,481 @@
           }
         }
       }
+    },
+    "/api/research-runs/{run_id}/counterfactuals": {
+      "get": {
+        "tags": [
+          "evals"
+        ],
+        "summary": "Get Run Counterfactuals",
+        "operationId": "get_run_counterfactuals_api_research_runs__run_id__counterfactuals_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CounterfactualRunSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/evals/leakage/cases": {
+      "post": {
+        "tags": [
+          "evals"
+        ],
+        "summary": "Create Leakage Case",
+        "operationId": "create_leakage_case_api_evals_leakage_cases_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeakageHoldoutCaseInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeakageHoldoutCasePublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "evals"
+        ],
+        "summary": "List Leakage Cases",
+        "operationId": "list_leakage_cases_api_evals_leakage_cases_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LeakageHoldoutCasePublic"
+                  },
+                  "title": "Response List Leakage Cases Api Evals Leakage Cases Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/evals/leakage/runs": {
+      "post": {
+        "tags": [
+          "evals"
+        ],
+        "summary": "Create Leakage Run",
+        "operationId": "create_leakage_run_api_evals_leakage_runs_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeakageRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeakageRunPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "evals"
+        ],
+        "summary": "List Leakage Runs",
+        "operationId": "list_leakage_runs_api_evals_leakage_runs_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LeakageRunPublic"
+                  },
+                  "title": "Response List Leakage Runs Api Evals Leakage Runs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/human-reviews": {
+      "post": {
+        "tags": [
+          "human-reviews"
+        ],
+        "summary": "Create Human Review",
+        "operationId": "create_human_review_api_human_reviews_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HumanReviewInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HumanReviewPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "human-reviews"
+        ],
+        "summary": "List Human Reviews",
+        "operationId": "list_human_reviews_api_human_reviews_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "week_start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Week Start"
+            }
+          },
+          {
+            "name": "brief_kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/BriefKindEnum"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Brief Kind"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HumanReviewPublic"
+                  },
+                  "title": "Response List Human Reviews Api Human Reviews Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/human-reviews/summary": {
+      "get": {
+        "tags": [
+          "human-reviews"
+        ],
+        "summary": "Get Human Review Summary",
+        "operationId": "get_human_review_summary_api_human_reviews_summary_get",
+        "parameters": [
+          {
+            "name": "weeks",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 52,
+              "minimum": 1,
+              "default": 12,
+              "title": "Weeks"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HumanReviewSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1686,6 +2161,16 @@
           "default_model"
         ],
         "title": "ApplicationSettingsPublic"
+      },
+      "BriefKindEnum": {
+        "type": "string",
+        "enum": [
+          "macro",
+          "sector",
+          "company",
+          "portfolio"
+        ],
+        "title": "BriefKindEnum"
       },
       "ChunkLookup": {
         "properties": {
@@ -1970,6 +2455,184 @@
           "chunks"
         ],
         "title": "CompanyThesisPublic"
+      },
+      "CounterfactualGateRunPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "brief_kind": {
+            "$ref": "#/components/schemas/BriefKindEnum"
+          },
+          "brief_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brief Id"
+          },
+          "perturbation_count": {
+            "type": "integer",
+            "title": "Perturbation Count"
+          },
+          "meaningful_count": {
+            "type": "integer",
+            "title": "Meaningful Count"
+          },
+          "meaningful_changed_count": {
+            "type": "integer",
+            "title": "Meaningful Changed Count"
+          },
+          "change_rate": {
+            "type": "number",
+            "title": "Change Rate"
+          },
+          "threshold": {
+            "type": "number",
+            "title": "Threshold"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "run_id",
+          "brief_kind",
+          "brief_id",
+          "perturbation_count",
+          "meaningful_count",
+          "meaningful_changed_count",
+          "change_rate",
+          "threshold",
+          "passed",
+          "created_at"
+        ],
+        "title": "CounterfactualGateRunPublic"
+      },
+      "CounterfactualPerturbationPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "brief_kind": {
+            "$ref": "#/components/schemas/BriefKindEnum"
+          },
+          "brief_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brief Id"
+          },
+          "perturbation_kind": {
+            "$ref": "#/components/schemas/PerturbationKindEnum"
+          },
+          "perturbation_input": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Perturbation Input"
+          },
+          "baseline_output": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Baseline Output"
+          },
+          "perturbed_output": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Perturbed Output"
+          },
+          "decision_delta": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Decision Delta"
+          },
+          "is_meaningful": {
+            "type": "boolean",
+            "title": "Is Meaningful"
+          },
+          "decision_changed": {
+            "type": "boolean",
+            "title": "Decision Changed"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "run_id",
+          "brief_kind",
+          "brief_id",
+          "perturbation_kind",
+          "perturbation_input",
+          "baseline_output",
+          "perturbed_output",
+          "decision_delta",
+          "is_meaningful",
+          "decision_changed",
+          "created_at"
+        ],
+        "title": "CounterfactualPerturbationPublic"
+      },
+      "CounterfactualRunSummary": {
+        "properties": {
+          "gates": {
+            "items": {
+              "$ref": "#/components/schemas/CounterfactualGateRunPublic"
+            },
+            "type": "array",
+            "title": "Gates"
+          },
+          "perturbations": {
+            "items": {
+              "$ref": "#/components/schemas/CounterfactualPerturbationPublic"
+            },
+            "type": "array",
+            "title": "Perturbations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "gates",
+          "perturbations"
+        ],
+        "title": "CounterfactualRunSummary"
       },
       "CreatePaperOrderRequest": {
         "properties": {
@@ -2495,6 +3158,198 @@
         ],
         "title": "HealthResponse"
       },
+      "HumanReviewInput": {
+        "properties": {
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "brief_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BriefKindEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "week_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Week Start"
+          },
+          "reviewer": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Reviewer"
+          },
+          "surfaced_missed": {
+            "type": "integer",
+            "maximum": 2.0,
+            "minimum": -2.0,
+            "title": "Surfaced Missed"
+          },
+          "missed_noticed": {
+            "type": "integer",
+            "maximum": 2.0,
+            "minimum": -2.0,
+            "title": "Missed Noticed"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "week_start",
+          "reviewer",
+          "surfaced_missed",
+          "missed_noticed"
+        ],
+        "title": "HumanReviewInput"
+      },
+      "HumanReviewPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "brief_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BriefKindEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "week_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Week Start"
+          },
+          "reviewer": {
+            "type": "string",
+            "title": "Reviewer"
+          },
+          "surfaced_missed": {
+            "type": "integer",
+            "title": "Surfaced Missed"
+          },
+          "missed_noticed": {
+            "type": "integer",
+            "title": "Missed Noticed"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "run_id",
+          "brief_kind",
+          "week_start",
+          "reviewer",
+          "surfaced_missed",
+          "missed_noticed",
+          "notes",
+          "created_at"
+        ],
+        "title": "HumanReviewPublic"
+      },
+      "HumanReviewSummary": {
+        "properties": {
+          "weeks": {
+            "items": {
+              "$ref": "#/components/schemas/HumanReviewWeekSummary"
+            },
+            "type": "array",
+            "title": "Weeks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "weeks"
+        ],
+        "title": "HumanReviewSummary"
+      },
+      "HumanReviewWeekSummary": {
+        "properties": {
+          "week_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Week Start"
+          },
+          "review_count": {
+            "type": "integer",
+            "title": "Review Count"
+          },
+          "mean_surfaced_missed": {
+            "type": "number",
+            "title": "Mean Surfaced Missed"
+          },
+          "mean_missed_noticed": {
+            "type": "number",
+            "title": "Mean Missed Noticed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "week_start",
+          "review_count",
+          "mean_surfaced_missed",
+          "mean_missed_noticed"
+        ],
+        "title": "HumanReviewWeekSummary"
+      },
       "HypothesisListResponse": {
         "properties": {
           "items": {
@@ -2652,6 +3507,191 @@
           "flagged"
         ],
         "title": "JudgeStatus"
+      },
+      "LeakageHoldoutCaseInput": {
+        "properties": {
+          "case_name": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Case Name"
+          },
+          "cutoff_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Cutoff At"
+          },
+          "full_decision": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Full Decision"
+          },
+          "restricted_decision": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Restricted Decision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "case_name",
+          "cutoff_at",
+          "full_decision",
+          "restricted_decision"
+        ],
+        "title": "LeakageHoldoutCaseInput"
+      },
+      "LeakageHoldoutCasePublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "case_name": {
+            "type": "string",
+            "title": "Case Name"
+          },
+          "cutoff_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Cutoff At"
+          },
+          "full_decision": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Full Decision"
+          },
+          "restricted_decision": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Restricted Decision"
+          },
+          "agreement": {
+            "type": "number",
+            "title": "Agreement"
+          },
+          "decay": {
+            "type": "number",
+            "title": "Decay"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "case_name",
+          "cutoff_at",
+          "full_decision",
+          "restricted_decision",
+          "agreement",
+          "decay",
+          "created_at"
+        ],
+        "title": "LeakageHoldoutCasePublic"
+      },
+      "LeakageRunPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "case_count": {
+            "type": "integer",
+            "title": "Case Count"
+          },
+          "mean_decay": {
+            "type": "number",
+            "title": "Mean Decay"
+          },
+          "max_decay": {
+            "type": "number",
+            "title": "Max Decay"
+          },
+          "threshold": {
+            "type": "number",
+            "title": "Threshold"
+          },
+          "flagged": {
+            "type": "boolean",
+            "title": "Flagged"
+          },
+          "case_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Case Ids"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "run_id",
+          "case_count",
+          "mean_decay",
+          "max_decay",
+          "threshold",
+          "flagged",
+          "case_ids",
+          "created_at"
+        ],
+        "title": "LeakageRunPublic"
+      },
+      "LeakageRunRequest": {
+        "properties": {
+          "case_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Case Ids"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "case_ids"
+        ],
+        "title": "LeakageRunRequest"
       },
       "LlmBudgetActionEnum": {
         "type": "string",
@@ -3384,6 +4424,17 @@
           "closed_at"
         ],
         "title": "PaperPositionPublic"
+      },
+      "PerturbationKindEnum": {
+        "type": "string",
+        "enum": [
+          "drop_top_evidence",
+          "flip_top_call_direction",
+          "redact_top_quote",
+          "lower_top_call_conviction",
+          "swap_call_ordering"
+        ],
+        "title": "PerturbationKindEnum"
       },
       "PortfolioBrief": {
         "properties": {

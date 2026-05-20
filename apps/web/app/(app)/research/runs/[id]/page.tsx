@@ -11,6 +11,10 @@ import type {
 import { getMacroBrief } from "./actions";
 import { RunDetail } from "./run-detail";
 
+type CounterfactualRunSummary =
+  components["schemas"]["CounterfactualRunSummary"];
+type HumanReviewSummary = components["schemas"]["HumanReviewSummary"];
+
 export const metadata: Metadata = {
   title: "Run Detail · Alphora",
 };
@@ -136,6 +140,48 @@ function byCreatedAtAscending(
   return a.created_at.localeCompare(b.created_at);
 }
 
+async function loadCounterfactualSummary(
+  runId: string,
+): Promise<CounterfactualRunSummary | null> {
+  try {
+    const { data } = await getServerApi().GET(
+      "/api/research-runs/{run_id}/counterfactuals",
+      {
+        params: { path: { run_id: runId } },
+        cache: "no-store",
+      },
+    );
+    return data ?? null;
+  } catch (caught) {
+    if (isApiError(caught) && caught.status === NOT_FOUND_STATUS) {
+      return null;
+    }
+    throw caught;
+  }
+}
+
+async function loadHumanReviewSummary(): Promise<HumanReviewSummary> {
+  try {
+    const { data } = await getServerApi().GET("/api/human-reviews/summary", {
+      params: { query: { weeks: 8 } },
+      cache: "no-store",
+    });
+    return data ?? { weeks: [] };
+  } catch {
+    return { weeks: [] };
+  }
+}
+
+function defaultWeekStart(): string {
+  const now = new Date();
+  const day = now.getUTCDay();
+  const diff = (day + 6) % 7;
+  const monday = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - diff),
+  );
+  return monday.toISOString().slice(0, 10);
+}
+
 export default async function RunDetailPage(
   props: RunDetailPageProps,
 ): Promise<ReactElement> {
@@ -147,12 +193,17 @@ export default async function RunDetailPage(
   const macroBrief =
     detail.strategy === "funnel_research" ? await getMacroBrief(id) : null;
   const initialCost = await loadInitialCostBundle(id);
+  const counterfactuals = await loadCounterfactualSummary(id);
+  const reviewSummary = await loadHumanReviewSummary();
   return (
     <RunDetail
       detail={detail}
       macroBrief={macroBrief}
       initialCostState={initialCost.state}
       initialSeenLogIds={initialCost.seenLogIds}
+      counterfactualGates={counterfactuals?.gates ?? []}
+      humanReviewSummary={reviewSummary}
+      defaultWeekStart={defaultWeekStart()}
     />
   );
 }

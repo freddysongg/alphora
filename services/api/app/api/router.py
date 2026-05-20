@@ -3,8 +3,10 @@ from fastapi import APIRouter
 from app.api.routes import (
     company_theses,
     data_health,
+    evals,
     graph,
     health,
+    human_reviews,
     hypotheses,
     macro_briefs,
     paper,
@@ -46,3 +48,5 @@ api_router.include_router(settings.router, prefix="/settings", tags=["settings"]
 api_router.include_router(
     watchlists.router, prefix="/watchlists", tags=["watchlists"]
 )
+api_router.include_router(evals.router, tags=["evals"])
+api_router.include_router(human_reviews.router, tags=["human-reviews"])

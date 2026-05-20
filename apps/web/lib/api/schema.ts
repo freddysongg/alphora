@@ -496,6 +496,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/research-runs/{run_id}/counterfactuals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Run Counterfactuals */
+        get: operations["get_run_counterfactuals_api_research_runs__run_id__counterfactuals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/evals/leakage/cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Leakage Cases */
+        get: operations["list_leakage_cases_api_evals_leakage_cases_get"];
+        put?: never;
+        /** Create Leakage Case */
+        post: operations["create_leakage_case_api_evals_leakage_cases_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/evals/leakage/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Leakage Runs */
+        get: operations["list_leakage_runs_api_evals_leakage_runs_get"];
+        put?: never;
+        /** Create Leakage Run */
+        post: operations["create_leakage_run_api_evals_leakage_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/human-reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Human Reviews */
+        get: operations["list_human_reviews_api_human_reviews_get"];
+        put?: never;
+        /** Create Human Review */
+        post: operations["create_human_review_api_human_reviews_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/human-reviews/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Human Review Summary */
+        get: operations["get_human_review_summary_api_human_reviews_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -533,6 +621,11 @@ export interface components {
              */
             has_alpha_vantage_key: boolean;
         };
+        /**
+         * BriefKindEnum
+         * @enum {string}
+         */
+        BriefKindEnum: "macro" | "sector" | "company" | "portfolio";
         /** ChunkLookup */
         ChunkLookup: {
             /**
@@ -631,6 +724,88 @@ export interface components {
             judge: components["schemas"]["JudgePublic"];
             /** Chunks */
             chunks: components["schemas"]["ChunkLookup"][];
+        };
+        /** CounterfactualGateRunPublic */
+        CounterfactualGateRunPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            brief_kind: components["schemas"]["BriefKindEnum"];
+            /** Brief Id */
+            brief_id: string | null;
+            /** Perturbation Count */
+            perturbation_count: number;
+            /** Meaningful Count */
+            meaningful_count: number;
+            /** Meaningful Changed Count */
+            meaningful_changed_count: number;
+            /** Change Rate */
+            change_rate: number;
+            /** Threshold */
+            threshold: number;
+            /** Passed */
+            passed: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** CounterfactualPerturbationPublic */
+        CounterfactualPerturbationPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            brief_kind: components["schemas"]["BriefKindEnum"];
+            /** Brief Id */
+            brief_id: string | null;
+            perturbation_kind: components["schemas"]["PerturbationKindEnum"];
+            /** Perturbation Input */
+            perturbation_input: {
+                [key: string]: unknown;
+            };
+            /** Baseline Output */
+            baseline_output: {
+                [key: string]: unknown;
+            };
+            /** Perturbed Output */
+            perturbed_output: {
+                [key: string]: unknown;
+            };
+            /** Decision Delta */
+            decision_delta: {
+                [key: string]: unknown;
+            };
+            /** Is Meaningful */
+            is_meaningful: boolean;
+            /** Decision Changed */
+            decision_changed: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** CounterfactualRunSummary */
+        CounterfactualRunSummary: {
+            /** Gates */
+            gates: components["schemas"]["CounterfactualGateRunPublic"][];
+            /** Perturbations */
+            perturbations: components["schemas"]["CounterfactualPerturbationPublic"][];
         };
         /** CreatePaperOrderRequest */
         CreatePaperOrderRequest: {
@@ -818,6 +993,73 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** HumanReviewInput */
+        HumanReviewInput: {
+            /** Run Id */
+            run_id?: string | null;
+            brief_kind?: components["schemas"]["BriefKindEnum"] | null;
+            /**
+             * Week Start
+             * Format: date
+             */
+            week_start: string;
+            /** Reviewer */
+            reviewer: string;
+            /** Surfaced Missed */
+            surfaced_missed: number;
+            /** Missed Noticed */
+            missed_noticed: number;
+            /** Notes */
+            notes?: string | null;
+        };
+        /** HumanReviewPublic */
+        HumanReviewPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Run Id */
+            run_id: string | null;
+            brief_kind: components["schemas"]["BriefKindEnum"] | null;
+            /**
+             * Week Start
+             * Format: date
+             */
+            week_start: string;
+            /** Reviewer */
+            reviewer: string;
+            /** Surfaced Missed */
+            surfaced_missed: number;
+            /** Missed Noticed */
+            missed_noticed: number;
+            /** Notes */
+            notes: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** HumanReviewSummary */
+        HumanReviewSummary: {
+            /** Weeks */
+            weeks: components["schemas"]["HumanReviewWeekSummary"][];
+        };
+        /** HumanReviewWeekSummary */
+        HumanReviewWeekSummary: {
+            /**
+             * Week Start
+             * Format: date
+             */
+            week_start: string;
+            /** Review Count */
+            review_count: number;
+            /** Mean Surfaced Missed */
+            mean_surfaced_missed: number;
+            /** Mean Missed Noticed */
+            mean_missed_noticed: number;
+        };
         /** HypothesisListResponse */
         HypothesisListResponse: {
             /** Items */
@@ -875,6 +1117,90 @@ export interface components {
          * @enum {string}
          */
         JudgeStatus: "not_run" | "passed" | "flagged";
+        /** LeakageHoldoutCaseInput */
+        LeakageHoldoutCaseInput: {
+            /** Case Name */
+            case_name: string;
+            /**
+             * Cutoff At
+             * Format: date-time
+             */
+            cutoff_at: string;
+            /** Full Decision */
+            full_decision: {
+                [key: string]: unknown;
+            };
+            /** Restricted Decision */
+            restricted_decision: {
+                [key: string]: unknown;
+            };
+        };
+        /** LeakageHoldoutCasePublic */
+        LeakageHoldoutCasePublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Case Name */
+            case_name: string;
+            /**
+             * Cutoff At
+             * Format: date-time
+             */
+            cutoff_at: string;
+            /** Full Decision */
+            full_decision: {
+                [key: string]: unknown;
+            };
+            /** Restricted Decision */
+            restricted_decision: {
+                [key: string]: unknown;
+            };
+            /** Agreement */
+            agreement: number;
+            /** Decay */
+            decay: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** LeakageRunPublic */
+        LeakageRunPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Run Id */
+            run_id: string | null;
+            /** Case Count */
+            case_count: number;
+            /** Mean Decay */
+            mean_decay: number;
+            /** Max Decay */
+            max_decay: number;
+            /** Threshold */
+            threshold: number;
+            /** Flagged */
+            flagged: boolean;
+            /** Case Ids */
+            case_ids: string[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** LeakageRunRequest */
+        LeakageRunRequest: {
+            /** Case Ids */
+            case_ids: string[];
+            /** Run Id */
+            run_id?: string | null;
+        };
         /**
          * LlmBudgetActionEnum
          * @enum {string}
@@ -1138,6 +1464,11 @@ export interface components {
             /** Closed At */
             closed_at: string | null;
         };
+        /**
+         * PerturbationKindEnum
+         * @enum {string}
+         */
+        PerturbationKindEnum: "drop_top_evidence" | "flip_top_call_direction" | "redact_top_quote" | "lower_top_call_conviction" | "swap_call_ordering";
         /** PortfolioBrief */
         PortfolioBrief: {
             /**
@@ -2724,6 +3055,270 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_run_counterfactuals_api_research_runs__run_id__counterfactuals_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CounterfactualRunSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_leakage_cases_api_evals_leakage_cases_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeakageHoldoutCasePublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_leakage_case_api_evals_leakage_cases_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeakageHoldoutCaseInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeakageHoldoutCasePublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_leakage_runs_api_evals_leakage_runs_get: {
+        parameters: {
+            query?: {
+                run_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeakageRunPublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_leakage_run_api_evals_leakage_runs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeakageRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeakageRunPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_human_reviews_api_human_reviews_get: {
+        parameters: {
+            query?: {
+                run_id?: string | null;
+                week_start?: string | null;
+                brief_kind?: components["schemas"]["BriefKindEnum"] | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HumanReviewPublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_human_review_api_human_reviews_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HumanReviewInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HumanReviewPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_human_review_summary_api_human_reviews_summary_get: {
+        parameters: {
+            query?: {
+                weeks?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HumanReviewSummary"];
+                };
             };
             /** @description Validation Error */
             422: {

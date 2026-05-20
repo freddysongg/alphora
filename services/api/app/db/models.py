@@ -1,6 +1,15 @@
 from app.db.base import Base, TimestampMixin
 from app.db.models_company import CompanyThesis
 from app.db.models_data_health import ProviderCheck, ProviderCheckStatus
+from app.db.models_evals import (
+    BriefKind,
+    CounterfactualGateRun,
+    CounterfactualPerturbation,
+    HumanReview,
+    LeakageHoldoutCase,
+    LeakageRun,
+    PerturbationKind,
+)
 from app.db.models_graph import (
     AuditAction,
     AuditLog,
@@ -60,7 +69,10 @@ __all__ = [
     "AuditLog",
     "Base",
     "BeliefRecomputation",
+    "BriefKind",
     "CompanyThesis",
+    "CounterfactualGateRun",
+    "CounterfactualPerturbation",
     "DataSource",
     "Entity",
     "EntityMerge",
@@ -71,8 +83,11 @@ __all__ = [
     "Evidence",
     "EvidenceChunk",
     "FinalRating",
+    "HumanReview",
     "Hypothesis",
     "HypothesisStatus",
+    "LeakageHoldoutCase",
+    "LeakageRun",
     "LlmCallLog",
     "LlmCallStatus",
     "LlmProvider",
@@ -83,6 +98,7 @@ __all__ = [
     "PaperOrder",
     "PaperPortfolio",
     "PaperPosition",
+    "PerturbationKind",
     "PortfolioBrief",
     "ProposedType",
     "ProposedTypeKind",

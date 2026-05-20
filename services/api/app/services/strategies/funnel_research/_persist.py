@@ -8,6 +8,7 @@ from app.db.models_macro import MacroBrief as MacroBriefRow
 from app.db.models_runs import ResearchRun, RunStatus
 from app.schemas.macro_brief import MacroBrief
 from app.schemas.sector_brief import JudgePublic, JudgeStatus
+from app.services.evals.gate_runner import run_gate_for_macro_brief
 from app.services.run_events import emit_stage_event
 from app.services.run_orchestrator import resolve_stage_position
 
@@ -51,6 +52,13 @@ async def persist_macro_brief(
     )
     session.add(row)
     await session.flush()
+
+    await run_gate_for_macro_brief(
+        session=session,
+        run_id=run_id,
+        brief_id=row.id,
+        brief=brief,
+    )
 
     if not mark_succeeded:
         return row.id

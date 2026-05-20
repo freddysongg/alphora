@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models_portfolio import PortfolioBrief as PortfolioBriefRow
 from app.schemas.portfolio_brief import PortfolioBrief
 from app.schemas.sector_brief import JudgePublic
+from app.services.evals.gate_runner import run_gate_for_portfolio_brief
 
 
 async def persist_portfolio_brief(
@@ -36,6 +37,12 @@ async def persist_portfolio_brief(
     )
     session.add(row)
     await session.flush()
+    await run_gate_for_portfolio_brief(
+        session=session,
+        run_id=run_id,
+        brief_id=row.id,
+        brief=brief,
+    )
     return row.id
 
 

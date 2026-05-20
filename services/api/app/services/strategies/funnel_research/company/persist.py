@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models_company import CompanyThesis as CompanyThesisRow
 from app.schemas.company_thesis import CompanyThesis
 from app.schemas.sector_brief import JudgePublic
+from app.services.evals.gate_runner import run_gate_for_company_thesis
 
 
 async def persist_company_thesis(
@@ -39,6 +40,12 @@ async def persist_company_thesis(
     )
     session.add(row)
     await session.flush()
+    await run_gate_for_company_thesis(
+        session=session,
+        run_id=run_id,
+        brief_id=row.id,
+        thesis=thesis,
+    )
     return row.id
 
 
