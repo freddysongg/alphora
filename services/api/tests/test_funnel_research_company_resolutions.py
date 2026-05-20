@@ -39,6 +39,7 @@ def _sector_brief_public(
             regeneration_count=0,
         ),
         judge=JudgePublic(status=JudgeStatus.not_run, reasons=[], call_id=None),
+        chunks=[],
     )
 
 

@@ -59,16 +59,6 @@ def _hydrate_judge(
     )
 
 
-def _hydrate_sector_brief_row(row: SectorBriefRow) -> SectorBriefPublic:
-    brief = SectorBrief.model_validate(row.payload)
-    judge = _hydrate_judge(
-        status_value=row.judge_status,
-        reasons=row.judge_reasons,
-        call_id=row.judge_call_id,
-    )
-    return SectorBriefPublic(brief=brief, judge=judge)
-
-
 async def _load_chunks(
     *,
     session: AsyncSession,
@@ -93,6 +83,22 @@ async def _load_chunks(
         )
         for chunk_row, source in chunk_rows
     ]
+
+
+async def _hydrate_sector_brief_row(
+    row: SectorBriefRow, *, session: AsyncSession
+) -> SectorBriefPublic:
+    brief = SectorBrief.model_validate(row.payload)
+    judge = _hydrate_judge(
+        status_value=row.judge_status,
+        reasons=row.judge_reasons,
+        call_id=row.judge_call_id,
+    )
+    chunks = await _load_chunks(
+        session=session,
+        chunk_ids=[claim.chunk_id for claim in brief.cited_claims],
+    )
+    return SectorBriefPublic(brief=brief, judge=judge, chunks=chunks)
 
 
 @router.get("/{run_id}/macro-brief", response_model=MacroBriefPublic)
@@ -133,14 +139,14 @@ async def get_macro_brief(run_id: uuid.UUID, session: SessionDep) -> MacroBriefP
         .scalars()
         .all()
     )
-    sector_briefs = [_hydrate_sector_brief_row(row) for row in sector_rows]
+    sector_briefs = [
+        await _hydrate_sector_brief_row(row, session=session) for row in sector_rows
+    ]
 
-    chunk_id_set: set[uuid.UUID] = {claim.chunk_id for claim in brief.cited_claims}
-    for sector_public in sector_briefs:
-        chunk_id_set.update(
-            claim.chunk_id for claim in sector_public.brief.cited_claims
-        )
-    chunks = await _load_chunks(session=session, chunk_ids=list(chunk_id_set))
+    chunks = await _load_chunks(
+        session=session,
+        chunk_ids=[claim.chunk_id for claim in brief.cited_claims],
+    )
 
     judge = _hydrate_judge(
         status_value=row.judge_status,

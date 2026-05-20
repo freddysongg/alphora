@@ -83,6 +83,7 @@ def _sector_public(
             reasons=[],
             call_id=uuid.uuid4() if judge_status is not JudgeStatus.not_run else None,
         ),
+        chunks=[],
     )
 
 

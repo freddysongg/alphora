@@ -4,6 +4,7 @@ from enum import StrEnum
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.macro_brief import (
+    ChunkLookup,
     CitedClaim,
     MacroBriefPublic,
     SectorCallDirection,
@@ -57,6 +58,7 @@ class SectorBriefPublic(BaseModel):
 
     brief: SectorBrief
     judge: JudgePublic
+    chunks: list[ChunkLookup]
 
 
 MacroBriefPublic.model_rebuild(

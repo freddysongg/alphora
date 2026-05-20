@@ -130,5 +130,7 @@ def test_sector_brief_public_round_trip() -> None:
             regeneration_count=0,
         ),
         judge=JudgePublic(status=JudgeStatus.not_run, reasons=[], call_id=None),
+        chunks=[],
     )
     assert public.judge.status is JudgeStatus.not_run
+    assert public.chunks == []

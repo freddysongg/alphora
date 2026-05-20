@@ -308,7 +308,7 @@ export function RunDetail(props: RunDetailProps): ReactElement {
 
       <div className="px-6 pt-4 pb-12">
         {isFunnelResearch && macroBrief !== null ? (
-          <MacroBriefDetail data={macroBrief} />
+          <MacroBriefDetail data={macroBrief} runId={detail.id} />
         ) : isFunnelResearch &&
           (resolvedStatus === "failed" || resolvedStatus === "cancelled") ? (
           <p className="text-sm text-fg-muted">

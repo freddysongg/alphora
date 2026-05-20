@@ -141,7 +141,7 @@ async def test_get_macro_brief_404_when_brief_not_yet_persisted(
 
 
 @pytest.mark.asyncio
-async def test_get_macro_brief_returns_sector_briefs_and_merged_chunks(
+async def test_get_macro_brief_scopes_chunks_per_sector_and_excludes_them_from_top_level(
     async_client: AsyncClient, db_session: AsyncSession
 ) -> None:
     run_id, macro_chunk_id = await _seed_funnel_run_with_brief(db_session)
@@ -242,6 +242,8 @@ async def test_get_macro_brief_returns_sector_briefs_and_merged_chunks(
     assert sector_public["judge"]["status"] == "passed"
     assert sector_public["judge"]["call_id"] == str(judge_log.id)
 
-    chunk_ids = {chunk["chunk_id"] for chunk in body["chunks"]}
-    assert str(macro_chunk_id) in chunk_ids
-    assert str(sector_chunk.id) in chunk_ids
+    macro_chunk_ids = {chunk["chunk_id"] for chunk in body["chunks"]}
+    assert macro_chunk_ids == {str(macro_chunk_id)}
+
+    sector_chunk_ids = {chunk["chunk_id"] for chunk in sector_public["chunks"]}
+    assert sector_chunk_ids == {str(sector_chunk.id)}

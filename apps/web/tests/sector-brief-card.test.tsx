@@ -17,6 +17,7 @@ const SECTOR_COMPANY_EVIDENCE_ID_2 = "00000000-0000-4000-8000-0000000000f2";
 function makeSectorBrief(
   overrides: Partial<SectorBriefPublic["brief"]> = {},
   judgeOverrides: Partial<SectorBriefPublic["judge"]> = {},
+  chunks: SectorBriefPublic["chunks"] = [],
 ): SectorBriefPublic {
   return {
     brief: {
@@ -46,6 +47,7 @@ function makeSectorBrief(
       call_id: null,
       ...judgeOverrides,
     },
+    chunks,
   };
 }
 
@@ -286,5 +288,62 @@ describe("SectorBriefCard", () => {
     render(<SectorBriefCard sectorBrief={makeSectorBrief()} />);
     const row = screen.getByTestId("sector-company-row");
     expect(within(row).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("renders the sector name as plain text when no runId is provided", () => {
+    render(<SectorBriefCard sectorBrief={makeSectorBrief()} />);
+    expect(
+      screen.queryByTestId("sector-brief-detail-link"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("wraps the sector name in a link to the sector detail page when runId is provided", () => {
+    const runId = "11111111-1111-4111-8111-111111111111";
+    render(
+      <SectorBriefCard sectorBrief={makeSectorBrief()} runId={runId} />,
+    );
+    const link = screen.getByTestId("sector-brief-detail-link");
+    expect(link).toHaveAttribute(
+      "href",
+      `/research/runs/${runId}/sectors/00000000-0000-4000-8000-000000000001`,
+    );
+    expect(link).toHaveTextContent("Information Technology");
+  });
+
+  it("renders chunk-preview text inside the expanded sector cited claim row", () => {
+    render(
+      <SectorBriefCard
+        sectorBrief={makeSectorBrief(
+          {
+            cited_claims: [
+              {
+                claim_text: "Hyperscaler capex remains strong.",
+                exact_quote: "Capex guidance was raised across the board.",
+                chunk_id: SECTOR_CHUNK_ID,
+                source: "10-Q",
+              },
+            ],
+          },
+          {},
+          [
+            {
+              chunk_id: SECTOR_CHUNK_ID,
+              evidence_id: "00000000-0000-4000-8000-0000000000bb",
+              source: "10-Q",
+              text: "Capex guidance was raised across the board as cloud demand kept accelerating.",
+              attributes: {},
+            },
+          ],
+        )}
+      />,
+    );
+    const row = screen.getByTestId("sector-cited-claim-row");
+    fireEvent.click(within(row).getByRole("button"));
+    expect(
+      within(row).getByText(/Capex guidance was raised across the board\./),
+    ).toBeInTheDocument();
+    expect(
+      within(row).getByText(/cloud demand kept accelerating/),
+    ).toBeInTheDocument();
   });
 });

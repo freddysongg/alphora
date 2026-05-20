@@ -11,6 +11,7 @@ from app.api.routes import (
     portfolio_briefs,
     research_runs,
     screeners,
+    sector_briefs,
     settings,
     watchlists,
 )
@@ -25,6 +26,9 @@ api_router.include_router(
 )
 api_router.include_router(
     portfolio_briefs.router, prefix="/research-runs", tags=["research-runs"]
+)
+api_router.include_router(
+    sector_briefs.router, prefix="/research-runs", tags=["research-runs"]
 )
 api_router.include_router(
     company_theses.router, prefix="/research-runs", tags=["research-runs"]

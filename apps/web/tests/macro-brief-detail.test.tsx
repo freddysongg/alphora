@@ -62,6 +62,7 @@ function makeData(
           regeneration_count: 0,
         },
         judge: { status: "passed", reasons: [], call_id: null },
+        chunks: [],
       },
     ],
     ...overrides,

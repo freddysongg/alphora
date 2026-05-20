@@ -637,7 +637,7 @@ async def _load_persisted_sector_briefs(
             reasons=list(row.judge_reasons or []),
             call_id=row.judge_call_id,
         )
-        briefs.append(SectorBriefPublic(brief=brief, judge=judge))
+        briefs.append(SectorBriefPublic(brief=brief, judge=judge, chunks=[]))
     return briefs
 
 

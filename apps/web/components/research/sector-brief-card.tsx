@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import type { Route } from "next";
 import Link from "next/link";
@@ -10,6 +10,7 @@ import { useEvidenceDisclosure } from "@/components/research/evidence-disclosure
 import type { components } from "@/lib/api";
 
 type SectorBriefPublic = components["schemas"]["SectorBriefPublic"];
+type ChunkLookup = components["schemas"]["ChunkLookup"];
 type CitedClaim = components["schemas"]["CitedClaim"];
 type SectorCompanyIdea = components["schemas"]["SectorCompanyIdea"];
 type Theme = components["schemas"]["Theme"];
@@ -21,22 +22,48 @@ const DIRECTION_TONE: Record<string, string> = {
   neutral: "text-fg-subtle",
 };
 
+const CHUNK_PREVIEW_LENGTH = 200;
+
 export interface SectorBriefCardProps {
   sectorBrief: SectorBriefPublic;
+  runId?: string;
 }
 
 export function SectorBriefCard(props: SectorBriefCardProps): ReactElement {
-  const { sectorBrief } = props;
-  const { brief, judge } = sectorBrief;
+  const { sectorBrief, runId } = props;
+  const { brief, judge, chunks } = sectorBrief;
   const directionTone = DIRECTION_TONE[brief.direction] ?? "text-fg";
   const convictionPct = Math.round(
     Math.max(0, Math.min(1, brief.confidence)) * 100,
   );
 
+  const chunkById = useMemo(() => {
+    const map = new Map<string, ChunkLookup>();
+    for (const chunk of chunks) {
+      map.set(chunk.chunk_id, chunk);
+    }
+    return map;
+  }, [chunks]);
+
+  const sectorTitle =
+    runId !== undefined ? (
+      <Link
+        href={
+          `/research/runs/${runId}/sectors/${brief.sector_entity_id}` as Route
+        }
+        className="text-fg hover:text-accent-text hover:underline transition-colors duration-150"
+        data-testid="sector-brief-detail-link"
+      >
+        {brief.sector_name}
+      </Link>
+    ) : (
+      brief.sector_name
+    );
+
   return (
     <Card data-testid="sector-brief-card">
       <CardHeader>
-        <CardTitle>{brief.sector_name}</CardTitle>
+        <CardTitle>{sectorTitle}</CardTitle>
         <CapsLabel className={directionTone}>{brief.direction}</CapsLabel>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -101,6 +128,7 @@ export function SectorBriefCard(props: SectorBriefCardProps): ReactElement {
                 <SectorCitedClaimRow
                   key={`${claim.chunk_id}-${claim.exact_quote.slice(0, 32)}`}
                   claim={claim}
+                  chunk={chunkById.get(claim.chunk_id) ?? null}
                 />
               ))}
             </ul>
@@ -199,15 +227,21 @@ function SectorCompanyRow(props: SectorCompanyRowProps): ReactElement {
 
 interface SectorCitedClaimRowProps {
   claim: CitedClaim;
+  chunk: ChunkLookup | null;
 }
 
 function SectorCitedClaimRow(props: SectorCitedClaimRowProps): ReactElement {
-  const { claim } = props;
+  const { claim, chunk } = props;
   const [isOpen, setIsOpen] = useState<boolean>(false);
 
   const handleToggle = (): void => {
     setIsOpen((previous) => !previous);
   };
+
+  const chunkPreview =
+    chunk !== null && chunk.text.length > CHUNK_PREVIEW_LENGTH
+      ? `${chunk.text.slice(0, CHUNK_PREVIEW_LENGTH)}…`
+      : (chunk?.text ?? "");
 
   return (
     <li
@@ -232,6 +266,14 @@ function SectorCitedClaimRow(props: SectorCitedClaimRowProps): ReactElement {
           <p className="rounded-md bg-canvas border border-line p-3 text-sm text-fg italic leading-relaxed">
             &ldquo;{claim.exact_quote}&rdquo;
           </p>
+          {chunk !== null ? (
+            <p className="text-xs text-fg-muted leading-relaxed">
+              <span className="font-mono uppercase tracking-[0.14em] text-fg-subtle">
+                Chunk:
+              </span>{" "}
+              {chunkPreview}
+            </p>
+          ) : null}
           <p className="text-xs text-fg-muted leading-relaxed font-mono">
             <span className="uppercase tracking-[0.14em] text-fg-subtle">
               Evidence:

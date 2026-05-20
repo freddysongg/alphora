@@ -12,6 +12,7 @@ type LlmProvider = components["schemas"]["LlmProviderEnum"];
 type AnalystKind = components["schemas"]["AnalystKindEnum"];
 type MacroBriefPublic = components["schemas"]["MacroBriefPublic"];
 type PortfolioBriefPublic = components["schemas"]["PortfolioBriefPublic"];
+type SectorBriefPublic = components["schemas"]["SectorBriefPublic"];
 type CompanyThesisPublic = components["schemas"]["CompanyThesisPublic"];
 
 const ALLOWED_PROVIDERS: ReadonlySet<LlmProvider> = new Set<LlmProvider>([
@@ -196,6 +197,31 @@ export async function getPortfolioBrief(
       "/api/research-runs/{run_id}/portfolio-brief",
       {
         params: { path: { run_id: runId } },
+      },
+    );
+    if (response.data === undefined) {
+      return null;
+    }
+    return response.data;
+  } catch (caught) {
+    if (isApiError(caught) && caught.status === 404) {
+      return null;
+    }
+    throw caught;
+  }
+}
+
+export async function getSectorBrief(
+  runId: string,
+  sectorEntityId: string,
+): Promise<SectorBriefPublic | null> {
+  try {
+    const response = await getServerApi().GET(
+      "/api/research-runs/{run_id}/sectors/{sector_entity_id}",
+      {
+        params: {
+          path: { run_id: runId, sector_entity_id: sectorEntityId },
+        },
       },
     );
     if (response.data === undefined) {

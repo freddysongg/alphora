@@ -53,10 +53,11 @@ const CHUNK_PREVIEW_LENGTH = 200;
 
 export interface MacroBriefDetailProps {
   data: MacroBriefPublic;
+  runId?: string;
 }
 
 export function MacroBriefDetail(props: MacroBriefDetailProps): ReactElement {
-  const { data } = props;
+  const { data, runId } = props;
   const { brief, chunks, judge, sector_briefs: sectorBriefs } = data;
 
   const chunkById = useMemo(() => {
@@ -186,6 +187,7 @@ export function MacroBriefDetail(props: MacroBriefDetailProps): ReactElement {
               <SectorBriefCard
                 key={sectorBrief.brief.sector_entity_id}
                 sectorBrief={sectorBrief}
+                runId={runId}
               />
             ))}
           </div>

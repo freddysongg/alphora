@@ -544,6 +544,59 @@
         }
       }
     },
+    "/api/research-runs/{run_id}/sectors/{sector_entity_id}": {
+      "get": {
+        "tags": [
+          "research-runs"
+        ],
+        "summary": "Get Sector Brief",
+        "operationId": "get_sector_brief_api_research_runs__run_id__sectors__sector_entity_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "sector_entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Sector Entity Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SectorBriefPublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/research-runs/{run_id}/companies/{company_entity_id}": {
       "get": {
         "tags": [
@@ -4138,12 +4191,20 @@
           },
           "judge": {
             "$ref": "#/components/schemas/JudgePublic"
+          },
+          "chunks": {
+            "items": {
+              "$ref": "#/components/schemas/ChunkLookup"
+            },
+            "type": "array",
+            "title": "Chunks"
           }
         },
         "type": "object",
         "required": [
           "brief",
-          "judge"
+          "judge",
+          "chunks"
         ],
         "title": "SectorBriefPublic"
       },
