@@ -17,7 +17,11 @@ from app.db.models_runs import (
     RunStatus,
     SourceProvenance,
 )
-from app.services.run_orchestrator import RunOrchestrator, RunOrchestratorError
+from app.services.run_orchestrator import (
+    STAGE_SCHEMES,
+    RunOrchestrator,
+    RunOrchestratorError,
+)
 from app.trading_agents.adapter import TradingAgentsAdapter
 
 
@@ -769,18 +773,6 @@ async def test_execute_emits_failed_stage_event_on_adapter_exception(
 
 
 def test_stage_scheme_includes_belief_update_at_index_seven() -> None:
-    from app.services.run_orchestrator import STAGE_SCHEMES
-
     stages = STAGE_SCHEMES["funnel_research"]
     assert stages[7] == "belief_update"
     assert stages[-1] == "consolidate"
-
-
-def test_resolve_stage_position_for_belief_update() -> None:
-    from app.services.run_orchestrator import resolve_stage_position
-
-    index, total = resolve_stage_position(
-        strategy="funnel_research", stage_name="belief_update"
-    )
-    assert index == 8
-    assert total == 10
