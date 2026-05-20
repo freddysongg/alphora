@@ -264,7 +264,15 @@ export default async function RunObservabilityPage(
 
       <div className="px-6 pt-4 pb-12 flex flex-col gap-6">
         <RunTimelineFlame calls={calls} />
-        <CostLedger ledger={costLedger} />
+        <CostLedger
+          ledger={costLedger}
+          sourceClientCacheStats={
+            (detail.source_client_cache_stats as
+              | { hits?: number; misses?: number; evictions?: number; hit_rate?: number }
+              | null
+              | undefined) ?? null
+          }
+        />
         <EvidenceFlow flow={evidenceFlow} />
         <CounterfactualMatrix
           perturbations={counterfactuals?.perturbations ?? []}

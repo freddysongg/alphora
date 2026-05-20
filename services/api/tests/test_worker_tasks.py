@@ -137,6 +137,49 @@ async def test_dispatch_builds_llm_client_with_per_stage_budget_caps_from_settin
     assert per_stage["synthesize"] == Decimal("2.00")
 
 
+@pytest.mark.usefixtures("initialized_schema")
+async def test_persist_cache_stats_writes_payload_to_research_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from sqlalchemy import select
+
+    from app.services.source_clients._request_cache import RequestCache
+
+    run_id = uuid4()
+    async with session_factory() as session:
+        session.add(
+            ResearchRun(
+                id=run_id,
+                ticker="MSFT",
+                trade_date=date(2026, 5, 20),
+                strategy=Strategy.funnel_research.value,
+                status=RunStatus.running,
+                config={},
+            )
+        )
+        await session.commit()
+
+    cache = RequestCache(ttl_seconds=300.0)
+    cache._hits = 7  # type: ignore[attr-defined]
+    cache._misses = 3  # type: ignore[attr-defined]
+    cache._evictions = 1  # type: ignore[attr-defined]
+
+    await worker_tasks._persist_cache_stats(run_id=run_id, request_cache=cache)
+
+    async with session_factory() as session:
+        row = (
+            await session.execute(
+                select(ResearchRun).where(ResearchRun.id == run_id)
+            )
+        ).scalar_one()
+    payload = row.source_client_cache_stats
+    assert isinstance(payload, dict)
+    assert payload["hits"] == 7
+    assert payload["misses"] == 3
+    assert payload["evictions"] == 1
+    assert payload["hit_rate"] == pytest.approx(0.7)
+
+
 def test_execute_research_run_rejects_invalid_uuid() -> None:
     with pytest.raises(ValueError):
         worker_tasks.execute_research_run("not-a-uuid")

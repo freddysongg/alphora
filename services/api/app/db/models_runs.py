@@ -78,6 +78,9 @@ class ResearchRun(Base, TimestampMixin):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    source_client_cache_stats: Mapped[dict[str, object] | None] = mapped_column(
+        JSON, nullable=True
+    )
 
     reports: Mapped[list["RunReport"]] = relationship(
         back_populates="run", cascade="all, delete-orphan"

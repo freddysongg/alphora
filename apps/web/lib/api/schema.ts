@@ -2252,6 +2252,10 @@ export interface components {
             started_at: string | null;
             /** Finished At */
             finished_at: string | null;
+            /** Source Client Cache Stats */
+            source_client_cache_stats?: {
+                [key: string]: unknown;
+            } | null;
             /** Reports */
             reports: components["schemas"]["RunReportPublic"][];
             /** Events */

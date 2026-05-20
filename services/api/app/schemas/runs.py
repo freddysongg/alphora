@@ -187,6 +187,7 @@ class ResearchRunDetail(BaseModel):
     updated_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
+    source_client_cache_stats: dict[str, object] | None = None
     reports: list[RunReportPublic]
     events: list[RunEventPublic]
     provenance: list[SourceProvenancePublic]

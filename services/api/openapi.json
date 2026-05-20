@@ -6705,6 +6705,18 @@
             ],
             "title": "Finished At"
           },
+          "source_client_cache_stats": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Client Cache Stats"
+          },
           "reports": {
             "items": {
               "$ref": "#/components/schemas/RunReportPublic"

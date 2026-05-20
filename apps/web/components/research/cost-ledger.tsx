@@ -23,6 +23,14 @@ type StageCostRow = components["schemas"]["StageCostRow"];
 
 export interface CostLedgerProps {
   ledger: RunCostLedger | null;
+  sourceClientCacheStats?: SourceClientCacheStats | null;
+}
+
+export interface SourceClientCacheStats {
+  hits?: number;
+  misses?: number;
+  evictions?: number;
+  hit_rate?: number;
 }
 
 const STAGE_COLOR_TOKENS: Record<string, string> = {
@@ -70,10 +78,14 @@ function toChartData(stages: readonly StageCostRow[]): ChartDatum[] {
 }
 
 export function CostLedger(props: CostLedgerProps): ReactElement {
-  const { ledger } = props;
+  const { ledger, sourceClientCacheStats } = props;
   const chartData = useMemo(
     () => toChartData(ledger?.stages ?? []),
     [ledger?.stages],
+  );
+  const sourceClientHitRate = useMemo(
+    () => formatSourceClientHitRate(sourceClientCacheStats),
+    [sourceClientCacheStats],
   );
 
   if (ledger === null || ledger.stages.length === 0) {
@@ -111,12 +123,16 @@ export function CostLedger(props: CostLedgerProps): ReactElement {
                 value={ledger.total_output_tokens.toLocaleString()}
               />
               <SummaryRow
-                label="CACHE HIT RATE"
+                label="PROMPT CACHE HIT RATE"
                 value={formatRatio(ledger.cache_hit_rate)}
               />
               <SummaryRow
                 label="CACHED TOKENS"
                 value={ledger.total_cached_input_tokens.toLocaleString()}
+              />
+              <SummaryRow
+                label="SOURCE-CLIENT CACHE HIT RATE"
+                value={sourceClientHitRate}
               />
             </dl>
           </div>
@@ -218,4 +234,27 @@ function SummaryRow(props: SummaryRowProps): ReactElement {
       </dd>
     </>
   );
+}
+
+function formatSourceClientHitRate(
+  stats: SourceClientCacheStats | null | undefined,
+): string {
+  if (!stats) {
+    return "—";
+  }
+  const explicitRate =
+    typeof stats.hit_rate === "number" ? stats.hit_rate : null;
+  if (explicitRate !== null && Number.isFinite(explicitRate)) {
+    return `${(explicitRate * 100).toFixed(1)}%`;
+  }
+  const hits = typeof stats.hits === "number" ? stats.hits : null;
+  const misses = typeof stats.misses === "number" ? stats.misses : null;
+  if (hits === null || misses === null) {
+    return "—";
+  }
+  const total = hits + misses;
+  if (total <= 0) {
+    return "—";
+  }
+  return `${((hits / total) * 100).toFixed(1)}%`;
 }

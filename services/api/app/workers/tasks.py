@@ -9,6 +9,7 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.db.models_runs import ResearchRun, Strategy
 from app.db.session import session_factory
+from app.logging import get_logger
 from app.schemas.budget import BudgetThresholds
 from app.services.budget import BudgetGuard
 from app.services.data_sources_bootstrap import bootstrap_data_sources
@@ -25,6 +26,8 @@ from app.services.strategies.funnel_research import (
     run_macro_brief,
 )
 from app.trading_agents.adapter import TradingAgentsAdapter
+
+_logger = get_logger(__name__)
 
 
 def execute_research_run(run_id_hex: str) -> None:
@@ -58,9 +61,41 @@ async def _run_with_source_client_runtime(run_id: UUID) -> None:
         await _bootstrap_data_sources_for_run()
         await _dispatch(run_id)
     finally:
+        await _persist_cache_stats(run_id=run_id, request_cache=request_cache)
         configure_redis(None)
         install_request_cache(None)
         await _close_async_redis_client(redis_client)
+
+
+async def _persist_cache_stats(
+    *, run_id: UUID, request_cache: RequestCache
+) -> None:
+    stats = request_cache.stats()
+    payload: dict[str, object] = {
+        "hits": stats.hits,
+        "misses": stats.misses,
+        "evictions": stats.evictions,
+        "hit_rate": stats.hit_rate,
+    }
+    try:
+        async with session_factory() as session:
+            run = (
+                await session.execute(
+                    select(ResearchRun).where(ResearchRun.id == run_id)
+                )
+            ).scalar_one_or_none()
+            if run is None:
+                return
+            run.source_client_cache_stats = payload
+            await session.commit()
+    except Exception as exc:
+        _logger.warning(
+            "source_client_cache_stats_persist_failed",
+            run_id=str(run_id),
+            error=str(exc),
+        )
+
+
 
 
 async def _bootstrap_data_sources_for_run() -> None:
