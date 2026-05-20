@@ -372,7 +372,7 @@ function PortfolioMacroThemeRow(
           {theme.evidence_ids.map((evidenceId) => (
             <li key={evidenceId} className="font-mono">
               <Link
-                href={`/research/evidence/${evidenceId}` as Route}
+                href={`/research/evidence/by-evidence/${evidenceId}` as Route}
                 className="text-accent-text hover:underline"
                 data-testid="portfolio-macro-theme-evidence-link"
               >
@@ -424,7 +424,7 @@ function PortfolioMacroWatchItemRow(
               {item.evidence_ids.map((evidenceId) => (
                 <li key={evidenceId} className="font-mono">
                   <Link
-                    href={`/research/evidence/${evidenceId}` as Route}
+                    href={`/research/evidence/by-evidence/${evidenceId}` as Route}
                     className="text-accent-text hover:underline"
                     data-testid="portfolio-macro-watch-item-evidence-link"
                   >

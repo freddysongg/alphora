@@ -209,6 +209,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/research/evidence/by-evidence/{evidence_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Evidence Trace By Evidence
+         * @description Trace endpoint addressable by Evidence.id.
+         *
+         *     Brief schemas store `Evidence.id` values in their `evidence_ids` arrays
+         *     (themes, sector calls, watch items, hypotheses). Those ids are not chunk
+         *     ids, so the chunk-id endpoint cannot resolve them. This endpoint picks the
+         *     first chunk (lowest `chunk_index`) for the given evidence and returns the
+         *     same `EvidenceTracePublic` payload the chunk-id endpoint returns.
+         */
+        get: operations["get_evidence_trace_by_evidence_api_research_evidence_by_evidence__evidence_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/research/evidence/{chunk_id}": {
         parameters: {
             query?: never;
@@ -1922,6 +1948,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HypothesisPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_evidence_trace_by_evidence_api_research_evidence_by_evidence__evidence_id__get: {
+        parameters: {
+            query?: {
+                context_radius?: number;
+            };
+            header?: never;
+            path: {
+                evidence_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceTracePublic"];
                 };
             };
             /** @description Validation Error */

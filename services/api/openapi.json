@@ -657,6 +657,62 @@
         }
       }
     },
+    "/api/research/evidence/by-evidence/{evidence_id}": {
+      "get": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Get Evidence Trace By Evidence",
+        "description": "Trace endpoint addressable by Evidence.id.\n\nBrief schemas store `Evidence.id` values in their `evidence_ids` arrays\n(themes, sector calls, watch items, hypotheses). Those ids are not chunk\nids, so the chunk-id endpoint cannot resolve them. This endpoint picks the\nfirst chunk (lowest `chunk_index`) for the given evidence and returns the\nsame `EvidenceTracePublic` payload the chunk-id endpoint returns.",
+        "operationId": "get_evidence_trace_by_evidence_api_research_evidence_by_evidence__evidence_id__get",
+        "parameters": [
+          {
+            "name": "evidence_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Evidence Id"
+            }
+          },
+          {
+            "name": "context_radius",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 10,
+              "minimum": 0,
+              "default": 2,
+              "title": "Context Radius"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceTracePublic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/research/evidence/{chunk_id}": {
       "get": {
         "tags": [

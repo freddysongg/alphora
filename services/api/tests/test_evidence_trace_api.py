@@ -178,3 +178,48 @@ async def test_get_evidence_trace_returns_404_for_unknown_chunk(
 ) -> None:
     response = await async_client.get(f"/api/research/evidence/{uuid.uuid4()}")
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_evidence_trace_by_evidence_id_returns_first_chunk(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Brief evidence_ids are Evidence.id values. The trace must resolve them
+    to a representative chunk (the first by chunk_index) and return the same
+    payload the chunk-id endpoint returns.
+    """
+    data_source = await _seed_data_source(db_session)
+    evidence = await _seed_evidence(db_session, source_id=data_source.id)
+    for index in range(3):
+        await _seed_chunk(
+            db_session,
+            evidence_id=evidence.id,
+            chunk_index=index,
+            text=f"chunk {index} body",
+            content_hash=f"{index:064d}",
+        )
+    await db_session.commit()
+
+    response = await async_client.get(
+        f"/api/research/evidence/by-evidence/{evidence.id}"
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+
+    assert body["chunk"]["chunk_index"] == 0
+    assert body["chunk"]["text"] == "chunk 0 body"
+    assert body["evidence"]["id"] == str(evidence.id)
+    assert body["data_source"] is not None
+    assert body["data_source"]["id"] == str(data_source.id)
+    context_indices = [chunk["chunk_index"] for chunk in body["context_chunks"]]
+    assert context_indices == [0, 1, 2]
+
+
+@pytest.mark.asyncio
+async def test_get_evidence_trace_by_evidence_id_returns_404_for_unknown(
+    async_client: AsyncClient,
+) -> None:
+    response = await async_client.get(
+        f"/api/research/evidence/by-evidence/{uuid.uuid4()}"
+    )
+    assert response.status_code == 404

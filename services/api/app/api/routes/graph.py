@@ -20,6 +20,41 @@ _CONTEXT_RADIUS_MAX = 10
 _CONTEXT_RADIUS_DEFAULT = 2
 
 
+@router.get("/evidence/by-evidence/{evidence_id}", response_model=EvidenceTracePublic)
+async def get_evidence_trace_by_evidence(
+    evidence_id: uuid.UUID,
+    session: SessionDep,
+    context_radius: Annotated[
+        int,
+        Query(ge=_CONTEXT_RADIUS_MIN, le=_CONTEXT_RADIUS_MAX),
+    ] = _CONTEXT_RADIUS_DEFAULT,
+) -> EvidenceTracePublic:
+    """Trace endpoint addressable by Evidence.id.
+
+    Brief schemas store `Evidence.id` values in their `evidence_ids` arrays
+    (themes, sector calls, watch items, hypotheses). Those ids are not chunk
+    ids, so the chunk-id endpoint cannot resolve them. This endpoint picks the
+    first chunk (lowest `chunk_index`) for the given evidence and returns the
+    same `EvidenceTracePublic` payload the chunk-id endpoint returns.
+    """
+    selected = (
+        await session.execute(
+            select(EvidenceChunk)
+            .where(EvidenceChunk.evidence_id == evidence_id)
+            .order_by(EvidenceChunk.chunk_index)
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if selected is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="evidence not found",
+        )
+    return await _build_trace_for_chunk(
+        session=session, selected=selected, context_radius=context_radius
+    )
+
+
 @router.get("/evidence/{chunk_id}", response_model=EvidenceTracePublic)
 async def get_evidence_trace(
     chunk_id: uuid.UUID,
@@ -39,7 +74,17 @@ async def get_evidence_trace(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="evidence chunk not found",
         )
+    return await _build_trace_for_chunk(
+        session=session, selected=selected, context_radius=context_radius
+    )
 
+
+async def _build_trace_for_chunk(
+    *,
+    session: SessionDep,
+    selected: EvidenceChunk,
+    context_radius: int,
+) -> EvidenceTracePublic:
     evidence = (
         await session.execute(
             select(Evidence).where(Evidence.id == selected.evidence_id)

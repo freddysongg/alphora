@@ -297,7 +297,7 @@ function ThemeRow(props: ThemeRowProps): ReactElement {
           {theme.evidence_ids.map((evidenceId) => (
             <li key={evidenceId} className="font-mono">
               <Link
-                href={`/research/evidence/${evidenceId}` as Route}
+                href={`/research/evidence/by-evidence/${evidenceId}` as Route}
                 className="text-accent-text hover:underline"
                 data-testid="macro-theme-evidence-link"
               >
@@ -347,7 +347,7 @@ function WatchItemRow(props: WatchItemRowProps): ReactElement {
               {item.evidence_ids.map((evidenceId) => (
                 <li key={evidenceId} className="font-mono">
                   <Link
-                    href={`/research/evidence/${evidenceId}` as Route}
+                    href={`/research/evidence/by-evidence/${evidenceId}` as Route}
                     className="text-accent-text hover:underline"
                     data-testid="macro-watch-item-evidence-link"
                   >
@@ -398,7 +398,7 @@ function HypothesisRow(props: HypothesisRowProps): ReactElement {
               {hypothesis.evidence_ids.map((evidenceId) => (
                 <li key={evidenceId} className="font-mono">
                   <Link
-                    href={`/research/evidence/${evidenceId}` as Route}
+                    href={`/research/evidence/by-evidence/${evidenceId}` as Route}
                     className="text-accent-text hover:underline"
                     data-testid="macro-hypothesis-evidence-link"
                   >
@@ -456,7 +456,7 @@ function SectorCallRow(props: SectorCallRowProps): ReactElement {
                 {call.evidence_ids.map((evidenceId) => (
                   <li key={evidenceId} className="font-mono">
                     <Link
-                      href={`/research/evidence/${evidenceId}` as Route}
+                      href={`/research/evidence/by-evidence/${evidenceId}` as Route}
                       className="text-accent-text hover:underline"
                       data-testid="macro-sector-call-evidence-link"
                     >

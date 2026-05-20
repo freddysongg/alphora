@@ -177,12 +177,12 @@ describe("MacroBriefDetail", () => {
     expect(links).toHaveLength(2);
     expect(links[0]).toHaveAttribute(
       "href",
-      `/research/evidence/${SECTOR_CALL_EVIDENCE_ID_1}`,
+      `/research/evidence/by-evidence/${SECTOR_CALL_EVIDENCE_ID_1}`,
     );
     expect(links[0]).toHaveTextContent(SECTOR_CALL_EVIDENCE_ID_1);
     expect(links[1]).toHaveAttribute(
       "href",
-      `/research/evidence/${SECTOR_CALL_EVIDENCE_ID_2}`,
+      `/research/evidence/by-evidence/${SECTOR_CALL_EVIDENCE_ID_2}`,
     );
     expect(links[1]).toHaveTextContent(SECTOR_CALL_EVIDENCE_ID_2);
   });
@@ -218,12 +218,12 @@ describe("MacroBriefDetail", () => {
     expect(links).toHaveLength(2);
     expect(links[0]).toHaveAttribute(
       "href",
-      `/research/evidence/${MACRO_THEME_EVIDENCE_ID_1}`,
+      `/research/evidence/by-evidence/${MACRO_THEME_EVIDENCE_ID_1}`,
     );
     expect(links[0]).toHaveTextContent(MACRO_THEME_EVIDENCE_ID_1);
     expect(links[1]).toHaveAttribute(
       "href",
-      `/research/evidence/${MACRO_THEME_EVIDENCE_ID_2}`,
+      `/research/evidence/by-evidence/${MACRO_THEME_EVIDENCE_ID_2}`,
     );
     expect(links[1]).toHaveTextContent(MACRO_THEME_EVIDENCE_ID_2);
   });
@@ -259,12 +259,12 @@ describe("MacroBriefDetail", () => {
     expect(links).toHaveLength(2);
     expect(links[0]).toHaveAttribute(
       "href",
-      `/research/evidence/${MACRO_WATCH_EVIDENCE_ID_1}`,
+      `/research/evidence/by-evidence/${MACRO_WATCH_EVIDENCE_ID_1}`,
     );
     expect(links[0]).toHaveTextContent(MACRO_WATCH_EVIDENCE_ID_1);
     expect(links[1]).toHaveAttribute(
       "href",
-      `/research/evidence/${MACRO_WATCH_EVIDENCE_ID_2}`,
+      `/research/evidence/by-evidence/${MACRO_WATCH_EVIDENCE_ID_2}`,
     );
     expect(links[1]).toHaveTextContent(MACRO_WATCH_EVIDENCE_ID_2);
   });
@@ -300,12 +300,12 @@ describe("MacroBriefDetail", () => {
     expect(links).toHaveLength(2);
     expect(links[0]).toHaveAttribute(
       "href",
-      `/research/evidence/${MACRO_HYPOTHESIS_EVIDENCE_ID_1}`,
+      `/research/evidence/by-evidence/${MACRO_HYPOTHESIS_EVIDENCE_ID_1}`,
     );
     expect(links[0]).toHaveTextContent(MACRO_HYPOTHESIS_EVIDENCE_ID_1);
     expect(links[1]).toHaveAttribute(
       "href",
-      `/research/evidence/${MACRO_HYPOTHESIS_EVIDENCE_ID_2}`,
+      `/research/evidence/by-evidence/${MACRO_HYPOTHESIS_EVIDENCE_ID_2}`,
     );
     expect(links[1]).toHaveTextContent(MACRO_HYPOTHESIS_EVIDENCE_ID_2);
   });
