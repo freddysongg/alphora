@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     belief_update_model: str = "gpt-4o-mini"
     belief_update_max_chunks_per_hypothesis: int = 50
 
+    lifecycle_sweep_interval_seconds: int = 3600
+    lifecycle_sweep_enabled: bool = True
+
 
 @lru_cache
 def get_settings() -> Settings:
