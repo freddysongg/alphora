@@ -1,6 +1,8 @@
 from typing import Final
 
-EXTRACTION_MODEL: Final[str] = "gpt-4o-mini"
+from app.config import get_settings
+
+EXTRACTION_MODEL: Final[str] = get_settings().model_tier_low
 PROMPT_VERSION: Final[str] = "extraction-v1"
 MAX_RESPONSE_TOKENS: Final[int] = 4000
 

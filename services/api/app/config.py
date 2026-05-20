@@ -54,6 +54,9 @@ class Settings(BaseSettings):
 
     per_stage_budget_caps_usd: dict[str, Decimal] = Field(default_factory=dict)
 
+    model_tier_high: str = "gpt-5-mini"
+    model_tier_low: str = "gpt-4o-mini"
+
 
 @lru_cache
 def get_settings() -> Settings:

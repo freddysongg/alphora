@@ -528,3 +528,10 @@ async def test_openai_confirmer_recognises_supersedes_word_form(
         candidate_claim_text="old framing",
     )
     assert verdict is DedupVerdict.supersedes
+
+
+def test_dedup_model_default_resolves_to_high_tier() -> None:
+    from app.config import get_settings
+    from app.services.hypothesis.dedup import DEDUP_MODEL_DEFAULT
+
+    assert DEDUP_MODEL_DEFAULT == get_settings().model_tier_high

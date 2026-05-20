@@ -1,6 +1,8 @@
 from typing import Final
 
-SYNTHESIS_MODEL: Final[str] = "gpt-5-mini"
+from app.config import get_settings
+
+SYNTHESIS_MODEL: Final[str] = get_settings().model_tier_high
 MAX_REGENERATIONS: Final[int] = 2
 PROMPT_VERSION: Final[str] = "macro-brief-v1"
 

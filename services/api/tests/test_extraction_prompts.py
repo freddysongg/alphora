@@ -59,9 +59,11 @@ def test_build_extraction_messages_returns_llm_message_instances() -> None:
 
 
 def test_extraction_constants_have_documented_defaults() -> None:
+    from app.config import get_settings
     from app.services.extraction import config
 
     assert config.EXTRACTION_MODEL == "gpt-4o-mini"
+    assert config.EXTRACTION_MODEL == get_settings().model_tier_low
     assert config.PROMPT_VERSION == "extraction-v1"
     assert config.MAX_RESPONSE_TOKENS > 0
 

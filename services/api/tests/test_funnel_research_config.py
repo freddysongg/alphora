@@ -1,7 +1,9 @@
 def test_constants_are_pinned() -> None:
+    from app.config import get_settings
     from app.services.strategies.funnel_research import config
 
     assert config.SYNTHESIS_MODEL == "gpt-5-mini"
+    assert config.SYNTHESIS_MODEL == get_settings().model_tier_high
     assert config.MAX_REGENERATIONS == 2
     assert config.PROMPT_VERSION == "macro-brief-v1"
     assert config.FRED_SERIES == (

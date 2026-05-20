@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Final, Protocol
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.db.models_graph import Hypothesis, HypothesisStatus
 from app.services.hypothesis.embedding import Embedder, cosine_similarity
 
@@ -265,7 +266,7 @@ def _build_hypothesis(
 
 
 DEDUP_PROMPT_VERSION: Final[str] = "hypothesis-dedup-v1"
-DEDUP_MODEL_DEFAULT: Final[str] = "gpt-5-mini"
+DEDUP_MODEL_DEFAULT: Final[str] = get_settings().model_tier_high
 
 _DEDUP_SYSTEM_PROMPT: Final[str] = (
     "You compare two research hypotheses for an investment research desk. "
