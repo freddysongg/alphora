@@ -1,10 +1,17 @@
-"""End-to-end wiring test: belief_update stage emits between portfolio_brief
-and consolidate and is gated by the existing halt-check."""
+"""Wiring smoke for the belief_update stage in `core._run_funnel`.
+
+The stage's wiring shape is identical to every other funnel stage block —
+`_run_is_halted` precedes `_emit_funnel_stage` precedes the runner call. A
+true integration test would require setting up `_run_funnel`'s full fixture
+surface (fetchers, embedder, http client, chunk-capture mapping); the
+selector + runner unit suites already exercise the moving parts. These two
+tests cover only the wiring-shape preconditions: the stage scheme registers
+belief_update at the right index, and a cancelled run is recognised as
+halted by the helper that gates the stage."""
 from __future__ import annotations
 
 import uuid
 from datetime import date
-from typing import Any
 
 import pytest
 
@@ -36,7 +43,6 @@ async def _seed_run(status: RunStatus = RunStatus.running) -> uuid.UUID:
 async def test_stage_scheme_runtime_check_belief_update_at_index_seven(
     initialized_schema: None,
 ) -> None:
-    """Spot-check: the registered stage scheme matches what core.py emits."""
     from app.services.run_orchestrator import STAGE_SCHEMES
 
     stages = STAGE_SCHEMES["funnel_research"]
@@ -46,24 +52,12 @@ async def test_stage_scheme_runtime_check_belief_update_at_index_seven(
 
 
 @pytest.mark.asyncio
-async def test_halted_run_does_not_invoke_belief_update_pass(
+async def test_cancelled_run_is_recognised_as_halted_before_belief_update(
     initialized_schema: None,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """If the run is halted before belief_update fires, the runner is skipped."""
     from app.services.strategies.funnel_research import core as core_module
 
     run_id = await _seed_run(status=RunStatus.cancelled)
-    invoked: dict[str, bool] = {"called": False}
-
-    async def fake_pass(**_: Any) -> Any:
-        invoked["called"] = True
-        raise AssertionError("belief_update should not run on halted run")
-
-    monkeypatch.setattr(core_module, "run_belief_update_pass", fake_pass)
-
     async with session_factory() as session:
         is_halted = await core_module._run_is_halted(session=session, run_id=run_id)
-        assert is_halted is True
-
-    assert invoked["called"] is False
+    assert is_halted is True
