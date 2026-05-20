@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     cme_fedwatch_base_url: str | None = None
     capitol_trades_base_url: str | None = None
 
+    belief_update_model: str = "gpt-4o-mini"
+    belief_update_max_chunks_per_hypothesis: int = 50
+
 
 @lru_cache
 def get_settings() -> Settings:

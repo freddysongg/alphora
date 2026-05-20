@@ -29,6 +29,7 @@ _STRATEGY_STAGE_MAP: dict[str, tuple[str, ...]] = {
         "sector_synthesis",
         "company_synthesis",
         "hypothesis_dedup",
+        "belief_update",
     ),
 }
 

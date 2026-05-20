@@ -17,27 +17,30 @@ def test_tradingagents_terminal_stages_are_two_of_two() -> None:
 
 
 def test_funnel_research_substages_in_order() -> None:
-    assert resolve_stage_position(strategy="funnel_research", stage_name="ingest") == (1, 9)
-    assert resolve_stage_position(strategy="funnel_research", stage_name="digest") == (2, 9)
-    assert resolve_stage_position(strategy="funnel_research", stage_name="synthesize") == (3, 9)
-    assert resolve_stage_position(strategy="funnel_research", stage_name="verify") == (4, 9)
+    assert resolve_stage_position(strategy="funnel_research", stage_name="ingest") == (1, 10)
+    assert resolve_stage_position(strategy="funnel_research", stage_name="digest") == (2, 10)
+    assert resolve_stage_position(strategy="funnel_research", stage_name="synthesize") == (3, 10)
+    assert resolve_stage_position(strategy="funnel_research", stage_name="verify") == (4, 10)
     assert resolve_stage_position(
         strategy="funnel_research", stage_name="sector_fanout"
-    ) == (5, 9)
+    ) == (5, 10)
     assert resolve_stage_position(
         strategy="funnel_research", stage_name="company_fanout"
-    ) == (6, 9)
+    ) == (6, 10)
     assert resolve_stage_position(
         strategy="funnel_research", stage_name="portfolio_brief"
-    ) == (7, 9)
+    ) == (7, 10)
+    assert resolve_stage_position(
+        strategy="funnel_research", stage_name="belief_update"
+    ) == (8, 10)
     assert resolve_stage_position(
         strategy="funnel_research", stage_name="consolidate"
-    ) == (8, 9)
+    ) == (9, 10)
 
 
-def test_funnel_research_terminal_is_nine_of_nine() -> None:
-    assert resolve_stage_position(strategy="funnel_research", stage_name="succeeded") == (9, 9)
-    assert resolve_stage_position(strategy="funnel_research", stage_name="failed") == (9, 9)
+def test_funnel_research_terminal_is_ten_of_ten() -> None:
+    assert resolve_stage_position(strategy="funnel_research", stage_name="succeeded") == (10, 10)
+    assert resolve_stage_position(strategy="funnel_research", stage_name="failed") == (10, 10)
 
 
 def test_unknown_strategy_raises() -> None:

@@ -222,3 +222,16 @@ async def test_estimate_canonical_stage_order_is_preserved() -> None:
     stage_names = [row.stage for row in result.stages]
     assert stage_names.index("macro_synthesis") < stage_names.index("judge")
     assert stage_names.index("judge") < stage_names.index("extraction")
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_estimate_run_cost_includes_belief_update_stage_on_empty_history() -> None:
+    async with session_factory() as session:
+        estimate = await estimate_run_cost(
+            session=session, strategy=StrategyEnum.funnel_research
+        )
+    stage_names = [row.stage for row in estimate.stages]
+    assert "belief_update" in stage_names
+    belief_row = next(row for row in estimate.stages if row.stage == "belief_update")
+    assert belief_row.sample_size == 0
+    assert belief_row.mean_cost_usd == pytest.approx(Decimal("0"))

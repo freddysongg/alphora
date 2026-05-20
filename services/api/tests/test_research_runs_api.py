@@ -618,6 +618,7 @@ def test_get_cost_estimate_returns_zeros_when_no_history(
     assert Decimal(body["estimated_total_usd"]) == Decimal("0.000000")
     stage_names = {row["stage"] for row in body["stages"]}
     assert "macro_synthesis" in stage_names
+    assert "belief_update" in stage_names
 
 
 def test_get_cost_estimate_aggregates_historical_calls(
