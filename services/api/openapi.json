@@ -2494,6 +2494,135 @@
           }
         }
       }
+    },
+    "/api/research-runs/{run_id}/cost-ledger": {
+      "get": {
+        "tags": [
+          "observability"
+        ],
+        "summary": "Get Run Cost Ledger",
+        "operationId": "get_run_cost_ledger_api_research_runs__run_id__cost_ledger_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunCostLedger"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/research-runs/{run_id}/evidence-flow": {
+      "get": {
+        "tags": [
+          "observability"
+        ],
+        "summary": "Get Run Evidence Flow",
+        "operationId": "get_run_evidence_flow_api_research_runs__run_id__evidence_flow_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunEvidenceFlow"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/research-runs/{run_id}/graph": {
+      "get": {
+        "tags": [
+          "observability"
+        ],
+        "summary": "Get Run Graph",
+        "operationId": "get_run_graph_api_research_runs__run_id__graph_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunGraph"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3471,6 +3600,24 @@
         ],
         "title": "DataSourcePublic"
       },
+      "EntityTypeEnum": {
+        "type": "string",
+        "enum": [
+          "company",
+          "person",
+          "sector",
+          "country",
+          "product",
+          "regulator",
+          "bill",
+          "event",
+          "document",
+          "instrument",
+          "theme",
+          "hypothesis"
+        ],
+        "title": "EntityTypeEnum"
+      },
       "EventResolutionKindEnum": {
         "type": "string",
         "enum": [
@@ -3726,6 +3873,81 @@
         ],
         "title": "EvidenceChunkPublic"
       },
+      "EvidenceFlowSourceRow": {
+        "properties": {
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "source_name": {
+            "type": "string",
+            "title": "Source Name"
+          },
+          "source_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Kind"
+          },
+          "reliability_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reliability Score"
+          },
+          "evidence_count": {
+            "type": "integer",
+            "title": "Evidence Count"
+          },
+          "chunk_citation_count": {
+            "type": "integer",
+            "title": "Chunk Citation Count"
+          },
+          "hypothesis_count": {
+            "type": "integer",
+            "title": "Hypothesis Count"
+          },
+          "top_evidence_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Top Evidence Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_id",
+          "source_name",
+          "source_kind",
+          "reliability_score",
+          "evidence_count",
+          "chunk_citation_count",
+          "hypothesis_count",
+          "top_evidence_ids"
+        ],
+        "title": "EvidenceFlowSourceRow"
+      },
       "EvidencePublic": {
         "properties": {
           "id": {
@@ -3896,6 +4118,124 @@
           "none"
         ],
         "title": "FinalRatingEnum"
+      },
+      "GraphEdge": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "from_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "From Id"
+          },
+          "to_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "To Id"
+          },
+          "type": {
+            "$ref": "#/components/schemas/RelationTypeEnum"
+          },
+          "quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quote"
+          },
+          "sign": {
+            "type": "number",
+            "title": "Sign"
+          },
+          "is_explicit": {
+            "type": "boolean",
+            "title": "Is Explicit"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "from_id",
+          "to_id",
+          "type",
+          "quote",
+          "sign",
+          "is_explicit"
+        ],
+        "title": "GraphEdge"
+      },
+      "GraphNode": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "type": {
+            "$ref": "#/components/schemas/EntityTypeEnum"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "is_hypothesis": {
+            "type": "boolean",
+            "title": "Is Hypothesis"
+          },
+          "hypothesis_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hypothesis Id"
+          },
+          "hypothesis_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HypothesisStatusEnum"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "belief": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Belief"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "label",
+          "is_hypothesis",
+          "hypothesis_id",
+          "hypothesis_status",
+          "belief"
+        ],
+        "title": "GraphNode"
       },
       "GroupedRuns": {
         "properties": {
@@ -4518,6 +4858,18 @@
           "all"
         ],
         "title": "HypothesisStateFilter"
+      },
+      "HypothesisStatusEnum": {
+        "type": "string",
+        "enum": [
+          "proposed",
+          "active",
+          "validated",
+          "falsified",
+          "expired",
+          "superseded"
+        ],
+        "title": "HypothesisStatusEnum"
       },
       "HypothesisTransitionRequest": {
         "properties": {
@@ -6433,6 +6785,60 @@
         ],
         "title": "RunCostEstimate"
       },
+      "RunCostLedger": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "total_cost_usd": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Cost Usd"
+          },
+          "total_calls": {
+            "type": "integer",
+            "title": "Total Calls"
+          },
+          "total_input_tokens": {
+            "type": "integer",
+            "title": "Total Input Tokens"
+          },
+          "total_output_tokens": {
+            "type": "integer",
+            "title": "Total Output Tokens"
+          },
+          "total_cached_input_tokens": {
+            "type": "integer",
+            "title": "Total Cached Input Tokens"
+          },
+          "cache_hit_rate": {
+            "type": "number",
+            "title": "Cache Hit Rate"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/StageCostRow"
+            },
+            "type": "array",
+            "title": "Stages"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "total_cost_usd",
+          "total_calls",
+          "total_input_tokens",
+          "total_output_tokens",
+          "total_cached_input_tokens",
+          "cache_hit_rate",
+          "stages"
+        ],
+        "title": "RunCostLedger"
+      },
       "RunEventLevelEnum": {
         "type": "string",
         "enum": [
@@ -6489,6 +6895,75 @@
           "data"
         ],
         "title": "RunEventPublic"
+      },
+      "RunEvidenceFlow": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "total_evidence": {
+            "type": "integer",
+            "title": "Total Evidence"
+          },
+          "total_chunk_citations": {
+            "type": "integer",
+            "title": "Total Chunk Citations"
+          },
+          "total_hypotheses": {
+            "type": "integer",
+            "title": "Total Hypotheses"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceFlowSourceRow"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "total_evidence",
+          "total_chunk_citations",
+          "total_hypotheses",
+          "sources"
+        ],
+        "title": "RunEvidenceFlow"
+      },
+      "RunGraph": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/GraphNode"
+            },
+            "type": "array",
+            "title": "Nodes"
+          },
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/GraphEdge"
+            },
+            "type": "array",
+            "title": "Edges"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "nodes",
+          "edges"
+        ],
+        "title": "RunGraph"
       },
       "RunReportPublic": {
         "properties": {
@@ -7032,6 +7507,59 @@
           "mean_cached_input_tokens"
         ],
         "title": "StageCostEstimate"
+      },
+      "StageCostRow": {
+        "properties": {
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "call_count": {
+            "type": "integer",
+            "title": "Call Count"
+          },
+          "total_cost_usd": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Cost Usd"
+          },
+          "total_input_tokens": {
+            "type": "integer",
+            "title": "Total Input Tokens"
+          },
+          "total_output_tokens": {
+            "type": "integer",
+            "title": "Total Output Tokens"
+          },
+          "total_cached_input_tokens": {
+            "type": "integer",
+            "title": "Total Cached Input Tokens"
+          },
+          "cache_hit_rate": {
+            "type": "number",
+            "title": "Cache Hit Rate"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Models"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "stage",
+          "call_count",
+          "total_cost_usd",
+          "total_input_tokens",
+          "total_output_tokens",
+          "total_cached_input_tokens",
+          "cache_hit_rate",
+          "models"
+        ],
+        "title": "StageCostRow"
       },
       "StrategyEnum": {
         "type": "string",

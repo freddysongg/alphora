@@ -10,6 +10,7 @@ from app.api.routes import (
     human_reviews,
     hypotheses,
     macro_briefs,
+    observability,
     paper,
     portfolio_briefs,
     research_runs,
@@ -52,3 +53,4 @@ api_router.include_router(
 )
 api_router.include_router(evals.router, tags=["evals"])
 api_router.include_router(human_reviews.router, tags=["human-reviews"])
+api_router.include_router(observability.router, tags=["observability"])

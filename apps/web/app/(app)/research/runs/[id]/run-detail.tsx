@@ -336,6 +336,11 @@ export function RunDetail(props: RunDetailProps): ReactElement {
               </Link>
             </Button>
           ) : null}
+          <Button asChild size="sm" variant="ghost">
+            <Link href={`/research/runs/${detail.id}/observability` as Route}>
+              OBSERVABILITY
+            </Link>
+          </Button>
           {isCancellable ? (
             <CancelRunButton
               runId={detail.id}

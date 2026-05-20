@@ -756,6 +756,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/research-runs/{run_id}/cost-ledger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Run Cost Ledger */
+        get: operations["get_run_cost_ledger_api_research_runs__run_id__cost_ledger_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research-runs/{run_id}/evidence-flow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Run Evidence Flow */
+        get: operations["get_run_evidence_flow_api_research_runs__run_id__evidence_flow_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research-runs/{run_id}/graph": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Run Graph */
+        get: operations["get_run_graph_api_research_runs__run_id__graph_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1138,6 +1189,11 @@ export interface components {
             updated_at: string;
         };
         /**
+         * EntityTypeEnum
+         * @enum {string}
+         */
+        EntityTypeEnum: "company" | "person" | "sector" | "country" | "product" | "regulator" | "bill" | "event" | "document" | "instrument" | "theme" | "hypothesis";
+        /**
          * EventResolutionKindEnum
          * @enum {string}
          */
@@ -1229,6 +1285,25 @@ export interface components {
              */
             created_at: string;
         };
+        /** EvidenceFlowSourceRow */
+        EvidenceFlowSourceRow: {
+            /** Source Id */
+            source_id: string | null;
+            /** Source Name */
+            source_name: string;
+            /** Source Kind */
+            source_kind: string | null;
+            /** Reliability Score */
+            reliability_score: number | null;
+            /** Evidence Count */
+            evidence_count: number;
+            /** Chunk Citation Count */
+            chunk_citation_count: number;
+            /** Hypothesis Count */
+            hypothesis_count: number;
+            /** Top Evidence Ids */
+            top_evidence_ids: string[];
+        };
         /** EvidencePublic */
         EvidencePublic: {
             /**
@@ -1287,6 +1362,49 @@ export interface components {
          * @enum {string}
          */
         FinalRatingEnum: "buy" | "hold" | "sell" | "none";
+        /** GraphEdge */
+        GraphEdge: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * From Id
+             * Format: uuid
+             */
+            from_id: string;
+            /**
+             * To Id
+             * Format: uuid
+             */
+            to_id: string;
+            type: components["schemas"]["RelationTypeEnum"];
+            /** Quote */
+            quote: string | null;
+            /** Sign */
+            sign: number;
+            /** Is Explicit */
+            is_explicit: boolean;
+        };
+        /** GraphNode */
+        GraphNode: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            type: components["schemas"]["EntityTypeEnum"];
+            /** Label */
+            label: string;
+            /** Is Hypothesis */
+            is_hypothesis: boolean;
+            /** Hypothesis Id */
+            hypothesis_id: string | null;
+            hypothesis_status: components["schemas"]["HypothesisStatusEnum"] | null;
+            /** Belief */
+            belief: number | null;
+        };
         /** GroupedRuns */
         GroupedRuns: {
             /** Queued */
@@ -1471,6 +1589,11 @@ export interface components {
          * @enum {string}
          */
         HypothesisStateFilter: "proposed" | "active" | "all";
+        /**
+         * HypothesisStatusEnum
+         * @enum {string}
+         */
+        HypothesisStatusEnum: "proposed" | "active" | "validated" | "falsified" | "expired" | "superseded";
         /** HypothesisTransitionRequest */
         HypothesisTransitionRequest: {
             to: components["schemas"]["HypothesisState"];
@@ -2143,6 +2266,28 @@ export interface components {
             /** Stages */
             stages: components["schemas"]["StageCostEstimate"][];
         };
+        /** RunCostLedger */
+        RunCostLedger: {
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Total Cost Usd */
+            total_cost_usd: string;
+            /** Total Calls */
+            total_calls: number;
+            /** Total Input Tokens */
+            total_input_tokens: number;
+            /** Total Output Tokens */
+            total_output_tokens: number;
+            /** Total Cached Input Tokens */
+            total_cached_input_tokens: number;
+            /** Cache Hit Rate */
+            cache_hit_rate: number;
+            /** Stages */
+            stages: components["schemas"]["StageCostRow"][];
+        };
         /**
          * RunEventLevelEnum
          * @enum {string}
@@ -2172,6 +2317,34 @@ export interface components {
             data: {
                 [key: string]: unknown;
             } | null;
+        };
+        /** RunEvidenceFlow */
+        RunEvidenceFlow: {
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Total Evidence */
+            total_evidence: number;
+            /** Total Chunk Citations */
+            total_chunk_citations: number;
+            /** Total Hypotheses */
+            total_hypotheses: number;
+            /** Sources */
+            sources: components["schemas"]["EvidenceFlowSourceRow"][];
+        };
+        /** RunGraph */
+        RunGraph: {
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Nodes */
+            nodes: components["schemas"]["GraphNode"][];
+            /** Edges */
+            edges: components["schemas"]["GraphEdge"][];
         };
         /** RunReportPublic */
         RunReportPublic: {
@@ -2381,6 +2554,25 @@ export interface components {
             mean_input_tokens: number;
             /** Mean Cached Input Tokens */
             mean_cached_input_tokens: number;
+        };
+        /** StageCostRow */
+        StageCostRow: {
+            /** Stage */
+            stage: string;
+            /** Call Count */
+            call_count: number;
+            /** Total Cost Usd */
+            total_cost_usd: string;
+            /** Total Input Tokens */
+            total_input_tokens: number;
+            /** Total Output Tokens */
+            total_output_tokens: number;
+            /** Total Cached Input Tokens */
+            total_cached_input_tokens: number;
+            /** Cache Hit Rate */
+            cache_hit_rate: number;
+            /** Models */
+            models: string[];
         };
         /**
          * StrategyEnum
@@ -4029,6 +4221,99 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HumanReviewSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_run_cost_ledger_api_research_runs__run_id__cost_ledger_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunCostLedger"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_run_evidence_flow_api_research_runs__run_id__evidence_flow_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunEvidenceFlow"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_run_graph_api_research_runs__run_id__graph_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunGraph"];
                 };
             };
             /** @description Validation Error */
