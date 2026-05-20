@@ -27,6 +27,10 @@ from app.schemas.sector_brief import (
     SectorBrief,
     SectorBriefPublic,
 )
+from app.services.belief_update import (
+    BeliefUpdateBudgetHaltError,
+    run_belief_update_pass,
+)
 from app.services.entity_bootstrap.gics_sectors import load_top_level_sector_names
 from app.services.hypothesis import (
     Embedder,
@@ -200,7 +204,7 @@ async def run_macro_brief(
     """Execute the funnel_research strategy for one run.
 
     Stages ingest -> digest -> synthesize -> verify -> sector_fanout ->
-    company_fanout -> portfolio_brief -> consolidate -> succeeded. Budget
+    company_fanout -> portfolio_brief -> belief_update -> consolidate -> succeeded. Budget
     pause/kill is routed through the injected orchestrator. Failures in
     source clients are isolated to warn-level events; total source failure,
     invalid scope, all sector fan-outs failing, or all company fan-outs
@@ -543,8 +547,31 @@ async def _run_funnel(
         _emit_funnel_stage(
             session,
             run_id=run_id,
+            stage_name="belief_update",
+            message="stage 8/9: belief_update",
+        )
+        await session.commit()
+
+    try:
+        await run_belief_update_pass(
+            session_factory=session_factory,
+            run_id=run_id,
+            llm_client=llm_client,
+            orchestrator=orchestrator,
+        )
+    except BeliefUpdateBudgetHaltError:
+        return
+
+    async with session_factory() as session:
+        if await _run_is_halted(session=session, run_id=run_id):
+            return
+
+    async with session_factory() as session:
+        _emit_funnel_stage(
+            session,
+            run_id=run_id,
             stage_name="consolidate",
-            message="stage 8/9: consolidate",
+            message="stage 9/9: consolidate",
         )
         await promote_themes(session=session, run_id=run_id)
         await session.commit()
