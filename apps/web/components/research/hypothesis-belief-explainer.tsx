@@ -82,11 +82,11 @@ export function HypothesisBeliefExplainer(
         <CardTitle>BELIEF ENGINE</CardTitle>
       </CardHeader>
       <CardContent>
-        <ul className="flex flex-col gap-4">
+        <ul className="flex flex-col">
           {bundles.map((bundle) => (
             <li
               key={bundle.hypothesis.id}
-              className="rounded-lg border border-line/50 bg-surface-2/30 p-5 flex flex-col gap-4"
+              className="border-t border-line/40 first:border-t-0 py-5 flex flex-col gap-4"
             >
               <header className="flex items-start gap-4">
                 <CapsLabel className="text-fg-subtle w-24 shrink-0 mt-0.5">

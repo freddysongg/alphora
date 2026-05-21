@@ -113,7 +113,7 @@ export function SectorBriefCard(props: SectorBriefCardProps): ReactElement {
             <BandHeader title="THEMES" count={brief.themes.length} />
             <BandBody>
               <ul
-                className="flex flex-col gap-3"
+                className="flex flex-col"
                 data-testid="sector-themes"
               >
                 {brief.themes.map((theme) => (
@@ -136,7 +136,7 @@ export function SectorBriefCard(props: SectorBriefCardProps): ReactElement {
             />
             <BandBody>
               <ul
-                className="flex flex-col gap-3"
+                className="flex flex-col"
                 aria-label="company ideas"
               >
                 {brief.companies.map((company) => (
@@ -159,7 +159,7 @@ export function SectorBriefCard(props: SectorBriefCardProps): ReactElement {
             />
             <BandBody>
               <ul
-                className="flex flex-col gap-3"
+                className="flex flex-col"
                 data-testid="sector-watch-items"
               >
                 {brief.watch_items.map((item) => (
@@ -182,7 +182,7 @@ export function SectorBriefCard(props: SectorBriefCardProps): ReactElement {
             />
             <BandBody>
               <ul
-                className="flex flex-col gap-3"
+                className="flex flex-col"
                 data-testid="sector-cited-claims"
               >
                 {brief.cited_claims.map((claim) => (
@@ -260,11 +260,11 @@ function SectorThemeRow(props: SectorThemeRowProps): ReactElement {
   return (
     <li
       data-testid="sector-theme-row"
-      className="rounded-md border border-line/40 bg-surface-2/30 px-4 py-3"
+      className="border-t border-line/40 first:border-t-0 py-3"
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="text-fg text-sm truncate">{theme.name}</span>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4 min-w-0">
+          <span className="text-fg text-sm">{theme.name}</span>
           {button}
         </div>
         <span className="font-mono tabular-nums text-fg-muted text-sm shrink-0">
@@ -292,7 +292,7 @@ function SectorWatchItemRow(props: SectorWatchItemRowProps): ReactElement {
   return (
     <li
       data-testid="sector-watch-item-row"
-      className="rounded-md border border-line/40 bg-surface-2/30 px-4 py-4"
+      className="border-t border-line/40 first:border-t-0 py-4"
     >
       <p className="text-fg text-sm font-medium">{item.name}</p>
       <p className="mt-2 text-sm text-fg-muted leading-relaxed">
@@ -341,10 +341,10 @@ function SectorCompanyRow(props: SectorCompanyRowProps): ReactElement {
   return (
     <li
       data-testid="sector-company-row"
-      className="rounded-md border border-line/40 bg-surface-2/30 px-4 py-3 font-mono text-xs"
+      className="border-t border-line/40 first:border-t-0 py-3 font-mono text-xs"
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4 min-w-0">
           {companyName}
           {button}
         </div>
@@ -375,7 +375,7 @@ function SectorCitedClaimRow(props: SectorCitedClaimRowProps): ReactElement {
 
   return (
     <li
-      className="rounded-md border border-line bg-surface-2/40 px-4 py-3"
+      className="border-t border-line/40 first:border-t-0 py-3"
       data-testid="sector-cited-claim-row"
     >
       <button

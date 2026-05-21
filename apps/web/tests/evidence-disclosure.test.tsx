@@ -40,7 +40,7 @@ describe("useEvidenceDisclosure", () => {
     expect(screen.getByTestId("list-slot").children).toHaveLength(0);
   });
 
-  it("renders an 'Evidence N' button collapsed by default with hasEvidence=true", () => {
+  it("renders an 'N evidence' button collapsed by default with hasEvidence=true", () => {
     render(
       <Harness ids={[EVIDENCE_ID_1, EVIDENCE_ID_2]} testIdPrefix="test" />,
     );
@@ -48,7 +48,7 @@ describe("useEvidenceDisclosure", () => {
     const button = within(screen.getByTestId("button-slot")).getByRole(
       "button",
     );
-    expect(button).toHaveTextContent("Evidence 2");
+    expect(button).toHaveTextContent("2 evidence");
     expect(button).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByTestId("list-slot").children).toHaveLength(0);
   });

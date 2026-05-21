@@ -80,7 +80,7 @@ export function HypothesisLifecycleCard(
         <CardTitle>HYPOTHESIS LIFECYCLE</CardTitle>
       </CardHeader>
       <CardContent>
-        <ul className="flex flex-col gap-4">
+        <ul className="flex flex-col">
           {bundles.map((bundle) => (
             <LifecycleRow key={bundle.hypothesis.id} bundle={bundle} />
           ))}
@@ -106,9 +106,11 @@ function LifecycleRow(props: {
   const parent = lifecycle?.parent ?? null;
 
   return (
-    <li className="rounded-lg border border-line/50 bg-surface-2/30 p-5 flex flex-col gap-5">
+    <li className="border-t border-line/40 first:border-t-0 py-5 flex flex-col gap-4">
       <header className="flex items-start gap-4">
-        <CapsLabel className={`w-24 shrink-0 mt-0.5 ${stateTone(hypothesis.state)}`}>
+        <CapsLabel
+          className={`w-24 shrink-0 mt-0.5 ${stateTone(hypothesis.state)}`}
+        >
           {hypothesis.state}
         </CapsLabel>
         <p className="flex-1 min-w-0 text-sm text-fg leading-relaxed">

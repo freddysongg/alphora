@@ -5,13 +5,7 @@ import type { ReactElement, ReactNode } from "react";
 import type { Route } from "next";
 import Link from "next/link";
 
-import {
-  CapsLabel,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui";
+import { CapsLabel, Card } from "@/components/ui";
 import { SectorBriefCard } from "@/components/research/sector-brief-card";
 import { useEvidenceDisclosure } from "@/components/research/evidence-disclosure";
 import type { components } from "@/lib/api";
@@ -81,113 +75,119 @@ export function MacroBriefDetail(props: MacroBriefDetailProps): ReactElement {
         </div>
       </header>
 
-      <Section title="THEMES">
-        {brief.themes.length === 0 ? (
-          <Empty />
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {brief.themes.map((theme) => (
-              <ThemeRow key={theme.name} theme={theme} runId={runId} />
-            ))}
-          </ul>
-        )}
-      </Section>
+      <Card className="p-0">
+        <Band title="THEMES" count={brief.themes.length}>
+          {brief.themes.length === 0 ? (
+            <Empty />
+          ) : (
+            <ul className="flex flex-col">
+              {brief.themes.map((theme) => (
+                <ThemeRow key={theme.name} theme={theme} runId={runId} />
+              ))}
+            </ul>
+          )}
+        </Band>
 
-      <Section title="SECTOR CALLS">
-        {brief.sector_calls.length === 0 ? (
-          <Empty />
-        ) : (
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-line">
-                <th
-                  scope="col"
-                  className="py-2 px-3 text-left text-[11px] tracking-[0.14em] font-medium uppercase text-fg-muted"
-                >
-                  Sector
-                </th>
-                <th
-                  scope="col"
-                  className="py-2 px-3 text-left text-[11px] tracking-[0.14em] font-medium uppercase text-fg-muted"
-                >
-                  Direction
-                </th>
-                <th
-                  scope="col"
-                  className="py-2 px-3 text-right text-[11px] tracking-[0.14em] font-medium uppercase text-fg-muted"
-                >
-                  Conviction
-                </th>
-                <th
-                  scope="col"
-                  className="py-2 px-3 text-right text-[11px] tracking-[0.14em] font-medium uppercase text-fg-muted"
-                >
-                  Evidence
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {brief.sector_calls.map((call) => (
-                <SectorCallRow
-                  key={call.sector_entity_id}
-                  call={call}
+        <Band title="SECTOR CALLS" count={brief.sector_calls.length}>
+          {brief.sector_calls.length === 0 ? (
+            <Empty />
+          ) : (
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-line/60">
+                  <th
+                    scope="col"
+                    className="py-2 px-3 text-left text-[11px] tracking-[0.14em] font-medium uppercase text-fg-muted"
+                  >
+                    Sector
+                  </th>
+                  <th
+                    scope="col"
+                    className="py-2 px-3 text-left text-[11px] tracking-[0.14em] font-medium uppercase text-fg-muted"
+                  >
+                    Direction
+                  </th>
+                  <th
+                    scope="col"
+                    className="py-2 px-3 text-right text-[11px] tracking-[0.14em] font-medium uppercase text-fg-muted"
+                  >
+                    Conviction
+                  </th>
+                  <th
+                    scope="col"
+                    className="py-2 px-3 text-right text-[11px] tracking-[0.14em] font-medium uppercase text-fg-muted"
+                  >
+                    Evidence
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {brief.sector_calls.map((call) => (
+                  <SectorCallRow
+                    key={call.sector_entity_id}
+                    call={call}
+                    runId={runId}
+                  />
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Band>
+
+        <Band title="WATCH ITEMS" count={brief.watch_items.length}>
+          {brief.watch_items.length === 0 ? (
+            <Empty />
+          ) : (
+            <ul className="flex flex-col">
+              {brief.watch_items.map((item) => (
+                <WatchItemRow key={item.name} item={item} runId={runId} />
+              ))}
+            </ul>
+          )}
+        </Band>
+
+        <Band title="CITED CLAIMS" count={brief.cited_claims.length}>
+          {brief.cited_claims.length === 0 ? (
+            <Empty />
+          ) : (
+            <ul className="flex flex-col">
+              {brief.cited_claims.map((claim) => (
+                <CitedClaimRow
+                  key={`${claim.chunk_id}-${claim.exact_quote.slice(0, 32)}`}
+                  claim={claim}
+                  chunk={chunkById.get(claim.chunk_id) ?? null}
+                />
+              ))}
+            </ul>
+          )}
+        </Band>
+
+        <Band
+          title="PROPOSED HYPOTHESES"
+          count={brief.proposed_hypotheses.length}
+        >
+          {brief.proposed_hypotheses.length === 0 ? (
+            <Empty />
+          ) : (
+            <ul className="flex flex-col">
+              {brief.proposed_hypotheses.map((hypothesis, index) => (
+                <HypothesisRow
+                  key={`${hypothesis.claim_text}-${index}`}
+                  hypothesis={hypothesis}
                   runId={runId}
                 />
               ))}
-            </tbody>
-          </table>
-        )}
-      </Section>
+            </ul>
+          )}
+        </Band>
+      </Card>
 
-      <Section title="WATCH ITEMS">
-        {brief.watch_items.length === 0 ? (
-          <Empty />
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {brief.watch_items.map((item) => (
-              <WatchItemRow key={item.name} item={item} runId={runId} />
-            ))}
-          </ul>
-        )}
-      </Section>
-
-      <Section title="CITED CLAIMS">
-        {brief.cited_claims.length === 0 ? (
-          <Empty />
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {brief.cited_claims.map((claim) => (
-              <CitedClaimRow
-                key={`${claim.chunk_id}-${claim.exact_quote.slice(0, 32)}`}
-                claim={claim}
-                chunk={chunkById.get(claim.chunk_id) ?? null}
-              />
-            ))}
-          </ul>
-        )}
-      </Section>
-
-      <Section title="PROPOSED HYPOTHESES">
-        {brief.proposed_hypotheses.length === 0 ? (
-          <Empty />
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {brief.proposed_hypotheses.map((hypothesis, index) => (
-              <HypothesisRow
-                key={`${hypothesis.claim_text}-${index}`}
-                hypothesis={hypothesis}
-                runId={runId}
-              />
-            ))}
-          </ul>
-        )}
-      </Section>
-
-      <Section title="SECTOR BRIEFS">
-        {sectorBriefs.length === 0 ? (
-          <Empty />
-        ) : (
-          <div className="flex flex-col gap-3">
+      {sectorBriefs.length > 0 ? (
+        <section className="flex flex-col gap-4">
+          <CapsLabel as="h3" className="px-1 text-fg-muted">
+            SECTOR BRIEFS
+          </CapsLabel>
+          <div className="flex flex-col gap-4">
             {sectorBriefs.map((sectorBrief) => (
               <SectorBriefCard
                 key={sectorBrief.brief.sector_entity_id}
@@ -196,8 +196,8 @@ export function MacroBriefDetail(props: MacroBriefDetailProps): ReactElement {
               />
             ))}
           </div>
-        )}
-      </Section>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -242,20 +242,26 @@ function VerifierBadge(props: VerifierBadgeProps): ReactElement {
   );
 }
 
-interface SectionProps {
+interface BandProps {
   title: string;
+  count?: number;
   children: ReactNode;
 }
 
-function Section(props: SectionProps): ReactElement {
-  const { title, children } = props;
+function Band(props: BandProps): ReactElement {
+  const { title, count, children } = props;
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
+    <section className="border-t border-line/60 first:border-t-0">
+      <div className="flex items-baseline justify-between gap-3 px-6 pt-5 pb-3">
+        <CapsLabel className="text-fg-muted">{title}</CapsLabel>
+        {count !== undefined ? (
+          <span className="font-mono tabular-nums text-xs text-fg-subtle">
+            {count}
+          </span>
+        ) : null}
+      </div>
+      <div className="px-6 pb-6">{children}</div>
+    </section>
   );
 }
 
@@ -279,11 +285,11 @@ function ThemeRow(props: ThemeRowProps): ReactElement {
   return (
     <li
       data-testid="macro-theme-row"
-      className="rounded-md border border-line/40 bg-surface-2/30 px-4 py-3"
+      className="border-t border-line/40 first:border-t-0 py-3"
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="text-fg truncate">{theme.name}</span>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4 min-w-0">
+          <span className="text-fg">{theme.name}</span>
           {button}
         </div>
         <span className="font-mono tabular-nums text-fg-muted text-sm shrink-0">
@@ -311,7 +317,7 @@ function WatchItemRow(props: WatchItemRowProps): ReactElement {
   return (
     <li
       data-testid="macro-watch-item-row"
-      className="rounded-md border border-line/40 bg-surface-2/30 px-4 py-4"
+      className="border-t border-line/40 first:border-t-0 py-4"
     >
       <p className="text-fg font-medium">{item.name}</p>
       <p className="mt-2 text-sm text-fg-muted leading-relaxed">
@@ -343,7 +349,7 @@ function HypothesisRow(props: HypothesisRowProps): ReactElement {
   return (
     <li
       data-testid="macro-hypothesis-row"
-      className="rounded-md border border-line/40 bg-surface-2/30 px-4 py-4 text-sm text-fg leading-relaxed"
+      className="border-t border-line/40 first:border-t-0 py-4 text-sm text-fg leading-relaxed"
     >
       <p>{hypothesis.claim_text}</p>
       {hasEvidence ? (
@@ -410,7 +416,7 @@ function CitedClaimRow(props: CitedClaimRowProps): ReactElement {
 
   return (
     <li
-      className="rounded-md border border-line bg-surface-2/40 p-3"
+      className="border-t border-line/40 first:border-t-0 py-3"
       data-testid="macro-cited-claim-row"
     >
       <button
