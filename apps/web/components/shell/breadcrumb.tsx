@@ -10,9 +10,9 @@ import { HexPill } from "@/components/ui/hex-pill";
 import { buildBreadcrumb } from "@/lib/breadcrumb";
 
 const segmentClasses =
-  "font-mono text-xs text-fg-muted hover:text-fg transition-colors duration-150";
-const lastSegmentClasses = "font-mono text-xs text-fg";
-const separatorClasses = "font-mono text-xs text-fg-subtle px-1.5 select-none";
+  "text-[12px] text-[#9a92b5] hover:text-[#d8d2e8] transition-colors duration-150";
+const lastSegmentClasses = "text-[12px] text-[#f0eafa] font-medium";
+const separatorClasses = "text-[12px] text-[#5e5878] px-1.5 select-none";
 
 export function Breadcrumb(): ReactElement {
   const pathname = usePathname() ?? "/";
@@ -21,13 +21,16 @@ export function Breadcrumb(): ReactElement {
   if (segments.length === 0) {
     return (
       <nav aria-label="Breadcrumb" className="flex items-center min-w-0">
-        <span className="font-mono text-xs text-fg-muted">/</span>
+        <span className="text-[12px] text-[#9a92b5]">/</span>
       </nav>
     );
   }
 
   return (
-    <nav aria-label="Breadcrumb" className="flex items-center min-w-0 overflow-hidden">
+    <nav
+      aria-label="Breadcrumb"
+      className="flex items-center min-w-0 overflow-hidden"
+    >
       {segments.map((segment, index) => {
         const isLast = index === segments.length - 1;
         return (
