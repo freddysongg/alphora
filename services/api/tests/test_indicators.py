@@ -38,3 +38,31 @@ def test_ema_raises_when_series_too_short() -> None:
     closes = _close_series([100.0, 101.0])
     with pytest.raises(ValueError, match="ema"):
         ema(closes, period=10)
+
+
+from app.indicators import macd  # noqa: E402
+
+
+def test_macd_returns_three_aligned_series() -> None:
+    closes = _close_series([100.0 + 0.1 * i for i in range(60)])
+    macd_line, signal_line, hist = macd(closes, fast=12, slow=26, signal=9)
+    assert isinstance(macd_line, pd.Series)
+    assert isinstance(signal_line, pd.Series)
+    assert isinstance(hist, pd.Series)
+    assert len(macd_line) == 60
+    assert len(signal_line) == 60
+    assert len(hist) == 60
+
+
+def test_macd_warmup_yields_nan_until_slow_period() -> None:
+    closes = _close_series([100.0 + 0.1 * i for i in range(60)])
+    macd_line, _, _ = macd(closes, fast=12, slow=26, signal=9)
+    assert math.isnan(macd_line.iloc[24])
+    assert not math.isnan(macd_line.iloc[25])
+
+
+def test_macd_histogram_equals_macd_minus_signal_post_warmup() -> None:
+    closes = _close_series([100.0 + 0.1 * i for i in range(60)])
+    macd_line, signal_line, hist = macd(closes, fast=12, slow=26, signal=9)
+    last = -1
+    assert abs(hist.iloc[last] - (macd_line.iloc[last] - signal_line.iloc[last])) < 1e-9
