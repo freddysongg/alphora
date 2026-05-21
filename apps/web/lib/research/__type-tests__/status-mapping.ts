@@ -1,19 +1,19 @@
-import type { StatusKind } from "@/components/ui";
+import type { StatusPillStatus } from "@/components/ui";
 import {
   isTerminal,
   provenanceStatusToStatusKind,
   runStatusToStatusKind,
 } from "../status-mapping";
 
-const _queued: StatusKind = runStatusToStatusKind("queued");
-const _running: StatusKind = runStatusToStatusKind("running");
-const _succeeded: StatusKind = runStatusToStatusKind("succeeded");
-const _failed: StatusKind = runStatusToStatusKind("failed");
-const _cancelled: StatusKind = runStatusToStatusKind("cancelled");
+const _queued: StatusPillStatus = runStatusToStatusKind("queued");
+const _running: StatusPillStatus = runStatusToStatusKind("running");
+const _succeeded: StatusPillStatus = runStatusToStatusKind("succeeded");
+const _failed: StatusPillStatus = runStatusToStatusKind("failed");
+const _cancelled: StatusPillStatus = runStatusToStatusKind("cancelled");
 
-const _provSuccess: StatusKind = provenanceStatusToStatusKind("success");
-const _provFailure: StatusKind = provenanceStatusToStatusKind("failure");
-const _provPartial: StatusKind = provenanceStatusToStatusKind("partial");
+const _provSuccess: StatusPillStatus = provenanceStatusToStatusKind("success");
+const _provFailure: StatusPillStatus = provenanceStatusToStatusKind("failure");
+const _provPartial: StatusPillStatus = provenanceStatusToStatusKind("partial");
 
 const _isQueuedTerminal: boolean = isTerminal("queued");
 const _isCancelledTerminal: boolean = isTerminal("cancelled");

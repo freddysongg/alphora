@@ -11,9 +11,9 @@ import {
   CapsLabel,
   HexPill,
   Skeleton,
-  StatusDot,
+  StatusPill,
 } from "@/components/ui";
-import type { StatusKind } from "@/components/ui";
+import type { StatusPillStatus } from "@/components/ui";
 import type { components } from "@/lib/api";
 import { RunSseProvider } from "@/components/research/run-sse-context";
 import { HumanReviewForm } from "@/components/research/human-review-form";
@@ -64,7 +64,7 @@ interface StageEntry {
   key: string;
   label: string;
   count: string | null;
-  status: StatusKind;
+  status: StatusPillStatus;
   summary: string;
   href: Route | null;
 }
@@ -297,12 +297,15 @@ function deriveHumanReviewStage(
   };
 }
 
-function stageStatusForMissing(runStatus: RunStatus): StatusKind {
-  if (runStatus === "failed" || runStatus === "cancelled") {
-    return "stale";
+function stageStatusForMissing(runStatus: RunStatus): StatusPillStatus {
+  if (runStatus === "failed") {
+    return "failed";
+  }
+  if (runStatus === "cancelled") {
+    return "cancelled";
   }
   if (runStatus === "running") {
-    return "live";
+    return "running";
   }
   return "pending";
 }
@@ -396,7 +399,7 @@ export function RunDetail(props: RunDetailProps): ReactElement {
               {headerLabel}
             </span>
             <HexPill value={detail.id} />
-            <StatusDot
+            <StatusPill
               status={runStatusToStatusKind(resolvedStatus)}
               label={statusToLabel[resolvedStatus]}
             />
@@ -514,7 +517,10 @@ interface StageRowProps {
 function StageRow(props: StageRowProps): ReactElement {
   const { entry, isRunPending } = props;
   const showShimmer =
-    isRunPending && entry.href === null && entry.status !== "stale";
+    isRunPending &&
+    entry.href === null &&
+    entry.status !== "failed" &&
+    entry.status !== "cancelled";
   const summaryNode = showShimmer ? (
     <Skeleton className="h-3.5 w-48" />
   ) : (
@@ -530,7 +536,7 @@ function StageRow(props: StageRowProps): ReactElement {
           </span>
         ) : null}
       </div>
-      <StatusDot status={entry.status} />
+      <StatusPill status={entry.status} />
       <div className="min-w-0 flex-1">{summaryNode}</div>
       {entry.href !== null ? (
         <CaretRight

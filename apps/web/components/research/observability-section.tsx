@@ -11,7 +11,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui";
-import type { StatusKind } from "@/components/ui";
+import type { StatusPillStatus } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { CostLedger } from "@/components/research/cost-ledger";
 import type { SourceClientCacheStats } from "@/components/research/cost-ledger";
@@ -63,20 +63,26 @@ export interface ObservabilitySectionProps {
 interface DimensionMeta {
   key: DimensionKey;
   label: string;
-  status: StatusKind;
+  status: StatusPillStatus;
   summary: string;
   hasData: boolean;
 }
 
-function statusFromCount(count: number, runStatus: RunStatus): StatusKind {
+function statusFromCount(
+  count: number,
+  runStatus: RunStatus,
+): StatusPillStatus {
   if (count > 0) {
     return "succeeded";
   }
   if (runStatus === "running") {
-    return "live";
+    return "running";
   }
-  if (runStatus === "failed" || runStatus === "cancelled") {
-    return "stale";
+  if (runStatus === "failed") {
+    return "failed";
+  }
+  if (runStatus === "cancelled") {
+    return "cancelled";
   }
   return "pending";
 }
@@ -370,24 +376,25 @@ function DimensionSkeleton(): ReactElement {
   );
 }
 
-const dotClasses: Record<StatusKind, string> = {
-  live: "bg-accent",
+const dotClasses: Record<StatusPillStatus, string> = {
   pending: "border border-fg-muted bg-transparent",
-  succeeded: "bg-accent",
-  failed: "bg-danger",
-  stale: "bg-warn",
+  running: "bg-[var(--color-status-running)]",
+  succeeded: "bg-[var(--color-status-success)]",
+  failed: "bg-[var(--color-status-failed)]",
+  cancelled: "bg-[var(--color-status-cancelled)]",
+  paused: "bg-[var(--color-status-paused)]",
 };
 
-function StatusIndicator(props: { status: StatusKind }): ReactElement {
+function StatusIndicator(props: { status: StatusPillStatus }): ReactElement {
   const { status } = props;
-  const isLive = status === "live";
+  const isRunning = status === "running";
   return (
     <span
       aria-hidden="true"
       className={cn(
         "inline-block h-1.5 w-1.5 rounded-full",
         dotClasses[status],
-        isLive && "skeleton-shimmer",
+        isRunning && "pulse-dot",
       )}
     />
   );

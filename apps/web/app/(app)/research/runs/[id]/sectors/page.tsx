@@ -5,8 +5,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
 
-import { Button, CapsLabel, HexPill, StatusDot } from "@/components/ui";
-import type { StatusKind } from "@/components/ui";
+import { Button, CapsLabel, HexPill, StatusPill } from "@/components/ui";
+import type { StatusPillStatus } from "@/components/ui";
 import { getServerApi, isApiError } from "@/lib/api";
 import type { components } from "@/lib/api";
 import { getMacroBrief } from "../actions";
@@ -28,9 +28,9 @@ interface RunSectorsPageProps {
 
 const NOT_FOUND_STATUS = 404;
 
-const verifierStatusToDot: Record<VerifierStatus, StatusKind> = {
+const verifierStatusToPill: Record<VerifierStatus, StatusPillStatus> = {
   verified: "succeeded",
-  quote_unverified: "stale",
+  quote_unverified: "paused",
 };
 
 async function loadRunDetail(runId: string): Promise<ResearchRunDetail | null> {
@@ -131,8 +131,8 @@ function SectorRow(props: SectorRowProps): ReactElement {
               {sector.brief.sector_name}
             </CapsLabel>
           </div>
-          <StatusDot
-            status={verifierStatusToDot[sector.brief.verifier_status]}
+          <StatusPill
+            status={verifierStatusToPill[sector.brief.verifier_status]}
           />
           <span className="text-sm text-fg-muted truncate min-w-0 flex-1">
             {sectorSummary(sector)}

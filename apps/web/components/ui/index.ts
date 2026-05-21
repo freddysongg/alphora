@@ -32,8 +32,8 @@ export type {
   CardContentProps,
 } from "./card";
 
-export { StatusDot } from "./status-dot";
-export type { StatusDotProps, StatusKind } from "./status-dot";
+export { StatusPill } from "./status-pill";
+export type { StatusPillProps, StatusPillStatus } from "./status-pill";
 
 export { Badge } from "./badge";
 export type { BadgeProps, BadgeVariant } from "./badge";

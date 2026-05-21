@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { Eye } from "@phosphor-icons/react/dist/ssr";
-import { Badge, Button, HexPill, StatusDot } from "@/components/ui";
+import { Badge, Button, HexPill, StatusPill } from "@/components/ui";
 import type { BadgeVariant } from "@/components/ui";
 import type { components } from "@/lib/api";
 import { runStatusToStatusKind } from "@/lib/research/status-mapping";
@@ -81,7 +81,7 @@ export function RunRow(props: RunRowProps): ReactElement {
           {runLabel}
         </span>
         <HexPill value={run.id} />
-        <StatusDot status={runStatusToStatusKind(run.status)} />
+        <StatusPill status={runStatusToStatusKind(run.status)} />
         <div className="flex-1" />
         <Badge variant={resolveBadgeVariant(run.final_rating)} />
       </Link>

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
 
-import { Button, CapsLabel, HexPill, StatusDot } from "@/components/ui";
+import { Button, CapsLabel, HexPill, StatusPill } from "@/components/ui";
 import { getServerApi, isApiError } from "@/lib/api";
 import type { components } from "@/lib/api";
 import { getMacroBrief } from "../actions";
@@ -140,7 +140,7 @@ function CompanyRow(props: CompanyRowProps): ReactElement {
       <div className="w-72 shrink-0">
         <CapsLabel className="text-fg">{label}</CapsLabel>
       </div>
-      <StatusDot status="succeeded" />
+      <StatusPill status="succeeded" />
       <span className="text-sm text-fg-muted truncate min-w-0 flex-1">
         {summary}
       </span>
