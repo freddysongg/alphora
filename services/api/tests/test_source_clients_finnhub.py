@@ -250,3 +250,39 @@ async def test_fetch_finnhub_recommendation_happy_path(
     assert items[0].buy == 25
     assert items[0].strong_buy == 15
     assert len(content_hash) == 64
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_fetch_finnhub_price_target_happy_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("FINNHUB_API_KEY", "test-key")
+    get_settings.cache_clear()
+    from app.services.source_clients.finnhub import fetch_finnhub_price_target
+
+    route = respx.get("https://finnhub.io/api/v1/stock/price-target").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "symbol": "AAPL",
+                "lastUpdated": "2026-05-18 14:30:00",
+                "targetHigh": 250.0,
+                "targetLow": 175.0,
+                "targetMean": 215.0,
+                "targetMedian": 210.0,
+                "numberOfAnalysts": 38,
+            },
+        )
+    )
+
+    async with httpx.AsyncClient() as client:
+        target, content_hash = await fetch_finnhub_price_target(client=client, symbol="AAPL")
+
+    assert route.called
+    assert target.symbol == "AAPL"
+    assert target.target_high == 250.0
+    assert target.target_median == 210.0
+    assert target.number_of_analysts == 38
+    assert target.last_updated.year == 2026
+    assert len(content_hash) == 64

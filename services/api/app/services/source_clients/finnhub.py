@@ -80,6 +80,25 @@ class FinnhubRecommendation(BaseModel):
     strong_sell: int = Field(alias="strongSell")
 
 
+class FinnhubPriceTarget(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="ignore", populate_by_name=True)
+
+    symbol: str
+    last_updated: datetime = Field(alias="lastUpdated")
+    target_high: float = Field(alias="targetHigh")
+    target_low: float = Field(alias="targetLow")
+    target_mean: float = Field(alias="targetMean")
+    target_median: float = Field(alias="targetMedian")
+    number_of_analysts: int = Field(alias="numberOfAnalysts")
+
+    @field_validator("last_updated", mode="before")
+    @classmethod
+    def _coerce_naive_datetime(cls, raw: object) -> object:
+        if isinstance(raw, str) and "T" not in raw and raw.count(" ") == 1:
+            return datetime.fromisoformat(raw.replace(" ", "T")).replace(tzinfo=UTC)
+        return raw
+
+
 def _remap_news_row(row: object) -> FinnhubNewsItem:
     """Finnhub returns `datetime` as epoch seconds at the top level. Map it to
     `published_at` so the public model uses an explicit, non-shadowing name.
@@ -171,12 +190,33 @@ async def fetch_finnhub_recommendation(
     return items, response.content_hash
 
 
+async def fetch_finnhub_price_target(
+    *,
+    client: httpx.AsyncClient,
+    symbol: str,
+) -> tuple[FinnhubPriceTarget, str]:
+    response = await request(
+        client,
+        HttpRequestConfig(
+            method="GET",
+            url=f"{_FINNHUB_BASE}/stock/price-target",
+            headers=_auth_headers(),
+            params={"symbol": symbol},
+        ),
+        rate_limiter=_rate_limiter(),
+    )
+    target = FinnhubPriceTarget.model_validate_json(response.body_bytes)
+    return target, response.content_hash
+
+
 __all__ = [
     "FinnhubEarningsCalendar",
     "FinnhubEarningsRow",
     "FinnhubNewsItem",
+    "FinnhubPriceTarget",
     "FinnhubRecommendation",
     "fetch_finnhub_company_news",
     "fetch_finnhub_earnings_calendar",
+    "fetch_finnhub_price_target",
     "fetch_finnhub_recommendation",
 ]
