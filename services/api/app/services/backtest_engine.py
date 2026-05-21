@@ -33,6 +33,7 @@ from app.db.models_backtest import (
     BacktestRun,
     BacktestTrade,
 )
+from app.services.historical_bars import load_polygon_aggregates_as_dataframe
 from app.strategies.base import Strategy, StrategyParams
 
 
@@ -394,6 +395,57 @@ async def persist_backtest_result(
     return run_id
 
 
+async def run_backtest(
+    session: AsyncSession,
+    *,
+    strategy: Strategy,
+    ticker: str,
+    from_ts: datetime,
+    to_ts: datetime,
+    params: StrategyParams,
+    slippage: SlippageModel | None = None,
+    commission: CommissionModel | None = None,
+    position_size_shares: int = 1,
+    timeframe: str = "1min",
+) -> uuid.UUID:
+    """End-to-end orchestrator: load OHLCV -> simulate -> persist.
+
+    Raises `ValueError` if the loader returns no bars for the range.
+    """
+    if slippage is None:
+        slippage = SlippageModel()
+    if commission is None:
+        commission = CommissionModel()
+    bars = await load_polygon_aggregates_as_dataframe(
+        session, ticker=ticker, from_ts=from_ts, to_ts=to_ts
+    )
+    if bars.empty:
+        raise ValueError(
+            f"no bars for ticker={ticker} between {from_ts.isoformat()} "
+            f"and {to_ts.isoformat()}"
+        )
+    result = simulate(
+        bars=bars,
+        strategy=strategy,
+        params=params,
+        slippage=slippage,
+        commission=commission,
+        position_size_shares=position_size_shares,
+    )
+    return await persist_backtest_result(
+        session,
+        result=result,
+        bars=bars,
+        strategy_key=strategy.key,
+        ticker=ticker,
+        timeframe=timeframe,
+        params=params,
+        slippage=slippage,
+        commission=commission,
+        position_size_shares=position_size_shares,
+    )
+
+
 __all__ = [
     "BacktestResult",
     "CommissionModel",
@@ -401,5 +453,6 @@ __all__ = [
     "Trade",
     "TradeExitReason",
     "persist_backtest_result",
+    "run_backtest",
     "simulate",
 ]
