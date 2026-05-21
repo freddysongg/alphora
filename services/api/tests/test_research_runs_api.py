@@ -88,6 +88,51 @@ def test_get_research_run_returns_detail_with_nested_arrays(
     assert detail["config"]["llm_provider"] == "openai"
 
 
+def test_get_research_run_detail_exposes_source_client_cache_stats(
+    initialized_schema: None, fake_queue: Any
+) -> None:
+    _ = initialized_schema
+    _ = fake_queue
+    import asyncio
+
+    payload: dict[str, Any] = {
+        "tickers": ["MSFT"],
+        "trade_date": "2026-05-20",
+        "llm_provider": "openai",
+        "llm_model": "gpt-4o-mini",
+    }
+    with TestClient(app) as client:
+        create_response = client.post("/api/research-runs", json=payload)
+        run_id = create_response.json()[0]["id"]
+
+    async def _seed() -> None:
+        async with session_factory() as session:
+            row = (
+                await session.execute(
+                    select(ResearchRun).where(ResearchRun.id == uuid.UUID(run_id))
+                )
+            ).scalar_one()
+            row.source_client_cache_stats = {
+                "hits": 12,
+                "misses": 4,
+                "evictions": 0,
+                "hit_rate": 0.75,
+            }
+            await session.commit()
+
+    asyncio.get_event_loop().run_until_complete(_seed())
+    with TestClient(app) as client:
+        detail_response = client.get(f"/api/research-runs/{run_id}")
+    assert detail_response.status_code == 200
+    detail = detail_response.json()
+    assert detail["source_client_cache_stats"] == {
+        "hits": 12,
+        "misses": 4,
+        "evictions": 0,
+        "hit_rate": 0.75,
+    }
+
+
 def test_get_research_run_returns_404_when_missing(initialized_schema: None) -> None:
     _ = initialized_schema
     missing_id = uuid.uuid4()
@@ -133,8 +178,33 @@ def test_list_research_runs_grouped_view(
         grouped = client.get("/api/research-runs", params={"group": "status"})
     assert grouped.status_code == 200
     body = grouped.json()
-    assert set(body.keys()) == {"queued", "running", "recent", "failed"}
+    assert set(body.keys()) == {"queued", "running", "recent", "failed", "cancelled"}
     assert len(body["queued"]) == 1
+    assert body["cancelled"] == []
+
+
+def test_list_research_runs_grouped_view_returns_cancelled_runs(
+    initialized_schema: None, fake_queue: Any
+) -> None:
+    _ = initialized_schema
+    _ = fake_queue
+    payload: dict[str, Any] = {
+        "tickers": ["AAPL"],
+        "trade_date": "2026-05-15",
+        "llm_provider": "openai",
+        "llm_model": "gpt-4o-mini",
+    }
+    with TestClient(app) as client:
+        create_response = client.post("/api/research-runs", json=payload)
+        run_id = create_response.json()[0]["id"]
+        cancel_response = client.post(f"/api/research-runs/{run_id}/cancel")
+        assert cancel_response.status_code == 200
+        grouped = client.get("/api/research-runs", params={"group": "status"})
+    assert grouped.status_code == 200
+    body = grouped.json()
+    cancelled_ids = [row["id"] for row in body["cancelled"]]
+    assert run_id in cancelled_ids
+    assert body["queued"] == []
 
 
 def test_cancel_research_run_marks_cancelled(
@@ -195,6 +265,22 @@ def test_create_research_runs_rejects_empty_tickers(initialized_schema: None) ->
     payload: dict[str, Any] = {
         "tickers": [],
         "trade_date": "2026-05-15",
+        "llm_provider": "openai",
+        "llm_model": "gpt-4o-mini",
+    }
+    with TestClient(app) as client:
+        response = client.post("/api/research-runs", json=payload)
+    assert response.status_code == 422
+
+
+def test_tradingagents_post_rejects_more_than_25_tickers(
+    initialized_schema: None,
+) -> None:
+    _ = initialized_schema
+    payload: dict[str, Any] = {
+        "strategy": "tradingagents",
+        "trade_date": "2026-05-18",
+        "tickers": [f"T{i}" for i in range(26)],
         "llm_provider": "openai",
         "llm_model": "gpt-4o-mini",
     }
@@ -558,3 +644,78 @@ async def test_list_llm_calls_returns_call_fields_correctly(
     assert row["evidence_ids"] == ["e1", "e2"]
     assert row["error_message"] is None
     assert "created_at" in row
+
+
+def test_get_cost_estimate_returns_zeros_when_no_history(
+    initialized_schema: None, fake_queue: Any
+) -> None:
+    _ = initialized_schema
+    _ = fake_queue
+    with TestClient(app) as client:
+        response = client.get(
+            "/api/research-runs/cost-estimate",
+            params={"strategy": "funnel_research"},
+        )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["strategy"] == "funnel_research"
+    assert body["sample_run_count"] == 0
+    assert Decimal(body["estimated_total_usd"]) == Decimal("0.000000")
+    stage_names = {row["stage"] for row in body["stages"]}
+    assert "macro_synthesis" in stage_names
+    assert "belief_update" in stage_names
+
+
+def test_get_cost_estimate_aggregates_historical_calls(
+    initialized_schema: None, fake_queue: Any
+) -> None:
+    _ = initialized_schema
+    _ = fake_queue
+    import asyncio
+
+    async def seed() -> None:
+        async with session_factory() as session:
+            run = ResearchRun(
+                ticker=None,
+                trade_date=date(2026, 5, 16),
+                strategy="funnel_research",
+                status=RunStatus.succeeded,
+                config={},
+                scope_payload={},
+            )
+            session.add(run)
+            await session.commit()
+            run_id = run.id
+        async with session_factory() as session:
+            session.add(
+                LlmCallLog(
+                    run_id=run_id,
+                    model="gpt-5-mini",
+                    prompt_hash="a" * 64,
+                    input_hash="b" * 64,
+                    input_tokens=1000,
+                    output_tokens=200,
+                    cached_input_tokens=100,
+                    reasoning_tokens=0,
+                    cost_usd=Decimal("0.1500"),
+                    latency_ms=12,
+                    status=LlmCallStatus.success,
+                    stage="macro_synthesis",
+                    agent_name="synthesis",
+                    call_index=0,
+                )
+            )
+            await session.commit()
+
+    asyncio.run(seed())
+    with TestClient(app) as client:
+        response = client.get(
+            "/api/research-runs/cost-estimate",
+            params={"strategy": "funnel_research"},
+        )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["sample_run_count"] == 1
+    macro = next(row for row in body["stages"] if row["stage"] == "macro_synthesis")
+    assert macro["sample_size"] == 1
+    assert Decimal(macro["mean_cost_usd"]) == Decimal("0.150000")

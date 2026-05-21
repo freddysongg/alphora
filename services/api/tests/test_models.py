@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from app.db import models
 from app.db.base import Base
-from app.db.models_llm import LlmCallLog, LlmCallStatus
+from app.db.models_llm import LlmCallLog, LlmCallReplay, LlmCallStatus
 from app.db.models_runs import FinalRating, ResearchRun, RunStatus, Strategy
 from app.db.session import session_factory
 from app.schemas.common import RunStatusEnum, StrategyEnum
@@ -27,6 +27,13 @@ _EXPECTED_TABLES = {
     "provider_checks",
     "application_settings",
     "llm_call_logs",
+    "llm_call_replays",
+    "counterfactual_perturbations",
+    "counterfactual_gate_runs",
+    "leakage_holdout_cases",
+    "leakage_runs",
+    "human_reviews",
+    "event_resolutions",
 }
 
 
@@ -272,3 +279,139 @@ async def test_llm_call_log_defaults_apply_when_omitted() -> None:
         assert log.reasoning_tokens == 0
         assert log.cost_usd == Decimal("0")
         assert log.created_at is not None
+        assert log.prompt_version is None
+        assert log.stage is None
+        assert log.agent_name is None
+        assert log.call_index is None
+        assert log.temperature is None
+        assert log.seed is None
+        assert log.reasoning_effort is None
+        assert log.input_payload is None
+        assert log.output_content is None
+        assert log.budget_action is None
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_llm_call_log_persists_observability_fields() -> None:
+    async with session_factory() as session:
+        run = ResearchRun(
+            ticker="AAPL",
+            trade_date=date(2026, 5, 19),
+            status=RunStatus.running,
+            config={},
+        )
+        session.add(run)
+        await session.commit()
+        run_id = run.id
+
+        log = LlmCallLog(
+            run_id=run_id,
+            model="gpt-5",
+            prompt_hash="a" * 64,
+            input_hash="b" * 64,
+            input_tokens=10,
+            output_tokens=5,
+            cached_input_tokens=0,
+            reasoning_tokens=0,
+            cost_usd=Decimal("0.001"),
+            latency_ms=100,
+            status=LlmCallStatus.success,
+            prompt_version="macro-brief-v1",
+            stage="macro_synthesis",
+            agent_name="synthesis",
+            call_index=0,
+            temperature=0.7,
+            seed=42,
+            reasoning_effort="medium",
+            input_payload={
+                "model": "gpt-5",
+                "messages": [{"role": "user", "content": "hi"}],
+                "temperature": 0.7,
+                "seed": 42,
+                "reasoning_effort": "medium",
+            },
+            output_content="hello",
+            budget_action="warn",
+        )
+        session.add(log)
+        await session.commit()
+        log_id = log.id
+
+    async with session_factory() as session:
+        reloaded = (
+            await session.execute(select(LlmCallLog).where(LlmCallLog.id == log_id))
+        ).scalar_one()
+
+    assert reloaded.prompt_version == "macro-brief-v1"
+    assert reloaded.stage == "macro_synthesis"
+    assert reloaded.agent_name == "synthesis"
+    assert reloaded.call_index == 0
+    assert reloaded.temperature == 0.7
+    assert reloaded.seed == 42
+    assert reloaded.reasoning_effort == "medium"
+    assert reloaded.input_payload is not None
+    assert reloaded.input_payload["model"] == "gpt-5"
+    assert reloaded.output_content == "hello"
+    assert reloaded.budget_action == "warn"
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_llm_call_replay_persists_and_cascades_on_log_delete() -> None:
+    async with session_factory() as session:
+        log = LlmCallLog(
+            model="gpt-5",
+            prompt_hash="a" * 64,
+            input_hash="b" * 64,
+            latency_ms=10,
+            status=LlmCallStatus.success,
+            input_payload={
+                "model": "gpt-5",
+                "messages": [{"role": "user", "content": "hi"}],
+            },
+        )
+        session.add(log)
+        await session.commit()
+        original_id = log.id
+
+        replay = LlmCallReplay(
+            original_log_id=original_id,
+            model="gpt-5",
+            prompt_version="macro-brief-v1",
+            input_payload={
+                "model": "gpt-5",
+                "messages": [{"role": "user", "content": "hi"}],
+            },
+            output_content="replay output",
+            input_tokens=10,
+            output_tokens=5,
+            cached_input_tokens=0,
+            reasoning_tokens=0,
+            cost_usd=Decimal("0.0005"),
+            latency_ms=50,
+            status=LlmCallStatus.success,
+        )
+        session.add(replay)
+        await session.commit()
+        replay_id = replay.id
+
+    async with session_factory() as session:
+        reloaded = (
+            await session.execute(
+                select(LlmCallReplay).where(LlmCallReplay.id == replay_id)
+            )
+        ).scalar_one()
+        assert reloaded.original_log_id == original_id
+        assert reloaded.output_content == "replay output"
+        assert reloaded.prompt_version == "macro-brief-v1"
+
+        await session.execute(
+            LlmCallLog.__table__.delete().where(LlmCallLog.id == original_id)
+        )
+        await session.commit()
+
+        remaining = (
+            await session.execute(
+                select(LlmCallReplay).where(LlmCallReplay.id == replay_id)
+            )
+        ).scalar_one_or_none()
+        assert remaining is None

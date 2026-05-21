@@ -56,6 +56,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/research-runs/cost-estimate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Research Run Cost Estimate */
+        get: operations["get_research_run_cost_estimate_api_research_runs_cost_estimate_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/research-runs/{run_id}": {
         parameters: {
             query?: never;
@@ -90,6 +107,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/research-runs/{run_id}/llm-calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Research Run Llm Calls */
+        get: operations["list_research_run_llm_calls_api_research_runs__run_id__llm_calls_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research-runs/{run_id}/llm-calls/{log_id}/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replay Research Run Llm Call */
+        post: operations["replay_research_run_llm_call_api_research_runs__run_id__llm_calls__log_id__replay_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/research-runs/{run_id}/cancel": {
         parameters: {
             query?: never;
@@ -101,6 +152,350 @@ export interface paths {
         put?: never;
         /** Cancel Research Run */
         post: operations["cancel_research_run_api_research_runs__run_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research-runs/{run_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume Research Run */
+        post: operations["resume_research_run_api_research_runs__run_id__resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research-runs/{run_id}/macro-brief": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Macro Brief */
+        get: operations["get_macro_brief_api_research_runs__run_id__macro_brief_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research-runs/{run_id}/portfolio-brief": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Portfolio Brief */
+        get: operations["get_portfolio_brief_api_research_runs__run_id__portfolio_brief_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research-runs/{run_id}/sectors/{sector_entity_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Sector Brief */
+        get: operations["get_sector_brief_api_research_runs__run_id__sectors__sector_entity_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research-runs/{run_id}/companies/{company_entity_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Company Thesis */
+        get: operations["get_company_thesis_api_research_runs__run_id__companies__company_entity_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research/hypotheses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Hypotheses */
+        get: operations["list_hypotheses_api_research_hypotheses_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research/hypotheses/{hypothesis_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Hypothesis */
+        get: operations["get_hypothesis_api_research_hypotheses__hypothesis_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research/hypotheses/{hypothesis_id}/belief": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Hypothesis Belief */
+        get: operations["get_hypothesis_belief_api_research_hypotheses__hypothesis_id__belief_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research/hypotheses/{hypothesis_id}/belief/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Hypothesis Belief History */
+        get: operations["get_hypothesis_belief_history_api_research_hypotheses__hypothesis_id__belief_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research/hypotheses/{hypothesis_id}/lifecycle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Hypothesis Lifecycle */
+        get: operations["get_hypothesis_lifecycle_api_research_hypotheses__hypothesis_id__lifecycle_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research/hypotheses/{hypothesis_id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Activate Hypothesis */
+        post: operations["activate_hypothesis_api_research_hypotheses__hypothesis_id__activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research/hypotheses/{hypothesis_id}/transition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transition Hypothesis
+         * @description Manually transition a hypothesis to one of the allowed next states.
+         *
+         *     Allowed transitions:
+         *     - `proposed → active | expired | superseded`
+         *     - `active   → validated | falsified | expired | superseded`
+         *
+         *     Any other source state (including terminal `validated` / `falsified` /
+         *     `expired` / `superseded`) returns 409.
+         */
+        post: operations["transition_hypothesis_api_research_hypotheses__hypothesis_id__transition_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research/hypotheses/{hypothesis_id}/parent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Hypothesis Parent
+         * @description Set or clear `parent_hypothesis_id` on a hypothesis.
+         *
+         *     Pass `{"parent_id": null}` to clear. Returns 404 if either the child or
+         *     the parent is missing; 409 if the parent is in a terminal state or the
+         *     child would become its own parent.
+         */
+        post: operations["set_hypothesis_parent_api_research_hypotheses__hypothesis_id__parent_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research/hypotheses/lifecycle/sweep": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sweep Lifecycle */
+        post: operations["sweep_lifecycle_api_research_hypotheses_lifecycle_sweep_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research/events/{event_entity_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve Event
+         * @description Record an event resolution and apply its effect to bound hypotheses.
+         *
+         *     422 when the kind is not one of `beat | miss | neutral`.
+         *     404 when the event entity does not exist or is not an `event` type.
+         */
+        post: operations["resolve_event_api_research_events__event_entity_id__resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research/events/{event_entity_id}/resolutions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Event Resolutions
+         * @description Return every resolution recorded against this event entity (newest first).
+         */
+        get: operations["list_event_resolutions_api_research_events__event_entity_id__resolutions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research/evidence/by-evidence/{evidence_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Evidence Trace By Evidence
+         * @description Trace endpoint addressable by Evidence.id.
+         *
+         *     Brief schemas store `Evidence.id` values in their `evidence_ids` arrays
+         *     (themes, sector calls, watch items, hypotheses). Those ids are not chunk
+         *     ids, so the chunk-id endpoint cannot resolve them. This endpoint resolves
+         *     them to the chunk most frequently referenced in cited_claims across all
+         *     macro / sector / company briefs, falling back to the lowest `chunk_index`
+         *     when no citation references any chunk of the evidence.
+         *
+         *     When `run_id` is provided, citation counts are restricted to that run.
+         */
+        get: operations["get_evidence_trace_by_evidence_api_research_evidence_by_evidence__evidence_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research/evidence/{chunk_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Evidence Trace */
+        get: operations["get_evidence_trace_api_research_evidence__chunk_id__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -297,6 +692,145 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/research-runs/{run_id}/counterfactuals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Run Counterfactuals */
+        get: operations["get_run_counterfactuals_api_research_runs__run_id__counterfactuals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/evals/leakage/cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Leakage Cases */
+        get: operations["list_leakage_cases_api_evals_leakage_cases_get"];
+        put?: never;
+        /** Create Leakage Case */
+        post: operations["create_leakage_case_api_evals_leakage_cases_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/evals/leakage/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Leakage Runs */
+        get: operations["list_leakage_runs_api_evals_leakage_runs_get"];
+        put?: never;
+        /** Create Leakage Run */
+        post: operations["create_leakage_run_api_evals_leakage_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/human-reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Human Reviews */
+        get: operations["list_human_reviews_api_human_reviews_get"];
+        put?: never;
+        /** Create Human Review */
+        post: operations["create_human_review_api_human_reviews_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/human-reviews/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Human Review Summary */
+        get: operations["get_human_review_summary_api_human_reviews_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research-runs/{run_id}/cost-ledger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Run Cost Ledger */
+        get: operations["get_run_cost_ledger_api_research_runs__run_id__cost_ledger_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research-runs/{run_id}/evidence-flow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Run Evidence Flow */
+        get: operations["get_run_evidence_flow_api_research_runs__run_id__evidence_flow_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/research-runs/{run_id}/graph": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Run Graph */
+        get: operations["get_run_graph_api_research_runs__run_id__graph_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -334,6 +868,278 @@ export interface components {
              */
             has_alpha_vantage_key: boolean;
         };
+        /** BeliefInputBreakdown */
+        BeliefInputBreakdown: {
+            /**
+             * Relation Id
+             * Format: uuid
+             */
+            relation_id: string;
+            relation_type: components["schemas"]["RelationTypeEnum"];
+            /**
+             * From Id
+             * Format: uuid
+             */
+            from_id: string;
+            /**
+             * To Id
+             * Format: uuid
+             */
+            to_id: string;
+            /** Source Id */
+            source_id: string | null;
+            /** Chunk Id */
+            chunk_id: string | null;
+            /** Quote */
+            quote: string | null;
+            /** Is Explicit */
+            is_explicit: boolean;
+            /** Sign */
+            sign: number;
+            /** Reliability */
+            reliability: number;
+            /** Confidence */
+            confidence: number;
+            /** Relevance */
+            relevance: number;
+            /** Age Days */
+            age_days: number;
+            /** Decay */
+            decay: number;
+            /** Weight */
+            weight: number;
+            /** Signed Contribution */
+            signed_contribution: number;
+        };
+        /** BeliefRecomputationPublic */
+        BeliefRecomputationPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Hypothesis Id
+             * Format: uuid
+             */
+            hypothesis_id: string;
+            /**
+             * Computed At
+             * Format: date-time
+             */
+            computed_at: string;
+            /** Belief */
+            belief: number;
+            /** Contributing Evidence Ids */
+            contributing_evidence_ids: string[];
+            /** Computation Method */
+            computation_method: string;
+            /** Inputs */
+            inputs: components["schemas"]["BeliefInputBreakdown"][] | null;
+        };
+        /**
+         * BriefKindEnum
+         * @enum {string}
+         */
+        BriefKindEnum: "macro" | "sector" | "company" | "portfolio";
+        /** ChunkLookup */
+        ChunkLookup: {
+            /**
+             * Chunk Id
+             * Format: uuid
+             */
+            chunk_id: string;
+            /**
+             * Evidence Id
+             * Format: uuid
+             */
+            evidence_id: string;
+            /** Source */
+            source: string;
+            /** Text */
+            text: string;
+            /** Attributes */
+            attributes: {
+                [key: string]: unknown;
+            };
+        };
+        /** CitedClaim */
+        CitedClaim: {
+            /** Claim Text */
+            claim_text: string;
+            /** Exact Quote */
+            exact_quote: string;
+            /**
+             * Chunk Id
+             * Format: uuid
+             */
+            chunk_id: string;
+            /** Source */
+            source: string;
+        };
+        /** CompanyCatalyst */
+        CompanyCatalyst: {
+            /** Name */
+            name: string;
+            /** Expected Timing */
+            expected_timing?: string | null;
+            /** Evidence Ids */
+            evidence_ids: string[];
+        };
+        /** CompanyRisk */
+        CompanyRisk: {
+            /** Name */
+            name: string;
+            /** Severity */
+            severity: number;
+            /** Evidence Ids */
+            evidence_ids: string[];
+        };
+        /** CompanyThesis */
+        CompanyThesis: {
+            /**
+             * Company Entity Id
+             * Format: uuid
+             */
+            company_entity_id: string;
+            /** Company Name */
+            company_name: string;
+            /**
+             * Sector Entity Id
+             * Format: uuid
+             */
+            sector_entity_id: string;
+            /** Sector Name */
+            sector_name: string;
+            /** Ticker */
+            ticker?: string | null;
+            direction: components["schemas"]["SectorCallDirection"];
+            /** Conviction */
+            conviction: number;
+            /** Bull Case */
+            bull_case: string;
+            /** Bear Case */
+            bear_case: string;
+            /** Catalysts */
+            catalysts: components["schemas"]["CompanyCatalyst"][];
+            /** Risks */
+            risks: components["schemas"]["CompanyRisk"][];
+            /** Cited Claims */
+            cited_claims: components["schemas"]["CitedClaim"][];
+            /** Confidence */
+            confidence: number;
+            /** Evidence Ids */
+            evidence_ids: string[];
+            verifier_status: components["schemas"]["VerifierStatus"];
+            /** Regeneration Count */
+            regeneration_count: number;
+        };
+        /** CompanyThesisPublic */
+        CompanyThesisPublic: {
+            thesis: components["schemas"]["CompanyThesis"];
+            judge: components["schemas"]["JudgePublic"];
+            /** Chunks */
+            chunks: components["schemas"]["ChunkLookup"][];
+        };
+        /** ConditionalEdgePublic */
+        ConditionalEdgePublic: {
+            /**
+             * Relation Id
+             * Format: uuid
+             */
+            relation_id: string;
+            /** Relation Type */
+            relation_type: string;
+            /**
+             * Event Entity Id
+             * Format: uuid
+             */
+            event_entity_id: string;
+            /** Event Entity Name */
+            event_entity_name: string | null;
+        };
+        /** CounterfactualGateRunPublic */
+        CounterfactualGateRunPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            brief_kind: components["schemas"]["BriefKindEnum"];
+            /** Brief Id */
+            brief_id: string | null;
+            /** Perturbation Count */
+            perturbation_count: number;
+            /** Meaningful Count */
+            meaningful_count: number;
+            /** Meaningful Changed Count */
+            meaningful_changed_count: number;
+            /** Change Rate */
+            change_rate: number;
+            /** Threshold */
+            threshold: number;
+            /** Passed */
+            passed: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** CounterfactualPerturbationPublic */
+        CounterfactualPerturbationPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            brief_kind: components["schemas"]["BriefKindEnum"];
+            /** Brief Id */
+            brief_id: string | null;
+            perturbation_kind: components["schemas"]["PerturbationKindEnum"];
+            /** Perturbation Input */
+            perturbation_input: {
+                [key: string]: unknown;
+            };
+            /** Baseline Output */
+            baseline_output: {
+                [key: string]: unknown;
+            };
+            /** Perturbed Output */
+            perturbed_output: {
+                [key: string]: unknown;
+            };
+            /** Decision Delta */
+            decision_delta: {
+                [key: string]: unknown;
+            };
+            /** Is Meaningful */
+            is_meaningful: boolean;
+            /** Decision Changed */
+            decision_changed: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** CounterfactualRunSummary */
+        CounterfactualRunSummary: {
+            /** Gates */
+            gates: components["schemas"]["CounterfactualGateRunPublic"][];
+            /** Perturbations */
+            perturbations: components["schemas"]["CounterfactualPerturbationPublic"][];
+        };
         /** CreatePaperOrderRequest */
         CreatePaperOrderRequest: {
             /**
@@ -353,29 +1159,276 @@ export interface components {
         };
         /** CreateResearchRunsRequest */
         CreateResearchRunsRequest: {
-            /** Tickers */
-            tickers: string[];
+            /** @default tradingagents */
+            strategy: components["schemas"]["StrategyEnum"];
             /**
              * Trade Date
              * Format: date
              */
             trade_date: string;
+            /** Tickers */
+            tickers?: string[] | null;
+            scope_payload?: components["schemas"]["MacroBriefScope"] | null;
             /** Analysts */
             analysts?: components["schemas"]["AnalystKindEnum"][];
-            llm_provider: components["schemas"]["LlmProviderEnum"];
+            llm_provider?: components["schemas"]["LlmProviderEnum"] | null;
             /** Llm Model */
-            llm_model: string;
+            llm_model?: string | null;
             /**
              * Debate Depth
              * @default 3
              */
             debate_depth: number;
         };
+        /** DataSourcePublic */
+        DataSourcePublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Kind */
+            kind: string;
+            /** Description */
+            description: string | null;
+            /** Homepage Url */
+            homepage_url: string | null;
+            /** Attributes */
+            attributes: {
+                [key: string]: unknown;
+            } | null;
+            /** Reliability Score */
+            reliability_score: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * EntityTypeEnum
+         * @enum {string}
+         */
+        EntityTypeEnum: "company" | "person" | "sector" | "country" | "product" | "regulator" | "bill" | "event" | "document" | "instrument" | "theme" | "hypothesis";
+        /**
+         * EventResolutionKindEnum
+         * @enum {string}
+         */
+        EventResolutionKindEnum: "beat" | "miss" | "neutral";
+        /** EventResolutionPublic */
+        EventResolutionPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Event Entity Id
+             * Format: uuid
+             */
+            event_entity_id: string;
+            kind: components["schemas"]["EventResolutionKindEnum"];
+            /**
+             * Resolved At
+             * Format: date-time
+             */
+            resolved_at: string;
+            /** Source Id */
+            source_id: string | null;
+            /** Notes */
+            notes: string | null;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** EventResolutionRequest */
+        EventResolutionRequest: {
+            /** Kind */
+            kind: string;
+            /** Resolved At */
+            resolved_at?: string | null;
+            /** Source Id */
+            source_id?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Payload */
+            payload?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** EventResolutionResponse */
+        EventResolutionResponse: {
+            resolution: components["schemas"]["EventResolutionPublic"];
+            /** Validated Hypothesis Ids */
+            validated_hypothesis_ids: string[];
+            /** Falsified Hypothesis Ids */
+            falsified_hypothesis_ids: string[];
+        };
+        /** EvidenceChunkPublic */
+        EvidenceChunkPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Evidence Id
+             * Format: uuid
+             */
+            evidence_id: string;
+            /** Chunk Index */
+            chunk_index: number;
+            /** Text */
+            text: string;
+            /** Start Offset */
+            start_offset: number | null;
+            /** End Offset */
+            end_offset: number | null;
+            /** Attributes */
+            attributes: {
+                [key: string]: unknown;
+            } | null;
+            /** Content Hash */
+            content_hash: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** EvidenceFlowSourceRow */
+        EvidenceFlowSourceRow: {
+            /** Source Id */
+            source_id: string | null;
+            /** Source Name */
+            source_name: string;
+            /** Source Kind */
+            source_kind: string | null;
+            /** Reliability Score */
+            reliability_score: number | null;
+            /** Evidence Count */
+            evidence_count: number;
+            /** Chunk Citation Count */
+            chunk_citation_count: number;
+            /** Hypothesis Count */
+            hypothesis_count: number;
+            /** Top Evidence Ids */
+            top_evidence_ids: string[];
+        };
+        /** EvidencePublic */
+        EvidencePublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Source */
+            source: string;
+            /** Source Id */
+            source_id: string | null;
+            /** Document Id */
+            document_id: string;
+            /** Raw Url */
+            raw_url: string | null;
+            /** Raw Blob Ref */
+            raw_blob_ref: string | null;
+            /** Content Hash */
+            content_hash: string;
+            /** Structured */
+            structured: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Extracted At
+             * Format: date-time
+             */
+            extracted_at: string;
+            /** Extracted By Model */
+            extracted_by_model: string | null;
+            /** Prompt Version */
+            prompt_version: string | null;
+            /** Sign */
+            sign: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** EvidenceTracePublic */
+        EvidenceTracePublic: {
+            chunk: components["schemas"]["EvidenceChunkPublic"];
+            evidence: components["schemas"]["EvidencePublic"];
+            data_source: components["schemas"]["DataSourcePublic"] | null;
+            /** Context Chunks */
+            context_chunks: components["schemas"]["EvidenceChunkPublic"][];
+        };
         /**
          * FinalRatingEnum
          * @enum {string}
          */
         FinalRatingEnum: "buy" | "hold" | "sell" | "none";
+        /** GraphEdge */
+        GraphEdge: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * From Id
+             * Format: uuid
+             */
+            from_id: string;
+            /**
+             * To Id
+             * Format: uuid
+             */
+            to_id: string;
+            type: components["schemas"]["RelationTypeEnum"];
+            /** Quote */
+            quote: string | null;
+            /** Sign */
+            sign: number;
+            /** Is Explicit */
+            is_explicit: boolean;
+        };
+        /** GraphNode */
+        GraphNode: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            type: components["schemas"]["EntityTypeEnum"];
+            /** Label */
+            label: string;
+            /** Is Hypothesis */
+            is_hypothesis: boolean;
+            /** Hypothesis Id */
+            hypothesis_id: string | null;
+            hypothesis_status: components["schemas"]["HypothesisStatusEnum"] | null;
+            /** Belief */
+            belief: number | null;
+        };
         /** GroupedRuns */
         GroupedRuns: {
             /** Queued */
@@ -386,6 +1439,8 @@ export interface components {
             recent: components["schemas"]["ResearchRunSummary"][];
             /** Failed */
             failed: components["schemas"]["ResearchRunSummary"][];
+            /** Cancelled */
+            cancelled: components["schemas"]["ResearchRunSummary"][];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -402,11 +1457,461 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** HumanReviewInput */
+        HumanReviewInput: {
+            /** Run Id */
+            run_id?: string | null;
+            brief_kind?: components["schemas"]["BriefKindEnum"] | null;
+            /**
+             * Week Start
+             * Format: date
+             */
+            week_start: string;
+            /** Reviewer */
+            reviewer: string;
+            /** Surfaced Missed */
+            surfaced_missed: number;
+            /** Missed Noticed */
+            missed_noticed: number;
+            /** Notes */
+            notes?: string | null;
+        };
+        /** HumanReviewPublic */
+        HumanReviewPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Run Id */
+            run_id: string | null;
+            brief_kind: components["schemas"]["BriefKindEnum"] | null;
+            /**
+             * Week Start
+             * Format: date
+             */
+            week_start: string;
+            /** Reviewer */
+            reviewer: string;
+            /** Surfaced Missed */
+            surfaced_missed: number;
+            /** Missed Noticed */
+            missed_noticed: number;
+            /** Notes */
+            notes: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** HumanReviewSummary */
+        HumanReviewSummary: {
+            /** Weeks */
+            weeks: components["schemas"]["HumanReviewWeekSummary"][];
+        };
+        /** HumanReviewWeekSummary */
+        HumanReviewWeekSummary: {
+            /**
+             * Week Start
+             * Format: date
+             */
+            week_start: string;
+            /** Review Count */
+            review_count: number;
+            /** Mean Surfaced Missed */
+            mean_surfaced_missed: number;
+            /** Mean Missed Noticed */
+            mean_missed_noticed: number;
+        };
+        /** HypothesisBeliefResponse */
+        HypothesisBeliefResponse: {
+            hypothesis: components["schemas"]["HypothesisPublic"];
+            latest: components["schemas"]["BeliefRecomputationPublic"] | null;
+        };
+        /** HypothesisHistoryResponse */
+        HypothesisHistoryResponse: {
+            /** Items */
+            items: components["schemas"]["BeliefRecomputationPublic"][];
+        };
+        /** HypothesisLifecycleResponse */
+        HypothesisLifecycleResponse: {
+            hypothesis: components["schemas"]["HypothesisPublic"];
+            parent: components["schemas"]["HypothesisPublic"] | null;
+            /** Children */
+            children: components["schemas"]["HypothesisPublic"][];
+            supersedes: components["schemas"]["HypothesisPublic"] | null;
+            superseded_by: components["schemas"]["HypothesisPublic"] | null;
+            /** Conditional Edges */
+            conditional_edges: components["schemas"]["ConditionalEdgePublic"][];
+            /** Recent Event Resolutions */
+            recent_event_resolutions: components["schemas"]["EventResolutionPublic"][];
+        };
+        /** HypothesisListResponse */
+        HypothesisListResponse: {
+            /** Items */
+            items: components["schemas"]["HypothesisPublic"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
+        /** HypothesisParentRequest */
+        HypothesisParentRequest: {
+            /** Parent Id */
+            parent_id: string | null;
+        };
+        /** HypothesisPublic */
+        HypothesisPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Claim Text */
+            claim_text: string;
+            state: components["schemas"]["HypothesisState"];
+            /** Scope Entity Ids */
+            scope_entity_ids: string[];
+            /** Scope Theme Ids */
+            scope_theme_ids: string[];
+            /** Source Run Id */
+            source_run_id: string | null;
+            /** Entity Id */
+            entity_id: string | null;
+            /** Belief */
+            belief: number | null;
+            /** Belief History */
+            belief_history: {
+                [key: string]: unknown;
+            }[];
+            /** Parent Hypothesis Id */
+            parent_hypothesis_id: string | null;
+            /** Superseded By Id */
+            superseded_by_id: string | null;
+            /** Last Activity At */
+            last_activity_at: string | null;
+            /** Stagnation Flagged At */
+            stagnation_flagged_at: string | null;
+            /** Archived At */
+            archived_at: string | null;
+            /** Archived Reason */
+            archived_reason: string | null;
+            /** Valid Until */
+            valid_until: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * HypothesisState
+         * @enum {string}
+         */
+        HypothesisState: "proposed" | "active" | "validated" | "falsified" | "expired" | "superseded";
+        /**
+         * HypothesisStateFilter
+         * @enum {string}
+         */
+        HypothesisStateFilter: "proposed" | "active" | "all";
+        /**
+         * HypothesisStatusEnum
+         * @enum {string}
+         */
+        HypothesisStatusEnum: "proposed" | "active" | "validated" | "falsified" | "expired" | "superseded";
+        /** HypothesisTransitionRequest */
+        HypothesisTransitionRequest: {
+            to: components["schemas"]["HypothesisState"];
+            /** Reason */
+            reason?: string | null;
+        };
+        /** JudgePublic */
+        JudgePublic: {
+            status: components["schemas"]["JudgeStatus"];
+            /** Reasons */
+            reasons: string[];
+            /** Call Id */
+            call_id: string | null;
+        };
+        /**
+         * JudgeStatus
+         * @enum {string}
+         */
+        JudgeStatus: "not_run" | "passed" | "flagged";
+        /** LeakageHoldoutCaseInput */
+        LeakageHoldoutCaseInput: {
+            /** Case Name */
+            case_name: string;
+            /**
+             * Cutoff At
+             * Format: date-time
+             */
+            cutoff_at: string;
+            /** Full Decision */
+            full_decision: {
+                [key: string]: unknown;
+            };
+            /** Restricted Decision */
+            restricted_decision: {
+                [key: string]: unknown;
+            };
+        };
+        /** LeakageHoldoutCasePublic */
+        LeakageHoldoutCasePublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Case Name */
+            case_name: string;
+            /**
+             * Cutoff At
+             * Format: date-time
+             */
+            cutoff_at: string;
+            /** Full Decision */
+            full_decision: {
+                [key: string]: unknown;
+            };
+            /** Restricted Decision */
+            restricted_decision: {
+                [key: string]: unknown;
+            };
+            /** Agreement */
+            agreement: number;
+            /** Decay */
+            decay: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** LeakageRunPublic */
+        LeakageRunPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Run Id */
+            run_id: string | null;
+            /** Case Count */
+            case_count: number;
+            /** Mean Decay */
+            mean_decay: number;
+            /** Max Decay */
+            max_decay: number;
+            /** Threshold */
+            threshold: number;
+            /** Flagged */
+            flagged: boolean;
+            /** Case Ids */
+            case_ids: string[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** LeakageRunRequest */
+        LeakageRunRequest: {
+            /** Case Ids */
+            case_ids: string[];
+            /** Run Id */
+            run_id?: string | null;
+        };
+        /** LifecycleSweepCounts */
+        LifecycleSweepCounts: {
+            /** Expired */
+            expired: number;
+            /** Archived Belief Floor */
+            archived_belief_floor: number;
+            /** Validated */
+            validated: number;
+            /** Falsified */
+            falsified: number;
+            /** Stagnation Flagged */
+            stagnation_flagged: number;
+        };
+        /** LifecycleSweepResponse */
+        LifecycleSweepResponse: {
+            counts: components["schemas"]["LifecycleSweepCounts"];
+            /** Expired Ids */
+            expired_ids: string[];
+            /** Archived Belief Floor Ids */
+            archived_belief_floor_ids: string[];
+            /** Validated Ids */
+            validated_ids: string[];
+            /** Falsified Ids */
+            falsified_ids: string[];
+            /** Stagnation Flagged Ids */
+            stagnation_flagged_ids: string[];
+        };
+        /**
+         * LlmBudgetActionEnum
+         * @enum {string}
+         */
+        LlmBudgetActionEnum: "allow" | "warn" | "pause" | "kill";
+        /** LlmCallLogPublic */
+        LlmCallLogPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Run Id */
+            run_id: string | null;
+            /** Model */
+            model: string;
+            /** Prompt Hash */
+            prompt_hash: string;
+            /** Input Hash */
+            input_hash: string;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Cached Input Tokens */
+            cached_input_tokens: number;
+            /** Reasoning Tokens */
+            reasoning_tokens: number;
+            /** Cost Usd */
+            cost_usd: string;
+            /** Latency Ms */
+            latency_ms: number;
+            status: components["schemas"]["LlmCallStatusEnum"];
+            /** Error Message */
+            error_message: string | null;
+            /** Evidence Ids */
+            evidence_ids: string[] | null;
+            /** Prompt Version */
+            prompt_version: string | null;
+            /** Stage */
+            stage: string | null;
+            /** Agent Name */
+            agent_name: string | null;
+            /** Call Index */
+            call_index: number | null;
+            /** Temperature */
+            temperature: number | null;
+            /** Seed */
+            seed: number | null;
+            /** Reasoning Effort */
+            reasoning_effort: string | null;
+            /** Input Payload */
+            input_payload: {
+                [key: string]: unknown;
+            } | null;
+            /** Output Content */
+            output_content: string | null;
+            budget_action: components["schemas"]["LlmBudgetActionEnum"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** LlmCallReplayPublic */
+        LlmCallReplayPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Original Log Id
+             * Format: uuid
+             */
+            original_log_id: string;
+            /** Model */
+            model: string;
+            /** Prompt Version */
+            prompt_version: string | null;
+            /** Input Payload */
+            input_payload: {
+                [key: string]: unknown;
+            };
+            /** Output Content */
+            output_content: string | null;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Cached Input Tokens */
+            cached_input_tokens: number;
+            /** Reasoning Tokens */
+            reasoning_tokens: number;
+            /** Cost Usd */
+            cost_usd: string;
+            /** Latency Ms */
+            latency_ms: number;
+            status: components["schemas"]["LlmCallStatusEnum"];
+            /** Error Message */
+            error_message: string | null;
+            /**
+             * Replayed At
+             * Format: date-time
+             */
+            replayed_at: string;
+        };
+        /**
+         * LlmCallStatusEnum
+         * @enum {string}
+         */
+        LlmCallStatusEnum: "success" | "error" | "budget_paused" | "budget_killed";
         /**
          * LlmProviderEnum
          * @enum {string}
          */
         LlmProviderEnum: "openai" | "anthropic" | "together";
+        /** MacroBrief */
+        MacroBrief: {
+            /** Themes */
+            themes: components["schemas"]["Theme"][];
+            /** Sector Calls */
+            sector_calls: components["schemas"]["SectorCall"][];
+            /** Watch Items */
+            watch_items: components["schemas"]["WatchItem"][];
+            /** Cited Claims */
+            cited_claims: components["schemas"]["CitedClaim"][];
+            /** Proposed Hypotheses */
+            proposed_hypotheses: components["schemas"]["ProposedHypothesis"][];
+            /** Confidence */
+            confidence: number;
+            /** Evidence Ids */
+            evidence_ids: string[];
+            verifier_status: components["schemas"]["VerifierStatus"];
+            /** Regeneration Count */
+            regeneration_count: number;
+        };
+        /** MacroBriefPublic */
+        MacroBriefPublic: {
+            brief: components["schemas"]["MacroBrief"];
+            judge: components["schemas"]["JudgePublic"];
+            /** Chunks */
+            chunks: components["schemas"]["ChunkLookup"][];
+            /** Sector Briefs */
+            sector_briefs: components["schemas"]["SectorBriefPublic"][];
+        };
+        /** MacroBriefScope */
+        MacroBriefScope: {
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "macro";
+            /**
+             * Universe
+             * @constant
+             */
+            universe: "us_equities";
+        };
         /** NotReadyResponse */
         NotReadyResponse: {
             /**
@@ -512,6 +2017,118 @@ export interface components {
             closed_at: string | null;
         };
         /**
+         * PerturbationKindEnum
+         * @enum {string}
+         */
+        PerturbationKindEnum: "drop_top_evidence" | "flip_top_call_direction" | "redact_top_quote" | "lower_top_call_conviction" | "swap_call_ordering";
+        /** PortfolioBrief */
+        PortfolioBrief: {
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            macro: components["schemas"]["PortfolioMacroSummary"];
+            /** Sectors */
+            sectors: components["schemas"]["PortfolioSectorEntry"][];
+            /** Companies */
+            companies: components["schemas"]["PortfolioCompanyEntry"][];
+            /** Cited Claims */
+            cited_claims: components["schemas"]["CitedClaim"][];
+            /** Cited Chunk Ids */
+            cited_chunk_ids: string[];
+            coverage: components["schemas"]["PortfolioCoverage"];
+            verifier_status: components["schemas"]["VerifierStatus"];
+            /** Regeneration Count */
+            regeneration_count: number;
+        };
+        /** PortfolioBriefPublic */
+        PortfolioBriefPublic: {
+            brief: components["schemas"]["PortfolioBrief"];
+            judge: components["schemas"]["JudgePublic"];
+        };
+        /** PortfolioCompanyEntry */
+        PortfolioCompanyEntry: {
+            /**
+             * Company Entity Id
+             * Format: uuid
+             */
+            company_entity_id: string;
+            /** Company Name */
+            company_name: string;
+            /** Ticker */
+            ticker?: string | null;
+            /**
+             * Sector Entity Id
+             * Format: uuid
+             */
+            sector_entity_id: string;
+            /** Sector Name */
+            sector_name: string;
+            direction: components["schemas"]["SectorCallDirection"];
+            /** Conviction */
+            conviction: number;
+            verifier_status: components["schemas"]["VerifierStatus"];
+            judge_status: components["schemas"]["JudgeStatus"];
+            /** Rank */
+            rank: number;
+        };
+        /** PortfolioCoverage */
+        PortfolioCoverage: {
+            /** Sectors Selected */
+            sectors_selected: number;
+            /** Sectors Verified */
+            sectors_verified: number;
+            /** Sectors Judge Passed */
+            sectors_judge_passed: number;
+            /** Sectors Judge Flagged */
+            sectors_judge_flagged: number;
+            /** Companies Selected */
+            companies_selected: number;
+            /** Companies Verified */
+            companies_verified: number;
+            /** Companies Judge Passed */
+            companies_judge_passed: number;
+            /** Companies Judge Flagged */
+            companies_judge_flagged: number;
+        };
+        /** PortfolioMacroSummary */
+        PortfolioMacroSummary: {
+            /** Themes */
+            themes: components["schemas"]["Theme"][];
+            /** Watch Items */
+            watch_items: components["schemas"]["WatchItem"][];
+            /** Confidence */
+            confidence: number;
+            judge_status: components["schemas"]["JudgeStatus"];
+        };
+        /** PortfolioSectorEntry */
+        PortfolioSectorEntry: {
+            /**
+             * Sector Entity Id
+             * Format: uuid
+             */
+            sector_entity_id: string;
+            /** Sector Name */
+            sector_name: string;
+            direction: components["schemas"]["SectorCallDirection"];
+            /** Conviction */
+            conviction: number;
+            verifier_status: components["schemas"]["VerifierStatus"];
+            judge_status: components["schemas"]["JudgeStatus"];
+            /** Rank */
+            rank: number;
+        };
+        /** ProposedHypothesis */
+        ProposedHypothesis: {
+            /** Claim Text */
+            claim_text: string;
+            /** Scope Entity Ids */
+            scope_entity_ids: string[];
+            /** Evidence Ids */
+            evidence_ids: string[];
+        };
+        /**
          * ProvenanceStatusEnum
          * @enum {string}
          */
@@ -585,6 +2202,11 @@ export interface components {
              */
             status: "ready";
         };
+        /**
+         * RelationTypeEnum
+         * @enum {string}
+         */
+        RelationTypeEnum: "employs" | "holds_role_at" | "supplies" | "competes_with" | "regulated_by" | "traded_by" | "voted_on" | "sponsored" | "affects" | "belongs_to_sector" | "located_in" | "mentioned_in" | "catalyst_for" | "derives_from_theme" | "subsidiary_of" | "supports_hypothesis" | "contradicts_hypothesis" | "validates_if_beat" | "falsifies_if_miss";
         /** ResearchRunDetail */
         ResearchRunDetail: {
             /**
@@ -593,17 +2215,22 @@ export interface components {
              */
             id: string;
             /** Ticker */
-            ticker: string;
+            ticker: string | null;
             /**
              * Trade Date
              * Format: date
              */
             trade_date: string;
+            strategy: components["schemas"]["StrategyEnum"];
             status: components["schemas"]["RunStatusEnum"];
             /** Config */
             config: {
                 [key: string]: unknown;
             };
+            /** Scope Payload */
+            scope_payload?: {
+                [key: string]: unknown;
+            } | null;
             final_rating: components["schemas"]["FinalRatingEnum"] | null;
             /** Final Decision Summary */
             final_decision_summary: string | null;
@@ -625,6 +2252,10 @@ export interface components {
             started_at: string | null;
             /** Finished At */
             finished_at: string | null;
+            /** Source Client Cache Stats */
+            source_client_cache_stats?: {
+                [key: string]: unknown;
+            } | null;
             /** Reports */
             reports: components["schemas"]["RunReportPublic"][];
             /** Events */
@@ -640,7 +2271,8 @@ export interface components {
              */
             id: string;
             /** Ticker */
-            ticker: string;
+            ticker: string | null;
+            strategy: components["schemas"]["StrategyEnum"];
             status: components["schemas"]["RunStatusEnum"];
             final_rating: components["schemas"]["FinalRatingEnum"] | null;
             /**
@@ -650,6 +2282,44 @@ export interface components {
             created_at: string;
             /** Queue Position */
             queue_position?: number | null;
+            /** Scope Payload */
+            scope_payload?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** RunCostEstimate */
+        RunCostEstimate: {
+            strategy: components["schemas"]["StrategyEnum"];
+            /** Sample Run Count */
+            sample_run_count: number;
+            /** Estimated Total Usd */
+            estimated_total_usd: string;
+            /** Estimated P95 Usd */
+            estimated_p95_usd: string;
+            /** Stages */
+            stages: components["schemas"]["StageCostEstimate"][];
+        };
+        /** RunCostLedger */
+        RunCostLedger: {
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Total Cost Usd */
+            total_cost_usd: string;
+            /** Total Calls */
+            total_calls: number;
+            /** Total Input Tokens */
+            total_input_tokens: number;
+            /** Total Output Tokens */
+            total_output_tokens: number;
+            /** Total Cached Input Tokens */
+            total_cached_input_tokens: number;
+            /** Cache Hit Rate */
+            cache_hit_rate: number;
+            /** Stages */
+            stages: components["schemas"]["StageCostRow"][];
         };
         /**
          * RunEventLevelEnum
@@ -681,6 +2351,34 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /** RunEvidenceFlow */
+        RunEvidenceFlow: {
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Total Evidence */
+            total_evidence: number;
+            /** Total Chunk Citations */
+            total_chunk_citations: number;
+            /** Total Hypotheses */
+            total_hypotheses: number;
+            /** Sources */
+            sources: components["schemas"]["EvidenceFlowSourceRow"][];
+        };
+        /** RunGraph */
+        RunGraph: {
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Nodes */
+            nodes: components["schemas"]["GraphNode"][];
+            /** Edges */
+            edges: components["schemas"]["GraphEdge"][];
+        };
         /** RunReportPublic */
         RunReportPublic: {
             /**
@@ -706,7 +2404,7 @@ export interface components {
          * RunStatusEnum
          * @enum {string}
          */
-        RunStatusEnum: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+        RunStatusEnum: "queued" | "running" | "succeeded" | "failed" | "cancelled" | "paused";
         /** ScreenerResultPublic */
         ScreenerResultPublic: {
             /**
@@ -777,6 +2475,71 @@ export interface components {
          * @enum {string}
          */
         ScreenerUniverseEnum: "sp500" | "nasdaq100" | "watchlist";
+        /** SectorBrief */
+        SectorBrief: {
+            /**
+             * Sector Entity Id
+             * Format: uuid
+             */
+            sector_entity_id: string;
+            /** Sector Name */
+            sector_name: string;
+            direction: components["schemas"]["SectorCallDirection"];
+            /** Themes */
+            themes: components["schemas"]["Theme"][];
+            /** Companies */
+            companies: components["schemas"]["SectorCompanyIdea"][];
+            /** Watch Items */
+            watch_items: components["schemas"]["WatchItem"][];
+            /** Cited Claims */
+            cited_claims: components["schemas"]["CitedClaim"][];
+            /** Confidence */
+            confidence: number;
+            verifier_status: components["schemas"]["VerifierStatus"];
+            /** Regeneration Count */
+            regeneration_count: number;
+        };
+        /** SectorBriefPublic */
+        SectorBriefPublic: {
+            brief: components["schemas"]["SectorBrief"];
+            judge: components["schemas"]["JudgePublic"];
+            /** Chunks */
+            chunks: components["schemas"]["ChunkLookup"][];
+        };
+        /** SectorCall */
+        SectorCall: {
+            /**
+             * Sector Entity Id
+             * Format: uuid
+             */
+            sector_entity_id: string;
+            /** Sector Name */
+            sector_name: string;
+            direction: components["schemas"]["SectorCallDirection"];
+            /** Conviction */
+            conviction: number;
+            /** Evidence Ids */
+            evidence_ids: string[];
+        };
+        /**
+         * SectorCallDirection
+         * @enum {string}
+         */
+        SectorCallDirection: "overweight" | "underweight" | "neutral";
+        /** SectorCompanyIdea */
+        SectorCompanyIdea: {
+            /** Name */
+            name: string;
+            /** Ticker */
+            ticker?: string | null;
+            direction: components["schemas"]["SectorCallDirection"];
+            /** Conviction */
+            conviction: number;
+            /** Evidence Ids */
+            evidence_ids: string[];
+            /** Company Entity Id */
+            company_entity_id?: string | null;
+        };
         /** SourceProvenancePublic */
         SourceProvenancePublic: {
             /**
@@ -810,6 +2573,54 @@ export interface components {
             /** Error Message */
             error_message: string | null;
         };
+        /** StageCostEstimate */
+        StageCostEstimate: {
+            /** Stage */
+            stage: string;
+            /** Sample Size */
+            sample_size: number;
+            /** Mean Cost Usd */
+            mean_cost_usd: string;
+            /** P95 Cost Usd */
+            p95_cost_usd: string;
+            /** Mean Input Tokens */
+            mean_input_tokens: number;
+            /** Mean Cached Input Tokens */
+            mean_cached_input_tokens: number;
+        };
+        /** StageCostRow */
+        StageCostRow: {
+            /** Stage */
+            stage: string;
+            /** Call Count */
+            call_count: number;
+            /** Total Cost Usd */
+            total_cost_usd: string;
+            /** Total Input Tokens */
+            total_input_tokens: number;
+            /** Total Output Tokens */
+            total_output_tokens: number;
+            /** Total Cached Input Tokens */
+            total_cached_input_tokens: number;
+            /** Cache Hit Rate */
+            cache_hit_rate: number;
+            /** Models */
+            models: string[];
+        };
+        /**
+         * StrategyEnum
+         * @enum {string}
+         */
+        StrategyEnum: "tradingagents" | "funnel_research";
+        /** Theme */
+        Theme: {
+            /** Name */
+            name: string;
+            /** Evidence Ids */
+            evidence_ids: string[];
+            /** Confidence */
+            confidence: number;
+        };
         /** UpdateApplicationSettingsRequest */
         UpdateApplicationSettingsRequest: {
             llm_provider?: components["schemas"]["LlmProviderEnum"] | null;
@@ -838,6 +2649,20 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /**
+         * VerifierStatus
+         * @enum {string}
+         */
+        VerifierStatus: "verified" | "quote_unverified";
+        /** WatchItem */
+        WatchItem: {
+            /** Name */
+            name: string;
+            /** Reason */
+            reason: string;
+            /** Evidence Ids */
+            evidence_ids: string[];
         };
         /** WatchlistCreate */
         WatchlistCreate: {
@@ -1031,6 +2856,37 @@ export interface operations {
             };
         };
     };
+    get_research_run_cost_estimate_api_research_runs_cost_estimate_get: {
+        parameters: {
+            query?: {
+                strategy?: components["schemas"]["StrategyEnum"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunCostEstimate"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_research_run_api_research_runs__run_id__get: {
         parameters: {
             query?: never;
@@ -1093,6 +2949,72 @@ export interface operations {
             };
         };
     };
+    list_research_run_llm_calls_api_research_runs__run_id__llm_calls_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmCallLogPublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replay_research_run_llm_call_api_research_runs__run_id__llm_calls__log_id__replay_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                log_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmCallReplayPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     cancel_research_run_api_research_runs__run_id__cancel_post: {
         parameters: {
             query?: never;
@@ -1111,6 +3033,577 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResearchRunSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resume_research_run_api_research_runs__run_id__resume_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchRunSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_macro_brief_api_research_runs__run_id__macro_brief_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MacroBriefPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_portfolio_brief_api_research_runs__run_id__portfolio_brief_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioBriefPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sector_brief_api_research_runs__run_id__sectors__sector_entity_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                sector_entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectorBriefPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_company_thesis_api_research_runs__run_id__companies__company_entity_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                company_entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyThesisPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_hypotheses_api_research_hypotheses_get: {
+        parameters: {
+            query?: {
+                state?: components["schemas"]["HypothesisStateFilter"];
+                run_id?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HypothesisListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_hypothesis_api_research_hypotheses__hypothesis_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hypothesis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HypothesisPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_hypothesis_belief_api_research_hypotheses__hypothesis_id__belief_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hypothesis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HypothesisBeliefResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_hypothesis_belief_history_api_research_hypotheses__hypothesis_id__belief_history_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                hypothesis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HypothesisHistoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_hypothesis_lifecycle_api_research_hypotheses__hypothesis_id__lifecycle_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hypothesis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HypothesisLifecycleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activate_hypothesis_api_research_hypotheses__hypothesis_id__activate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hypothesis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HypothesisPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transition_hypothesis_api_research_hypotheses__hypothesis_id__transition_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hypothesis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HypothesisTransitionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HypothesisPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_hypothesis_parent_api_research_hypotheses__hypothesis_id__parent_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hypothesis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HypothesisParentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HypothesisPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sweep_lifecycle_api_research_hypotheses_lifecycle_sweep_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LifecycleSweepResponse"];
+                };
+            };
+        };
+    };
+    resolve_event_api_research_events__event_entity_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventResolutionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventResolutionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_event_resolutions_api_research_events__event_entity_id__resolutions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventResolutionPublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_evidence_trace_by_evidence_api_research_evidence_by_evidence__evidence_id__get: {
+        parameters: {
+            query?: {
+                context_radius?: number;
+                run_id?: string | null;
+            };
+            header?: never;
+            path: {
+                evidence_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceTracePublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_evidence_trace_api_research_evidence__chunk_id__get: {
+        parameters: {
+            query?: {
+                context_radius?: number;
+            };
+            header?: never;
+            path: {
+                chunk_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceTracePublic"];
                 };
             };
             /** @description Validation Error */
@@ -1533,6 +4026,363 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_run_counterfactuals_api_research_runs__run_id__counterfactuals_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CounterfactualRunSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_leakage_cases_api_evals_leakage_cases_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeakageHoldoutCasePublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_leakage_case_api_evals_leakage_cases_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeakageHoldoutCaseInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeakageHoldoutCasePublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_leakage_runs_api_evals_leakage_runs_get: {
+        parameters: {
+            query?: {
+                run_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeakageRunPublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_leakage_run_api_evals_leakage_runs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeakageRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeakageRunPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_human_reviews_api_human_reviews_get: {
+        parameters: {
+            query?: {
+                run_id?: string | null;
+                week_start?: string | null;
+                brief_kind?: components["schemas"]["BriefKindEnum"] | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HumanReviewPublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_human_review_api_human_reviews_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HumanReviewInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HumanReviewPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_human_review_summary_api_human_reviews_summary_get: {
+        parameters: {
+            query?: {
+                weeks?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HumanReviewSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_run_cost_ledger_api_research_runs__run_id__cost_ledger_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunCostLedger"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_run_evidence_flow_api_research_runs__run_id__evidence_flow_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunEvidenceFlow"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_run_graph_api_research_runs__run_id__graph_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunGraph"];
+                };
             };
             /** @description Validation Error */
             422: {

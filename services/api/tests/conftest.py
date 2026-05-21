@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest
 from sqlalchemy import event
+from sqlalchemy.ext.asyncio import AsyncSession
 
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["ENVIRONMENT"] = "test"
@@ -36,6 +37,23 @@ def _clear_settings_cache() -> Iterator[None]:
     get_settings.cache_clear()
 
 
+@pytest.fixture(autouse=True)
+def _reset_source_client_registry() -> Iterator[None]:
+    """Reset the source-client rate-limiter / cache registry between tests.
+
+    Worker tests install a Redis-backed limiter and a request cache into the
+    registry. Without an explicit reset between tests, that state leaks into
+    source-client tests, which then try to acquire tokens from a fake Redis
+    or hit a stale cached response. The reset is cheap (a dict clear) and
+    keeps every test starting from the default local-bucket state.
+    """
+    from app.services.source_clients._registry import reset_registry
+
+    reset_registry()
+    yield
+    reset_registry()
+
+
 @pytest.fixture()
 async def initialized_schema() -> AsyncIterator[None]:
     from app.db import models as _models  # noqa: F401
@@ -49,6 +67,14 @@ async def initialized_schema() -> AsyncIterator[None]:
     finally:
         async with engine.begin() as connection:
             await connection.run_sync(Base.metadata.drop_all)
+
+
+@pytest.fixture()
+async def db_session(initialized_schema: None) -> AsyncIterator[AsyncSession]:
+    from app.db.session import session_factory
+
+    async with session_factory() as session:
+        yield session
 
 
 class _FakeJob:

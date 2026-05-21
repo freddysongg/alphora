@@ -54,7 +54,7 @@ class ResearchRun(Base, TimestampMixin):
     __tablename__ = "research_runs"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    ticker: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    ticker: Mapped[str | None] = mapped_column(String(16), nullable=True, index=True)
     trade_date: Mapped[date] = mapped_column(Date, nullable=False)
     strategy: Mapped[str] = mapped_column(
         String(32),
@@ -62,6 +62,7 @@ class ResearchRun(Base, TimestampMixin):
         default=Strategy.tradingagents.value,
         server_default=Strategy.tradingagents.value,
     )
+    scope_payload: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     status: Mapped[RunStatus] = mapped_column(
         Enum(RunStatus, name="run_status", values_callable=enum_values),
         nullable=False,
@@ -77,6 +78,9 @@ class ResearchRun(Base, TimestampMixin):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    source_client_cache_stats: Mapped[dict[str, object] | None] = mapped_column(
+        JSON, nullable=True
+    )
 
     reports: Mapped[list["RunReport"]] = relationship(
         back_populates="run", cascade="all, delete-orphan"

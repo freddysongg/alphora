@@ -103,6 +103,7 @@ async def test_complete_returns_result_and_logs_call_on_success() -> None:
         assert len(log.prompt_hash) == 64
         assert len(log.input_hash) == 64
         assert log.evidence_ids == ["ev_1", "ev_2"]
+        assert log.budget_action == BudgetAction.allow.value
 
         events = (
             await session.execute(select(RunEvent).where(RunEvent.run_id == run_id))
@@ -113,6 +114,7 @@ async def test_complete_returns_result_and_logs_call_on_success() -> None:
         assert event.data is not None
         assert event.data["event"] == "cost"
         assert event.data["budget_action"] == BudgetAction.allow.value
+        assert event.data["log_id"] == str(log.id)
 
 
 @pytest.mark.usefixtures("initialized_schema")
@@ -180,6 +182,7 @@ async def test_complete_pause_threshold_raises_budget_paused_error() -> None:
         logs = (await session.execute(select(LlmCallLog))).scalars().all()
         assert len(logs) == 1
         assert logs[0].status is LlmCallStatus.budget_paused
+        assert logs[0].budget_action == BudgetAction.pause.value
 
         events = (
             await session.execute(select(RunEvent).where(RunEvent.run_id == run_id))
@@ -188,6 +191,7 @@ async def test_complete_pause_threshold_raises_budget_paused_error() -> None:
         assert events[0].level is RunEventLevel.warn
         assert events[0].data is not None
         assert events[0].data["budget_action"] == BudgetAction.pause.value
+        assert events[0].data["log_id"] == str(logs[0].id)
 
 
 @pytest.mark.usefixtures("initialized_schema")
@@ -221,6 +225,7 @@ async def test_complete_kill_threshold_raises_budget_killed_error() -> None:
         logs = (await session.execute(select(LlmCallLog))).scalars().all()
         assert len(logs) == 1
         assert logs[0].status is LlmCallStatus.budget_killed
+        assert logs[0].budget_action == BudgetAction.kill.value
 
         events = (
             await session.execute(select(RunEvent).where(RunEvent.run_id == run_id))
@@ -228,6 +233,7 @@ async def test_complete_kill_threshold_raises_budget_killed_error() -> None:
         assert len(events) == 1
         assert events[0].data is not None
         assert events[0].data["budget_action"] == BudgetAction.kill.value
+        assert events[0].data["log_id"] == str(logs[0].id)
 
 
 @pytest.mark.usefixtures("initialized_schema")
@@ -371,6 +377,7 @@ async def test_complete_daily_cost_accumulates_across_calls() -> None:
         ).scalars().all()
         assert len(new_logs) == 1
         assert new_logs[0].status is LlmCallStatus.success
+        assert new_logs[0].budget_action == BudgetAction.warn.value
 
         events = (
             await session.execute(select(RunEvent).where(RunEvent.run_id == run_id))
@@ -378,6 +385,7 @@ async def test_complete_daily_cost_accumulates_across_calls() -> None:
         assert len(events) == 1
         assert events[0].data is not None
         assert events[0].data["budget_action"] == BudgetAction.warn.value
+        assert events[0].data["log_id"] == str(new_logs[0].id)
 
 
 @pytest.mark.usefixtures("initialized_schema")
@@ -437,3 +445,96 @@ async def test_complete_handles_response_with_no_usage_field() -> None:
         assert logs[0].status is LlmCallStatus.success
         assert logs[0].input_tokens == 0
         assert logs[0].output_tokens == 0
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_complete_per_stage_cap_triggers_pause_for_named_stage() -> None:
+    """A per-stage budget cap should raise `BudgetPausedError` when the stage cost crosses the cap."""
+    run_id = await _seed_run()
+
+    fake = _FakeOpenAi(
+        _fake_response(prompt_tokens=1_000_000, completion_tokens=1_000_000)
+    )
+    guard = BudgetGuard(
+        BudgetThresholds(
+            soft_run_usd=Decimal("100.00"),
+            hard_run_usd=Decimal("200.00"),
+            catastrophic_run_usd=Decimal("1000.00"),
+            daily_usd=Decimal("5000.00"),
+            per_stage_usd={"macro_synthesis": Decimal("0.50")},
+        )
+    )
+    client = LlmClient(openai_client=fake, budget_guard=guard)  # type: ignore[arg-type]
+
+    with pytest.raises(BudgetPausedError) as exc_info:
+        async with session_factory() as session:
+            await client.complete(
+                session=session,
+                messages=[LlmMessage(role="user", content="hi")],
+                model="gpt-5",
+                run_id=run_id,
+                stage="macro_synthesis",
+            )
+
+    assert exc_info.value.decision.action is BudgetAction.pause
+    assert exc_info.value.decision.reason is not None
+    assert "macro_synthesis" in exc_info.value.decision.reason
+
+    async with session_factory() as session:
+        logs = (
+            await session.execute(
+                select(LlmCallLog).where(LlmCallLog.run_id == run_id)
+            )
+        ).scalars().all()
+        assert len(logs) == 1
+        assert logs[0].status is LlmCallStatus.budget_paused
+
+
+@pytest.mark.usefixtures("initialized_schema")
+async def test_complete_per_stage_cap_only_counts_matching_stage_cost() -> None:
+    """Calls in a different stage should not consume the targeted stage's cap."""
+    run_id = await _seed_run()
+
+    # Pre-seed a high-cost call on a different stage so per-run cumulative is high
+    # but per-stage cumulative for `macro_synthesis` stays zero.
+    async with session_factory() as session:
+        session.add(
+            LlmCallLog(
+                run_id=run_id,
+                model="gpt-5",
+                prompt_hash="a" * 64,
+                input_hash="b" * 64,
+                input_tokens=0,
+                output_tokens=0,
+                cached_input_tokens=0,
+                reasoning_tokens=0,
+                cost_usd=Decimal("0.40"),
+                latency_ms=10,
+                status=LlmCallStatus.success,
+                stage="sector_synthesis",
+            )
+        )
+        await session.commit()
+
+    fake = _FakeOpenAi(_fake_response(prompt_tokens=80_000, completion_tokens=0))
+    guard = BudgetGuard(
+        BudgetThresholds(
+            soft_run_usd=Decimal("100.00"),
+            hard_run_usd=Decimal("200.00"),
+            catastrophic_run_usd=Decimal("1000.00"),
+            daily_usd=Decimal("5000.00"),
+            per_stage_usd={"macro_synthesis": Decimal("0.50")},
+        )
+    )
+    client = LlmClient(openai_client=fake, budget_guard=guard)  # type: ignore[arg-type]
+
+    async with session_factory() as session:
+        result = await client.complete(
+            session=session,
+            messages=[LlmMessage(role="user", content="hi")],
+            model="gpt-5",
+            run_id=run_id,
+            stage="macro_synthesis",
+        )
+
+    assert result.cost_usd == Decimal("0.100000")

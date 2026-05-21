@@ -21,6 +21,7 @@ class BudgetThresholds(BaseModel):
     hard_run_usd: Decimal = Decimal("20.00")
     catastrophic_run_usd: Decimal = Decimal("100.00")
     daily_usd: Decimal = Decimal("500.00")
+    per_stage_usd: dict[str, Decimal] = Field(default_factory=dict)
 
 
 class BudgetAction(StrEnum):
@@ -35,6 +36,7 @@ class BudgetThresholdName(StrEnum):
     catastrophic_run = "catastrophic_run"
     hard_run = "hard_run"
     soft_run = "soft_run"
+    per_stage = "per_stage"
 
 
 class BudgetDecision(BaseModel):

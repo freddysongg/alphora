@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import desc, select
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import OrchestratorDep, QueueDep, SessionDep
+from app.api.deps import OpenAiClientDep, OrchestratorDep, QueueDep, SessionDep
 from app.api.sse import format_sse_event
 from app.db.models_llm import LlmCallLog
 from app.db.models_runs import (
@@ -18,14 +18,19 @@ from app.db.models_runs import (
     RunStatus,
 )
 from app.db.session import session_factory
-from app.schemas.llm import LlmCallLogPublic
+from app.schemas.common import StrategyEnum
+from app.schemas.cost_estimate import RunCostEstimate
+from app.schemas.llm import LlmCallLogPublic, LlmCallReplayPublic
 from app.schemas.runs import (
     CreateResearchRunsRequest,
     GroupedRuns,
     ResearchRunDetail,
     ResearchRunSummary,
 )
+from app.services.cost_estimator import estimate_run_cost
+from app.services.llm.replay import ReplayError, replay_llm_call
 from app.services.run_orchestrator import RunOrchestratorError
+from app.services.strategies.funnel_research.config import PROMPT_VERSION
 
 router = APIRouter()
 
@@ -39,15 +44,6 @@ _GROUPED_RECENT_LIMIT: int = 50
 _DETAIL_EVENT_LIMIT: int = 200
 
 
-def _build_run_config(request: CreateResearchRunsRequest) -> dict[str, object]:
-    return {
-        "analysts": [a.value for a in request.analysts],
-        "llm_provider": request.llm_provider.value,
-        "llm_model": request.llm_model,
-        "debate_depth": request.debate_depth,
-    }
-
-
 @router.post(
     "",
     response_model=list[ResearchRunSummary],
@@ -58,20 +54,45 @@ async def create_research_runs(
     session: SessionDep,
     queue: QueueDep,
 ) -> list[ResearchRunSummary]:
-    config = _build_run_config(payload)
     strategy = payload.strategy.value
     created: list[ResearchRun] = []
-    for ticker in payload.tickers:
+
+    if payload.strategy is StrategyEnum.funnel_research:
+        assert payload.scope_payload is not None
         run = ResearchRun(
             id=uuid.uuid4(),
-            ticker=ticker,
+            ticker=None,
             trade_date=payload.trade_date,
             strategy=strategy,
             status=RunStatus.queued,
-            config=config,
+            config={"prompt_version": PROMPT_VERSION},
+            scope_payload=payload.scope_payload.model_dump(mode="json"),
         )
         session.add(run)
         created.append(run)
+    else:
+        tickers = payload.tickers or []
+        provider = payload.llm_provider
+        model = payload.llm_model
+        assert provider is not None and model is not None
+        config: dict[str, object] = {
+            "analysts": [a.value for a in payload.analysts],
+            "llm_provider": provider.value,
+            "llm_model": model,
+            "debate_depth": payload.debate_depth,
+        }
+        for ticker in tickers:
+            run = ResearchRun(
+                id=uuid.uuid4(),
+                ticker=ticker,
+                trade_date=payload.trade_date,
+                strategy=strategy,
+                status=RunStatus.queued,
+                config=config,
+            )
+            session.add(run)
+            created.append(run)
+
     await session.commit()
     for run in created:
         queue.enqueue("app.workers.tasks.execute_research_run", run.id.hex)
@@ -134,16 +155,33 @@ async def _grouped_runs(session: SessionDep) -> GroupedRuns:
         .order_by(desc(ResearchRun.created_at))
         .limit(_GROUPED_RECENT_LIMIT)
     )
+    cancelled_stmt = (
+        select(ResearchRun)
+        .where(ResearchRun.status == RunStatus.cancelled)
+        .where(ResearchRun.created_at >= recent_cutoff)
+        .order_by(desc(ResearchRun.created_at))
+        .limit(_GROUPED_RECENT_LIMIT)
+    )
     queued_rows = (await session.execute(queued_stmt)).scalars().all()
     running_rows = (await session.execute(running_stmt)).scalars().all()
     failed_rows = (await session.execute(failed_stmt)).scalars().all()
     recent_rows = (await session.execute(recent_stmt)).scalars().all()
+    cancelled_rows = (await session.execute(cancelled_stmt)).scalars().all()
     return GroupedRuns(
         queued=[ResearchRunSummary.model_validate(r) for r in queued_rows],
         running=[ResearchRunSummary.model_validate(r) for r in running_rows],
         recent=[ResearchRunSummary.model_validate(r) for r in recent_rows],
         failed=[ResearchRunSummary.model_validate(r) for r in failed_rows],
+        cancelled=[ResearchRunSummary.model_validate(r) for r in cancelled_rows],
     )
+
+
+@router.get("/cost-estimate", response_model=RunCostEstimate)
+async def get_research_run_cost_estimate(
+    session: SessionDep,
+    strategy: Annotated[StrategyEnum, Query()] = StrategyEnum.funnel_research,
+) -> RunCostEstimate:
+    return await estimate_run_cost(session=session, strategy=strategy)
 
 
 @router.get("/{run_id}", response_model=ResearchRunDetail)
@@ -174,6 +212,7 @@ async def get_research_run(run_id: uuid.UUID, session: SessionDep) -> ResearchRu
             "strategy": run.strategy,
             "status": run.status,
             "config": run.config,
+            "scope_payload": run.scope_payload,
             "final_rating": run.final_rating,
             "final_decision_summary": run.final_decision_summary,
             "wall_clock_ms": run.wall_clock_ms,
@@ -182,6 +221,7 @@ async def get_research_run(run_id: uuid.UUID, session: SessionDep) -> ResearchRu
             "updated_at": run.updated_at,
             "started_at": run.started_at,
             "finished_at": run.finished_at,
+            "source_client_cache_stats": run.source_client_cache_stats,
             "reports": run.reports,
             "events": list(reversed(event_rows)),
             "provenance": run.provenance,
@@ -267,6 +307,49 @@ async def list_research_run_llm_calls(
     )
     rows = (await session.execute(stmt)).scalars().all()
     return [LlmCallLogPublic.model_validate(row) for row in rows]
+
+
+@router.post(
+    "/{run_id}/llm-calls/{log_id}/replay",
+    response_model=LlmCallReplayPublic,
+    status_code=status.HTTP_201_CREATED,
+)
+async def replay_research_run_llm_call(
+    run_id: uuid.UUID,
+    log_id: uuid.UUID,
+    session: SessionDep,
+    openai_client: OpenAiClientDep,
+) -> LlmCallReplayPublic:
+    run = (
+        await session.execute(select(ResearchRun).where(ResearchRun.id == run_id))
+    ).scalar_one_or_none()
+    if run is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="research run not found"
+        )
+    log = (
+        await session.execute(select(LlmCallLog).where(LlmCallLog.id == log_id))
+    ).scalar_one_or_none()
+    if log is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="llm call log not found"
+        )
+    if log.run_id != run_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="llm call log does not belong to this run",
+        )
+    try:
+        replay = await replay_llm_call(
+            session=session,
+            original_log_id=log_id,
+            openai_client=openai_client,
+        )
+    except ReplayError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+    return LlmCallReplayPublic.model_validate(replay)
 
 
 @router.post("/{run_id}/cancel", response_model=ResearchRunSummary)

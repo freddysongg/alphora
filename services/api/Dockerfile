@@ -33,6 +33,7 @@ RUN pip install --upgrade pip \
 COPY app ./app
 COPY alembic ./alembic
 COPY alembic.ini ./alembic.ini
+COPY data ./data
 
 RUN pip install --no-deps -e .
 

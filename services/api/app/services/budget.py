@@ -35,7 +35,14 @@ class BudgetGuard:
     def thresholds(self) -> BudgetThresholds:
         return self._thresholds
 
-    def evaluate(self, *, run_cost_usd: Decimal, daily_cost_usd: Decimal) -> BudgetDecision:
+    def evaluate(
+        self,
+        *,
+        run_cost_usd: Decimal,
+        daily_cost_usd: Decimal,
+        stage: str | None = None,
+        stage_cost_usd: Decimal | None = None,
+    ) -> BudgetDecision:
         if daily_cost_usd >= self._thresholds.daily_usd:
             return BudgetDecision(
                 action=BudgetAction.kill,
@@ -56,6 +63,27 @@ class BudgetGuard:
                 run_cost_usd=run_cost_usd,
                 daily_cost_usd=daily_cost_usd,
                 threshold_crossed=BudgetThresholdName.catastrophic_run,
+            )
+        stage_cap = (
+            self._thresholds.per_stage_usd.get(stage)
+            if stage is not None
+            else None
+        )
+        if (
+            stage is not None
+            and stage_cap is not None
+            and stage_cost_usd is not None
+            and stage_cost_usd >= stage_cap
+        ):
+            return BudgetDecision(
+                action=BudgetAction.pause,
+                reason=(
+                    f"stage budget reached for {stage!r}: ${stage_cost_usd} "
+                    f">= ${stage_cap}"
+                ),
+                run_cost_usd=run_cost_usd,
+                daily_cost_usd=daily_cost_usd,
+                threshold_crossed=BudgetThresholdName.per_stage,
             )
         if run_cost_usd >= self._thresholds.hard_run_usd:
             return BudgetDecision(

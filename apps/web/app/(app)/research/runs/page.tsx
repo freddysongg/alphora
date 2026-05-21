@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import type { ReactElement } from "react";
 import { CaretRight } from "@phosphor-icons/react/dist/ssr";
-import { CapsLabel } from "@/components/ui";
+import { Button, CapsLabel } from "@/components/ui";
 import { getServerApi, isApiError } from "@/lib/api";
 import type { components } from "@/lib/api";
+import { NewMacroBriefDialog } from "./new-macro-brief-dialog";
 import { NewRunDialog } from "./new-run-dialog";
 import { RunRow } from "./run-row";
 
@@ -32,7 +33,7 @@ const sectionConfigs: readonly SectionConfig[] = [
   { key: "cancelled", label: "CANCELLED", defaultOpen: false },
 ];
 
-const emptyGroups: GroupedRunsWithCancelled = {
+const emptyGroups: GroupedRuns = {
   queued: [],
   running: [],
   recent: [],
@@ -40,12 +41,8 @@ const emptyGroups: GroupedRunsWithCancelled = {
   cancelled: [],
 };
 
-interface GroupedRunsWithCancelled extends GroupedRuns {
-  cancelled: ResearchRunSummary[];
-}
-
 interface FetchResult {
-  groups: GroupedRunsWithCancelled;
+  groups: GroupedRuns;
   errorDetail: string | null;
 }
 
@@ -60,7 +57,7 @@ async function loadGroupedRuns(): Promise<FetchResult> {
       return { groups: emptyGroups, errorDetail: null };
     }
     return {
-      groups: { ...data, cancelled: [] },
+      groups: data,
       errorDetail: null,
     };
   } catch (caught) {
@@ -114,7 +111,12 @@ export default async function ResearchRunsPage(): Promise<ReactElement> {
         <CapsLabel as="h1" className="text-fg">
           RESEARCH RUNS
         </CapsLabel>
-        <NewRunDialog />
+        <div className="flex items-center gap-2">
+          <NewRunDialog />
+          <NewMacroBriefDialog
+            trigger={<Button variant="default">Run macro brief</Button>}
+          />
+        </div>
       </header>
       {errorDetail !== null ? (
         <div

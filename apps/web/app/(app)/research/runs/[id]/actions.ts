@@ -10,6 +10,10 @@ import { readNumber, readStringArray } from "@/lib/api/config";
 type ConfigDict = Record<string, unknown>;
 type LlmProvider = components["schemas"]["LlmProviderEnum"];
 type AnalystKind = components["schemas"]["AnalystKindEnum"];
+type MacroBriefPublic = components["schemas"]["MacroBriefPublic"];
+type PortfolioBriefPublic = components["schemas"]["PortfolioBriefPublic"];
+type SectorBriefPublic = components["schemas"]["SectorBriefPublic"];
+type CompanyThesisPublic = components["schemas"]["CompanyThesisPublic"];
 
 const ALLOWED_PROVIDERS: ReadonlySet<LlmProvider> = new Set<LlmProvider>([
   "openai",
@@ -122,9 +126,17 @@ export async function rerunResearchRun(runId: string): Promise<ActionResult> {
     return { ok: false, error: "Unable to fetch source run." };
   }
 
+  if (detail.ticker === null) {
+    return {
+      ok: false,
+      error: "Cannot rerun a run without a ticker.",
+    };
+  }
+
   const config = detail.config;
   const analysts = resolveAnalysts(config);
   const body = {
+    strategy: "tradingagents" as const,
     tickers: [detail.ticker],
     trade_date: detail.trade_date,
     llm_provider: resolveProvider(config),
@@ -153,4 +165,98 @@ export async function rerunResearchRun(runId: string): Promise<ActionResult> {
 
   updateTag("research-runs");
   redirect(`/research/runs/${createdId}`);
+}
+
+export async function getMacroBrief(
+  runId: string,
+): Promise<MacroBriefPublic | null> {
+  try {
+    const response = await getServerApi().GET(
+      "/api/research-runs/{run_id}/macro-brief",
+      {
+        params: { path: { run_id: runId } },
+      },
+    );
+    if (response.data === undefined) {
+      return null;
+    }
+    return response.data;
+  } catch (caught) {
+    if (isApiError(caught) && caught.status === 404) {
+      return null;
+    }
+    throw caught;
+  }
+}
+
+export async function getPortfolioBrief(
+  runId: string,
+): Promise<PortfolioBriefPublic | null> {
+  try {
+    const response = await getServerApi().GET(
+      "/api/research-runs/{run_id}/portfolio-brief",
+      {
+        params: { path: { run_id: runId } },
+      },
+    );
+    if (response.data === undefined) {
+      return null;
+    }
+    return response.data;
+  } catch (caught) {
+    if (isApiError(caught) && caught.status === 404) {
+      return null;
+    }
+    throw caught;
+  }
+}
+
+export async function getSectorBrief(
+  runId: string,
+  sectorEntityId: string,
+): Promise<SectorBriefPublic | null> {
+  try {
+    const response = await getServerApi().GET(
+      "/api/research-runs/{run_id}/sectors/{sector_entity_id}",
+      {
+        params: {
+          path: { run_id: runId, sector_entity_id: sectorEntityId },
+        },
+      },
+    );
+    if (response.data === undefined) {
+      return null;
+    }
+    return response.data;
+  } catch (caught) {
+    if (isApiError(caught) && caught.status === 404) {
+      return null;
+    }
+    throw caught;
+  }
+}
+
+export async function getCompanyThesis(
+  runId: string,
+  companyEntityId: string,
+): Promise<CompanyThesisPublic | null> {
+  try {
+    const response = await getServerApi().GET(
+      "/api/research-runs/{run_id}/companies/{company_entity_id}",
+      {
+        params: {
+          path: { run_id: runId, company_entity_id: companyEntityId },
+        },
+      },
+    );
+    if (response.data === undefined) {
+      return null;
+    }
+    return response.data;
+  } catch (caught) {
+    if (isApiError(caught) && caught.status === 404) {
+      return null;
+    }
+    throw caught;
+  }
 }

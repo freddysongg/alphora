@@ -10,6 +10,7 @@ const runStatusToDot: Record<RunStatus, StatusKind> = {
   succeeded: "succeeded",
   failed: "failed",
   cancelled: "stale",
+  paused: "stale",
 };
 
 const provenanceStatusToDot: Record<ProvenanceStatus, StatusKind> = {

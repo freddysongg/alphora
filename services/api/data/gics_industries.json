@@ -1,0 +1,53 @@
+{
+  "_comment": "GICS 2023 taxonomy: 11 sectors (level 1) and 25 industry groups (level 2). Levels 3 (industries) and 4 (sub-industries) are deferred.",
+  "_source": "MSCI/S&P GICS Structure 2023",
+  "_version": "2023",
+  "nodes": [
+    {"gics_code": "10", "name": "Energy", "level": 1, "parent_gics_code": null},
+    {"gics_code": "1010", "name": "Energy", "level": 2, "parent_gics_code": "10"},
+
+    {"gics_code": "15", "name": "Materials", "level": 1, "parent_gics_code": null},
+    {"gics_code": "1510", "name": "Materials", "level": 2, "parent_gics_code": "15"},
+
+    {"gics_code": "20", "name": "Industrials", "level": 1, "parent_gics_code": null},
+    {"gics_code": "2010", "name": "Capital Goods", "level": 2, "parent_gics_code": "20"},
+    {"gics_code": "2020", "name": "Commercial & Professional Services", "level": 2, "parent_gics_code": "20"},
+    {"gics_code": "2030", "name": "Transportation", "level": 2, "parent_gics_code": "20"},
+
+    {"gics_code": "25", "name": "Consumer Discretionary", "level": 1, "parent_gics_code": null},
+    {"gics_code": "2510", "name": "Automobiles & Components", "level": 2, "parent_gics_code": "25"},
+    {"gics_code": "2520", "name": "Consumer Durables & Apparel", "level": 2, "parent_gics_code": "25"},
+    {"gics_code": "2530", "name": "Consumer Services", "level": 2, "parent_gics_code": "25"},
+    {"gics_code": "2550", "name": "Consumer Discretionary Distribution & Retail", "level": 2, "parent_gics_code": "25"},
+
+    {"gics_code": "30", "name": "Consumer Staples", "level": 1, "parent_gics_code": null},
+    {"gics_code": "3010", "name": "Consumer Staples Distribution & Retail", "level": 2, "parent_gics_code": "30"},
+    {"gics_code": "3020", "name": "Food, Beverage & Tobacco", "level": 2, "parent_gics_code": "30"},
+    {"gics_code": "3030", "name": "Household & Personal Products", "level": 2, "parent_gics_code": "30"},
+
+    {"gics_code": "35", "name": "Health Care", "level": 1, "parent_gics_code": null},
+    {"gics_code": "3510", "name": "Health Care Equipment & Services", "level": 2, "parent_gics_code": "35"},
+    {"gics_code": "3520", "name": "Pharmaceuticals, Biotechnology & Life Sciences", "level": 2, "parent_gics_code": "35"},
+
+    {"gics_code": "40", "name": "Financials", "level": 1, "parent_gics_code": null},
+    {"gics_code": "4010", "name": "Banks", "level": 2, "parent_gics_code": "40"},
+    {"gics_code": "4020", "name": "Financial Services", "level": 2, "parent_gics_code": "40"},
+    {"gics_code": "4030", "name": "Insurance", "level": 2, "parent_gics_code": "40"},
+
+    {"gics_code": "45", "name": "Information Technology", "level": 1, "parent_gics_code": null},
+    {"gics_code": "4510", "name": "Software & Services", "level": 2, "parent_gics_code": "45"},
+    {"gics_code": "4520", "name": "Technology Hardware & Equipment", "level": 2, "parent_gics_code": "45"},
+    {"gics_code": "4530", "name": "Semiconductors & Semiconductor Equipment", "level": 2, "parent_gics_code": "45"},
+
+    {"gics_code": "50", "name": "Communication Services", "level": 1, "parent_gics_code": null},
+    {"gics_code": "5010", "name": "Telecommunication Services", "level": 2, "parent_gics_code": "50"},
+    {"gics_code": "5020", "name": "Media & Entertainment", "level": 2, "parent_gics_code": "50"},
+
+    {"gics_code": "55", "name": "Utilities", "level": 1, "parent_gics_code": null},
+    {"gics_code": "5510", "name": "Utilities", "level": 2, "parent_gics_code": "55"},
+
+    {"gics_code": "60", "name": "Real Estate", "level": 1, "parent_gics_code": null},
+    {"gics_code": "6010", "name": "Equity Real Estate Investment Trusts (REITs)", "level": 2, "parent_gics_code": "60"},
+    {"gics_code": "6020", "name": "Real Estate Management & Development", "level": 2, "parent_gics_code": "60"}
+  ]
+}
