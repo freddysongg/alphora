@@ -121,3 +121,43 @@ async def test_get_positions_empty_when_no_positions() -> None:
 
     positions = await adapter.get_positions()
     assert positions == []
+
+
+@pytest.mark.asyncio
+async def test_is_tradable_returns_full_tradability_view() -> None:
+    fake_asset = SimpleNamespace(
+        symbol="SPY",
+        tradable=True,
+        shortable=True,
+        fractionable=True,
+        status="active",
+    )
+    trading = MagicMock()
+    trading.get_asset = MagicMock(return_value=fake_asset)
+    adapter = AlpacaAdapter(trading_client=trading, data_client=MagicMock(), mode="paper")
+
+    check = await adapter.is_tradable("SPY")
+    assert check.ticker == "SPY"
+    assert check.is_tradable is True
+    assert check.is_shortable is True
+    assert check.fractionable is True
+    assert check.is_halted is False
+    assert check.reason is None
+
+
+@pytest.mark.asyncio
+async def test_is_tradable_flags_inactive_asset_with_reason() -> None:
+    fake_asset = SimpleNamespace(
+        symbol="XYZ",
+        tradable=False,
+        shortable=False,
+        fractionable=False,
+        status="inactive",
+    )
+    trading = MagicMock()
+    trading.get_asset = MagicMock(return_value=fake_asset)
+    adapter = AlpacaAdapter(trading_client=trading, data_client=MagicMock(), mode="paper")
+
+    check = await adapter.is_tradable("XYZ")
+    assert check.is_tradable is False
+    assert check.reason == "asset status: inactive"

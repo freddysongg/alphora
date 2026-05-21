@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from alpaca.data.models import Quote as AlpacaQuote
     from alpaca.data.models import Trade as AlpacaTrade
     from alpaca.trading.client import TradingClient
+    from alpaca.trading.models import Asset as AlpacaAsset
     from alpaca.trading.models import Position as AlpacaPosition
     from alpaca.trading.models import TradeAccount
 
@@ -109,7 +110,18 @@ class AlpacaAdapter:
         ]
 
     async def is_tradable(self, ticker: str) -> TradabilityCheck:
-        raise NotImplementedError
+        raw = cast("AlpacaAsset", await asyncio.to_thread(self._trading.get_asset, ticker))
+        is_tradable = bool(raw.tradable)
+        status = str(raw.status)
+        reason = None if is_tradable else f"asset status: {status}"
+        return TradabilityCheck(
+            ticker=ticker,
+            is_tradable=is_tradable,
+            is_shortable=bool(raw.shortable),
+            is_halted=False,  # Alpaca does not expose halt status on the asset endpoint
+            fractionable=bool(raw.fractionable),
+            reason=reason,
+        )
 
     async def place_order(self, order: OrderRequest) -> OrderResponse:
         raise NotImplementedError
