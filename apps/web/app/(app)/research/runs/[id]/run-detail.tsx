@@ -6,7 +6,13 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CaretRight } from "@phosphor-icons/react/dist/ssr";
-import { Button, CapsLabel, HexPill, StatusDot } from "@/components/ui";
+import {
+  Button,
+  CapsLabel,
+  HexPill,
+  Skeleton,
+  StatusDot,
+} from "@/components/ui";
 import type { StatusKind } from "@/components/ui";
 import type { components } from "@/lib/api";
 import { RunSseProvider } from "@/components/research/run-sse-context";
@@ -16,6 +22,9 @@ import type { HypothesisBeliefBundle } from "@/components/research/hypothesis-be
 import type { HypothesisLifecycleBundle } from "@/components/research/hypothesis-lifecycle-card";
 import { LiveCostStrip } from "@/components/research/live-cost-strip";
 import type { CostMeterState } from "@/components/research/live-cost-strip";
+import { ObservabilitySection } from "@/components/research/observability-section";
+import type { InlineClaim } from "@/components/research/inline-claim-review";
+import type { SourceClientCacheStats } from "@/components/research/cost-ledger";
 import {
   isTerminal,
   runStatusToStatusKind,
@@ -29,6 +38,13 @@ type MacroBriefPublic = components["schemas"]["MacroBriefPublic"];
 type PortfolioBriefPublic = components["schemas"]["PortfolioBriefPublic"];
 type HumanReviewSummary = components["schemas"]["HumanReviewSummary"];
 type RunCostEstimate = components["schemas"]["RunCostEstimate"];
+type LlmCallLogPublic = components["schemas"]["LlmCallLogPublic"];
+type RunCostLedger = components["schemas"]["RunCostLedger"];
+type RunEvidenceFlow = components["schemas"]["RunEvidenceFlow"];
+type RunGraph = components["schemas"]["RunGraph"];
+type CounterfactualRunSummary =
+  components["schemas"]["CounterfactualRunSummary"];
+type LeakageRunPublic = components["schemas"]["LeakageRunPublic"];
 type ScopePayload = ResearchRunDetail["scope_payload"];
 
 const statusToLabel: Record<RunStatus, string> = {
@@ -64,6 +80,14 @@ export interface RunDetailProps {
   defaultWeekStart: string;
   beliefBundles: readonly HypothesisBeliefBundle[];
   lifecycleBundles: readonly HypothesisLifecycleBundle[];
+  llmCalls: readonly LlmCallLogPublic[];
+  costLedger: RunCostLedger | null;
+  evidenceFlow: RunEvidenceFlow | null;
+  runGraph: RunGraph | null;
+  counterfactuals: CounterfactualRunSummary | null;
+  leakage: readonly LeakageRunPublic[];
+  claims: readonly InlineClaim[];
+  sourceClientCacheStats: SourceClientCacheStats | null;
 }
 
 function resolveHeaderLabel(detail: ResearchRunDetail): string {
@@ -308,6 +332,14 @@ export function RunDetail(props: RunDetailProps): ReactElement {
     defaultWeekStart,
     beliefBundles,
     lifecycleBundles,
+    llmCalls,
+    costLedger,
+    evidenceFlow,
+    runGraph,
+    counterfactuals,
+    leakage,
+    claims,
+    sourceClientCacheStats,
   } = props;
   const router = useRouter();
   const [optimisticStatus, setOptimisticStatus] = useState<RunStatus | null>(
@@ -353,6 +385,8 @@ export function RunDetail(props: RunDetailProps): ReactElement {
   const showReviewForm =
     isTerminal(resolvedStatus) && humanReviewSummary.weeks.length === 0;
 
+  const isRunPending = !isTerminal(resolvedStatus);
+
   return (
     <RunSseProvider runId={detail.id} isTerminal={isLogStreamTerminal}>
       <div className="max-w-[1100px] mx-auto">
@@ -388,11 +422,37 @@ export function RunDetail(props: RunDetailProps): ReactElement {
             </div>
           ) : null}
 
+          {isRunPending ? <RunPendingBanner status={resolvedStatus} /> : null}
+
           <ul className="flex flex-col">
             {stages.map((entry) => (
-              <StageRow key={entry.key} entry={entry} />
+              <StageRow
+                key={entry.key}
+                entry={entry}
+                isRunPending={isRunPending}
+              />
             ))}
           </ul>
+
+          <LiveCostStrip
+            initialState={initialCostState}
+            initialSeenLogIds={initialSeenLogIds}
+            costEstimate={costEstimate}
+          />
+
+          <ObservabilitySection
+            runId={detail.id}
+            runStatus={resolvedStatus}
+            llmCalls={llmCalls}
+            costLedger={costLedger}
+            evidenceFlow={evidenceFlow}
+            runGraph={runGraph}
+            counterfactuals={counterfactuals}
+            leakage={leakage}
+            claims={claims}
+            sourceClientCacheStats={sourceClientCacheStats}
+            defaultWeekStart={defaultWeekStart}
+          />
 
           {showReviewForm ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -406,25 +466,60 @@ export function RunDetail(props: RunDetailProps): ReactElement {
           ) : humanReviewSummary.weeks.length > 0 ? (
             <HumanReviewSummaryWidget summary={humanReviewSummary} />
           ) : null}
-
-          <LiveCostStrip
-            runId={detail.id}
-            initialState={initialCostState}
-            initialSeenLogIds={initialSeenLogIds}
-            costEstimate={costEstimate}
-          />
         </div>
       </div>
     </RunSseProvider>
   );
 }
 
+interface RunPendingBannerProps {
+  status: RunStatus;
+}
+
+function RunPendingBanner(props: RunPendingBannerProps): ReactElement {
+  const { status } = props;
+  const label =
+    status === "queued"
+      ? "Run queued"
+      : status === "paused"
+        ? "Run paused"
+        : "Run in progress";
+  const detail =
+    status === "queued"
+      ? "Waiting for a worker to pick this up. Stages will populate as they complete."
+      : status === "paused"
+        ? "Streaming is paused. Resume to continue collecting evidence."
+        : "Streaming evidence, hypotheses, and briefs as the funnel produces them.";
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex items-center gap-3 rounded-md border border-line bg-panel px-4 py-3 text-sm"
+    >
+      <span
+        aria-hidden="true"
+        className="inline-block h-1.5 w-1.5 rounded-full bg-accent skeleton-shimmer"
+      />
+      <span className="font-medium text-fg">{label}</span>
+      <span className="text-fg-muted">{detail}</span>
+    </div>
+  );
+}
+
 interface StageRowProps {
   entry: StageEntry;
+  isRunPending: boolean;
 }
 
 function StageRow(props: StageRowProps): ReactElement {
-  const { entry } = props;
+  const { entry, isRunPending } = props;
+  const showShimmer =
+    isRunPending && entry.href === null && entry.status !== "stale";
+  const summaryNode = showShimmer ? (
+    <Skeleton className="h-3.5 w-48" />
+  ) : (
+    <span className="text-sm text-fg-muted truncate">{entry.summary}</span>
+  );
   const inner = (
     <div className="flex items-center gap-4 py-4 border-t border-line/60">
       <div className="flex items-center gap-2 w-56 shrink-0">
@@ -436,9 +531,7 @@ function StageRow(props: StageRowProps): ReactElement {
         ) : null}
       </div>
       <StatusDot status={entry.status} />
-      <span className="text-sm text-fg-muted truncate min-w-0 flex-1">
-        {entry.summary}
-      </span>
+      <div className="min-w-0 flex-1">{summaryNode}</div>
       {entry.href !== null ? (
         <CaretRight
           size={14}

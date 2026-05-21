@@ -2,8 +2,6 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { ReactElement } from "react";
-import Link from "next/link";
-import type { Route } from "next";
 
 import { useRunSseEvent } from "@/components/research/run-sse-context";
 import type { components } from "@/lib/api";
@@ -24,7 +22,6 @@ export interface CostMeterState {
 }
 
 export interface LiveCostStripProps {
-  runId: string;
   initialState: CostMeterState;
   initialSeenLogIds: readonly string[];
   costEstimate: RunCostEstimate | null;
@@ -45,12 +42,17 @@ interface RawLogEvent {
   data?: unknown;
 }
 
-const KNOWN_ACTIONS: readonly BudgetAction[] = ["allow", "warn", "pause", "kill"];
+const KNOWN_ACTIONS: readonly BudgetAction[] = [
+  "allow",
+  "warn",
+  "pause",
+  "kill",
+];
 
 function isBudgetAction(value: unknown): value is BudgetAction {
   return (
-    typeof value === "string"
-    && (KNOWN_ACTIONS as readonly string[]).includes(value)
+    typeof value === "string" &&
+    (KNOWN_ACTIONS as readonly string[]).includes(value)
   );
 }
 
@@ -77,8 +79,7 @@ function reduceCostEvent(
   const action = isBudgetAction(cost.budget_action)
     ? cost.budget_action
     : prev.lastBudgetAction;
-  const nextCumulative = cumulative
-    ?? prev.cumulativeCostUsd + (callCost ?? 0);
+  const nextCumulative = cumulative ?? prev.cumulativeCostUsd + (callCost ?? 0);
   return {
     cumulativeCostUsd: nextCumulative,
     inputTokensTotal: prev.inputTokensTotal + inputTokens,
@@ -95,11 +96,7 @@ function parseCostEventFromLog(raw: string): RawCostEvent | null {
   } catch {
     return null;
   }
-  if (
-    typeof parsed !== "object"
-    || parsed === null
-    || Array.isArray(parsed)
-  ) {
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
     return null;
   }
   const logEvent = parsed as RawLogEvent;
@@ -127,7 +124,7 @@ function parseEstimate(raw: string | undefined): number | null {
 }
 
 export function LiveCostStrip(props: LiveCostStripProps): ReactElement {
-  const { runId, initialState, initialSeenLogIds, costEstimate } = props;
+  const { initialState, initialSeenLogIds, costEstimate } = props;
   const [state, setState] = useState<CostMeterState>(initialState);
   const seenLogIdsRef = useRef<Set<string>>(new Set(initialSeenLogIds));
 
@@ -149,7 +146,6 @@ export function LiveCostStrip(props: LiveCostStripProps): ReactElement {
   useRunSseEvent(SSE_EVENT_LOG, onLog);
 
   const estimateValue = parseEstimate(costEstimate?.estimated_total_usd);
-  const observabilityHref = `/research/runs/${runId}/observability` as Route;
 
   return (
     <div className="flex items-center gap-6 border-t border-line pt-4 text-xs">
@@ -173,13 +169,6 @@ export function LiveCostStrip(props: LiveCostStripProps): ReactElement {
           {state.lastModel ?? "—"}
         </span>
       </span>
-      <div className="flex-1" />
-      <Link
-        href={observabilityHref}
-        className="text-fg-muted hover:text-fg underline-offset-2 hover:underline"
-      >
-        View observability →
-      </Link>
     </div>
   );
 }

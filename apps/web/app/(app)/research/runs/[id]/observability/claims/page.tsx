@@ -8,7 +8,7 @@ import { ArrowLeft } from "@phosphor-icons/react/dist/ssr";
 import { Button, HexPill } from "@/components/ui";
 import type { InlineClaim } from "@/components/research/inline-claim-review";
 import type { components } from "@/lib/api";
-import { InlineClaimReviewSection } from "../inline-claim-review-section";
+import { InlineClaimReviewSection } from "@/components/research/inline-claim-review-section";
 import { defaultWeekStart, loadMacroBrief, loadRunDetail } from "../loaders";
 
 export const metadata: Metadata = {
