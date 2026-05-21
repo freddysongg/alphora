@@ -23,7 +23,7 @@ from __future__ import annotations
 import math
 from typing import Literal
 
-from app.indicators import macd
+from app.indicators import macd, rsi
 from app.strategies.base import (
     Bars,
     StrategyParams,
@@ -34,6 +34,8 @@ from app.strategies.base import (
 _DEFAULT_FAST = 12
 _DEFAULT_SLOW = 26
 _DEFAULT_SIGNAL = 9
+_DEFAULT_RSI_PERIOD = 14
+_DEFAULT_RSI_MID = 50.0
 
 Cross = Literal["BULL", "BEAR", "none"]
 
@@ -79,32 +81,39 @@ class MacdRsiAdxStrategy:
         fast = int(params.get("fast", _DEFAULT_FAST))
         slow = int(params.get("slow", _DEFAULT_SLOW))
         signal_period = int(params.get("signal", _DEFAULT_SIGNAL))
+        rsi_period = int(params.get("rsi_period", _DEFAULT_RSI_PERIOD))
+        rsi_mid = float(params.get("rsi_mid", _DEFAULT_RSI_MID))
 
         carry = _position_sign(current_position)
 
-        # MACD needs at least `slow + signal_period` bars to produce a
-        # non-NaN signal line; without enough data, carry the position.
         if len(primary_bars) < slow + signal_period:
             return StrategyResult(target=carry, meta={"phase": "warmup"})
 
         macd_line, signal_line, _ = macd(
             primary_bars["close"], fast=fast, slow=slow, signal=signal_period
         )
+        rsi_series = rsi(primary_bars["close"], period=rsi_period)
         last_macd = float(macd_line.iloc[-1])
         last_signal = float(signal_line.iloc[-1])
         prev_macd = float(macd_line.iloc[-2])
         prev_signal = float(signal_line.iloc[-2])
+        last_rsi = float(rsi_series.iloc[-1])
         cross = _detect_crossover(last_macd, last_signal, prev_macd, prev_signal)
 
+        # Inner signal: BULL cross + RSI > midline → long; BEAR cross +
+        # RSI < midline → short; otherwise carry (no exit on cross alone).
         target = carry
-        if cross == "BULL":
+        if math.isnan(last_rsi):
+            target = carry
+        elif cross == "BULL" and last_rsi > rsi_mid:
             target = 1
-        elif cross == "BEAR":
+        elif cross == "BEAR" and last_rsi < rsi_mid:
             target = -1
 
         meta: dict[str, float | str] = {
             "macd": last_macd,
             "signal": last_signal,
+            "rsi": last_rsi,
             "cross": cross,
         }
         return StrategyResult(target=target, meta=meta)

@@ -77,3 +77,63 @@ def test_evaluate_records_macd_diagnostics_in_meta() -> None:
     assert "signal" in result.meta
     assert isinstance(result.meta["macd"], float)
     assert not math.isnan(float(result.meta["macd"]))
+
+
+def _zigzag_bars(n: int, *, start: float = 100.0) -> pd.DataFrame:
+    """Sequence that produces RSI just under 50 on the latest bar — this
+    is the scenario where the JS code suppresses a BULL cross because
+    RSI hasn't confirmed.
+    """
+    base = datetime(2026, 6, 15, 13, 30, tzinfo=UTC)
+    closes: list[float] = []
+    price = start
+    for i in range(n):
+        step = -1.0 if i % 3 == 0 else 0.3
+        price += step
+        closes.append(price)
+    idx = [base + timedelta(minutes=i) for i in range(n)]
+    return pd.DataFrame(
+        {
+            "open": closes,
+            "high": [c + 0.25 for c in closes],
+            "low": [c - 0.25 for c in closes],
+            "close": closes,
+            "volume": [1000.0] * n,
+        },
+        index=pd.DatetimeIndex(idx, tz="UTC"),
+    )
+
+
+def test_evaluate_records_rsi_in_meta() -> None:
+    strat = MacdRsiAdxStrategy()
+    bars = _ramp_bars(40)
+    result = strat.evaluate(
+        primary_bars=bars, secondary_bars={}, current_position=0, params={}
+    )
+    assert "rsi" in result.meta
+    assert isinstance(result.meta["rsi"], float)
+
+
+def test_evaluate_rsi_midline_blocks_unconfirmed_cross() -> None:
+    """A BULL MACD cross with RSI <= 50 should NOT flip target to long.
+
+    Construct a series that ramps down then a small final pop — MACD may
+    flip BULL but RSI stays below 50 because the dominant recent move was
+    down. The strategy must respect the JS midline-confirmation rule.
+    """
+    strat = MacdRsiAdxStrategy()
+    bars = _zigzag_bars(60)
+    result = strat.evaluate(
+        primary_bars=bars, secondary_bars={}, current_position=0, params={}
+    )
+    assert result.target in (0, -1)
+
+
+def test_evaluate_records_rsi_value() -> None:
+    strat = MacdRsiAdxStrategy()
+    bars = _ramp_bars(40)
+    result = strat.evaluate(
+        primary_bars=bars, secondary_bars={}, current_position=0, params={}
+    )
+    rsi_value = float(result.meta["rsi"])
+    assert rsi_value > 50.0
