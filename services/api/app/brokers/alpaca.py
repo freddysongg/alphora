@@ -99,6 +99,18 @@ def _translate_status(raw: str) -> OrderStatus:
     return _STATUS_MAP.get(raw.lower(), "rejected")
 
 
+def _enum_value(raw: object) -> str:
+    """Extract a string value from an alpaca-py enum-or-raw-string field.
+
+    alpaca-py model fields (OrderSide, OrderStatus, TimeInForce, etc.) are
+    Pydantic enums whose `str()` yields "EnumName.MEMBER" rather than the
+    intended value. Test stubs may pass plain strings. This helper handles
+    both: returns `.value` if present, else the value coerced to str.
+    """
+    value = getattr(raw, "value", raw)
+    return str(value)
+
+
 _FILTER_BY_OURS: dict[OrderStatusFilter, QueryOrderStatus] = {
     "open": QueryOrderStatus.OPEN,
     "closed": QueryOrderStatus.CLOSED,
@@ -117,12 +129,12 @@ def _translate_order(raw: object) -> Order:
         broker_order_id=str(getattr(raw, "id")),  # noqa: B009
         client_order_id=str(getattr(raw, "client_order_id")) if getattr(raw, "client_order_id", None) else None,  # noqa: B009
         ticker=str(getattr(raw, "symbol")),  # noqa: B009
-        side=str(getattr(raw, "side")).lower(),  # type: ignore[arg-type]  # noqa: B009
+        side=_enum_value(getattr(raw, "side")).lower(),  # type: ignore[arg-type]  # noqa: B009
         quantity=Decimal(str(getattr(raw, "qty"))),  # noqa: B009
         filled_quantity=Decimal(str(getattr(raw, "filled_qty", "0"))),
-        order_type=str(type_attr).lower(),  # type: ignore[arg-type]
-        time_in_force=str(getattr(raw, "time_in_force")).lower(),  # type: ignore[arg-type]  # noqa: B009
-        status=_translate_status(str(getattr(raw, "status"))),  # noqa: B009
+        order_type=_enum_value(type_attr).lower(),  # type: ignore[arg-type]
+        time_in_force=_enum_value(getattr(raw, "time_in_force")).lower(),  # type: ignore[arg-type]  # noqa: B009
+        status=_translate_status(_enum_value(getattr(raw, "status"))),  # noqa: B009
         limit_price=_dec(getattr(raw, "limit_price", None)),
         stop_price=_dec(getattr(raw, "stop_price", None)),
         avg_fill_price=_dec(getattr(raw, "filled_avg_price", None)),
@@ -158,6 +170,11 @@ class AlpacaAdapter:
         if settings.alpaca_api_key is None or settings.alpaca_api_secret is None:
             raise RuntimeError(
                 "ALPACA_API_KEY and ALPACA_API_SECRET must be set to construct AlpacaAdapter"
+            )
+        if settings.alpaca_mode == "live" and not settings.human_approval_token.get_secret_value():
+            raise RuntimeError(
+                "HUMAN_APPROVAL_TOKEN must be set when ALPACA_MODE=live; "
+                "live broker construction is rejected until the env contract is satisfied"
             )
         key = settings.alpaca_api_key.get_secret_value()
         secret = settings.alpaca_api_secret.get_secret_value()
@@ -229,7 +246,7 @@ class AlpacaAdapter:
         return OrderResponse(
             broker_order_id=str(raw.id),
             client_order_id=str(raw.client_order_id) if raw.client_order_id else None,
-            status=_translate_status(str(raw.status)),
+            status=_translate_status(_enum_value(raw.status)),
             submitted_at=raw.submitted_at,
         )
 

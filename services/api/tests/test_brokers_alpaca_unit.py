@@ -43,6 +43,7 @@ def test_from_env_constructs_live_adapter(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setenv("ALPACA_API_KEY", "AK_TEST")
     monkeypatch.setenv("ALPACA_API_SECRET", "AS_TEST")
     monkeypatch.setenv("ALPACA_MODE", "live")
+    monkeypatch.setenv("HUMAN_APPROVAL_TOKEN", "tok_live_existing")
     from app.config import get_settings
 
     get_settings.cache_clear()
@@ -291,3 +292,109 @@ def test_factory_returns_alpaca_adapter_in_paper_mode(monkeypatch: pytest.Monkey
     adapter = get_broker_adapter()
     assert isinstance(adapter, AlpacaAdapter)
     assert adapter.mode == "paper"
+
+
+class _FakeAlpacaEnum:
+    """Stand-in for alpaca-py Pydantic enum fields (have a .value str attribute)."""
+
+    def __init__(self, value: str) -> None:
+        self.value = value
+
+    def __str__(self) -> str:
+        return f"FakeEnum.{self.value.upper()}"
+
+
+@pytest.mark.asyncio
+async def test_place_order_translates_enum_status_to_dto_literal() -> None:
+    """Regression: real alpaca-py returns enum status, str() returns 'OrderStatus.NEW'.
+    place_order must extract .value before mapping via _STATUS_MAP, otherwise the
+    fallback writes 'rejected' for every real order."""
+    submitted = datetime(2026, 5, 20, 14, 30, tzinfo=UTC)
+    fake_response = SimpleNamespace(
+        id="ord-enum-1",
+        client_order_id="cli-enum-1",
+        status=_FakeAlpacaEnum("new"),
+        submitted_at=submitted,
+    )
+    trading = MagicMock()
+    trading.submit_order = MagicMock(return_value=fake_response)
+    adapter = AlpacaAdapter(trading_client=trading, data_client=MagicMock(), mode="paper")
+
+    req = OrderRequest(
+        ticker="SPY",
+        side="buy",
+        quantity=Decimal("1"),
+        order_type="market",
+        time_in_force="day",
+    )
+    resp = await adapter.place_order(req)
+    assert resp.status == "new", f"expected 'new', got {resp.status!r}"
+
+
+@pytest.mark.asyncio
+async def test_list_orders_translates_enum_typed_alpaca_order() -> None:
+    """Regression: real alpaca-py Order fields are enums. _translate_order must
+    extract .value for side, order_type, time_in_force, and status — otherwise
+    DTO Literal fields hold invalid 'orderside.buy'-style strings."""
+    submitted = datetime(2026, 5, 20, 14, 30, tzinfo=UTC)
+    filled = datetime(2026, 5, 20, 14, 30, 1, tzinfo=UTC)
+    fake_orders = [
+        SimpleNamespace(
+            id="ord-enum-2",
+            client_order_id="cli-enum-2",
+            symbol="SPY",
+            side=_FakeAlpacaEnum("buy"),
+            qty="1",
+            filled_qty="1",
+            order_type=_FakeAlpacaEnum("market"),
+            type=_FakeAlpacaEnum("market"),
+            time_in_force=_FakeAlpacaEnum("day"),
+            status=_FakeAlpacaEnum("filled"),
+            limit_price=None,
+            stop_price=None,
+            filled_avg_price="500.10",
+            submitted_at=submitted,
+            filled_at=filled,
+            canceled_at=None,
+        ),
+    ]
+    trading = MagicMock()
+    trading.get_orders = MagicMock(return_value=fake_orders)
+    adapter = AlpacaAdapter(trading_client=trading, data_client=MagicMock(), mode="paper")
+
+    orders = await adapter.list_orders(status="all")
+
+    assert len(orders) == 1
+    o = orders[0]
+    assert o.side == "buy", f"expected 'buy', got {o.side!r}"
+    assert o.order_type == "market", f"expected 'market', got {o.order_type!r}"
+    assert o.time_in_force == "day", f"expected 'day', got {o.time_in_force!r}"
+    assert o.status == "filled", f"expected 'filled', got {o.status!r}"
+
+
+def test_from_env_rejects_live_mode_without_approval_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ALPACA_API_KEY", "AK_TEST")
+    monkeypatch.setenv("ALPACA_API_SECRET", "AS_TEST")
+    monkeypatch.setenv("ALPACA_MODE", "live")
+    monkeypatch.setenv("HUMAN_APPROVAL_TOKEN", "")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    with pytest.raises(RuntimeError, match="HUMAN_APPROVAL_TOKEN"):
+        AlpacaAdapter.from_env()
+
+
+def test_from_env_constructs_live_when_approval_token_present(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ALPACA_API_KEY", "AK_TEST")
+    monkeypatch.setenv("ALPACA_API_SECRET", "AS_TEST")
+    monkeypatch.setenv("ALPACA_MODE", "live")
+    monkeypatch.setenv("HUMAN_APPROVAL_TOKEN", "tok_live_1")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    adapter = AlpacaAdapter.from_env()
+    assert adapter.mode == "live"
