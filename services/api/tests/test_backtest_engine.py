@@ -219,3 +219,69 @@ def test_simulate_close_and_flip_uses_same_next_bar_open() -> None:
     assert abs(short_trade.entry_price - expected_short_entry) < 1e-9
     assert long_trade.exit_bar_index == 4
     assert short_trade.entry_bar_index == 4
+
+
+def test_simulate_flat_strategy_has_zero_equity_curve() -> None:
+    class _AlwaysFlat(MacdRsiAdxStrategy):
+        def evaluate(self, primary_bars, secondary_bars, current_position, params):  # type: ignore[override]
+            from app.strategies.base import StrategyResult
+
+            return StrategyResult(target=0, meta={})
+
+    bars = _ramp_bars_for_engine(20)
+    result = simulate(bars=bars, strategy=_AlwaysFlat(), params={})
+    assert all(e == 0.0 for e in result.equity_per_bar)
+    assert result.max_drawdown_usd == 0.0
+    assert result.trades == []
+
+
+def test_simulate_v_shape_records_drawdown_at_trough() -> None:
+    """Long entry then drop then partial recovery: drawdown == peak - trough."""
+
+    class _LongFromBar1(MacdRsiAdxStrategy):
+        def evaluate(self, primary_bars, secondary_bars, current_position, params):  # type: ignore[override]
+            from app.strategies.base import StrategyResult
+
+            if len(primary_bars) == 2:
+                return StrategyResult(target=1, meta={})
+            return StrategyResult(target=1, meta={})
+
+    base = datetime(2026, 6, 15, 13, 30, tzinfo=UTC)
+    closes = [100.0, 101.0, 102.0, 101.0, 99.0, 100.0]
+    idx = [base + timedelta(minutes=i) for i in range(len(closes))]
+    bars = pd.DataFrame(
+        {
+            "open": closes,
+            "high": [c + 0.1 for c in closes],
+            "low": [c - 0.1 for c in closes],
+            "close": closes,
+            "volume": [1000.0] * len(closes),
+        },
+        index=pd.DatetimeIndex(idx, tz="UTC"),
+    )
+    result = simulate(bars=bars, strategy=_LongFromBar1(), params={})
+    assert result.max_drawdown_usd > 0.0
+    # The trough-to-peak gap in our open-mark is realised after the
+    # equity peak. Peak occurs after open at index 2; trough after open
+    # at index 4 -> drawdown reflects the magnitude.
+    assert result.max_drawdown_usd >= 2.0  # 102->99 minus slippage rounding
+
+
+def test_simulate_equity_per_bar_is_monotonic_when_strategy_is_winning() -> None:
+    """Strict uptrend with always-long strategy: open-mark equity rises bar-by-bar."""
+    from itertools import pairwise
+
+    class _AlwaysLong(MacdRsiAdxStrategy):
+        def evaluate(self, primary_bars, secondary_bars, current_position, params):  # type: ignore[override]
+            from app.strategies.base import StrategyResult
+
+            if len(primary_bars) == 2:
+                return StrategyResult(target=1, meta={})
+            return StrategyResult(target=1, meta={})
+
+    bars = _ramp_bars_for_engine(15)
+    result = simulate(bars=bars, strategy=_AlwaysLong(), params={})
+    # After the entry bar (index 2), equity rises with each subsequent bar.
+    after_entry = result.equity_per_bar[3:]
+    for prev, curr in pairwise(after_entry):
+        assert curr >= prev - 1e-9
