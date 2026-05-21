@@ -12,46 +12,6 @@ from app.db.session import session_factory
 from app.workers import tasks as worker_tasks
 
 
-def test_execute_research_run_invokes_orchestrator_with_uuid(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    captured: dict[str, Any] = {}
-
-    class FakeOrchestrator:
-        def __init__(self, *, session_factory: Any, adapter: Any) -> None:
-            captured["session_factory"] = session_factory
-            captured["adapter"] = adapter
-
-        async def execute(self, run_id: Any) -> None:
-            captured["run_id"] = run_id
-
-        async def fail(self, run_id: Any, reason: str) -> None:
-            captured["failed_run_id"] = run_id
-            captured["fail_reason"] = reason
-
-    monkeypatch.setattr(worker_tasks, "RunOrchestrator", FakeOrchestrator)
-    monkeypatch.setattr(worker_tasks, "TradingAgentsAdapter", MagicMock())
-
-    async def fake_load_strategy(_run_id: Any) -> str:
-        return Strategy.tradingagents.value
-
-    async def fake_bootstrap() -> None:
-        return None
-
-    monkeypatch.setattr(worker_tasks, "_load_strategy", fake_load_strategy)
-    monkeypatch.setattr(
-        worker_tasks, "_bootstrap_data_sources_for_run", fake_bootstrap
-    )
-
-    run_id = uuid4()
-    worker_tasks.execute_research_run(run_id.hex)
-
-    assert captured["run_id"] == run_id
-    assert captured["session_factory"] is session_factory
-    assert captured["adapter"] is not None
-    assert "failed_run_id" not in captured
-
-
 @pytest.mark.usefixtures("initialized_schema")
 async def test_execute_research_run_dispatches_funnel_research(
     monkeypatch: pytest.MonkeyPatch,

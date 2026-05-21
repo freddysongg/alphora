@@ -1,7 +1,12 @@
+import asyncio
+import uuid
+from datetime import date
 from typing import Any
 
 from fastapi.testclient import TestClient
 
+from app.db.models_runs import ResearchRun, RunStatus, Strategy
+from app.db.session import session_factory
 from app.main import app
 
 
@@ -56,15 +61,25 @@ def test_list_runs_includes_scope_payload_per_row(
         "trade_date": "2026-05-19",
         "scope_payload": {"kind": "macro", "universe": "us_equities"},
     }
-    tradingagents_payload: dict[str, Any] = {
-        "tickers": ["AAPL"],
-        "trade_date": "2026-05-19",
-        "llm_provider": "openai",
-        "llm_model": "gpt-4o-mini",
-    }
+
+    async def _seed_tradingagents_row() -> None:
+        async with session_factory() as session:
+            session.add(
+                ResearchRun(
+                    id=uuid.uuid4(),
+                    ticker="AAPL",
+                    trade_date=date(2026, 5, 19),
+                    strategy=Strategy.tradingagents.value,
+                    status=RunStatus.queued,
+                    config={},
+                )
+            )
+            await session.commit()
+
     with TestClient(app) as client:
-        client.post("/api/research-runs", json=funnel_payload)
-        client.post("/api/research-runs", json=tradingagents_payload)
+        funnel_response = client.post("/api/research-runs", json=funnel_payload)
+        assert funnel_response.status_code == 201, funnel_response.text
+        asyncio.run(_seed_tradingagents_row())
         list_response = client.get("/api/research-runs")
     assert list_response.status_code == 200
     rows = list_response.json()

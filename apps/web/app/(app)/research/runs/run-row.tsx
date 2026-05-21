@@ -2,16 +2,10 @@ import type { ReactElement } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { Eye } from "@phosphor-icons/react/dist/ssr";
-import {
-  Badge,
-  Button,
-  HexPill,
-  StatusDot,
-} from "@/components/ui";
+import { Badge, Button, HexPill, StatusDot } from "@/components/ui";
 import type { BadgeVariant } from "@/components/ui";
 import type { components } from "@/lib/api";
-import { isTerminal, runStatusToStatusKind } from "@/lib/research/status-mapping";
-import { RerunRowButton } from "./rerun-row-button";
+import { runStatusToStatusKind } from "@/lib/research/status-mapping";
 
 type ResearchRunSummary = components["schemas"]["ResearchRunSummary"];
 type FinalRating = NonNullable<ResearchRunSummary["final_rating"]>;
@@ -46,7 +40,8 @@ function resolveScopeLabel(scope: ScopePayload): string | null {
   if (typeof kind !== "string" || typeof universe !== "string") {
     return null;
   }
-  const universeLabel = SCOPE_UNIVERSE_LABEL[universe] ?? universe.toUpperCase();
+  const universeLabel =
+    SCOPE_UNIVERSE_LABEL[universe] ?? universe.toUpperCase();
   return `${kind.toUpperCase()} · ${universeLabel}`;
 }
 
@@ -91,10 +86,12 @@ export function RunRow(props: RunRowProps): ReactElement {
         <Badge variant={resolveBadgeVariant(run.final_rating)} />
       </Link>
       <div className="flex items-center gap-1 shrink-0">
-        {isTerminal(run.status) && run.ticker !== null ? (
-          <RerunRowButton runId={run.id} ticker={run.ticker} />
-        ) : null}
-        <Button asChild size="sm" variant="ghost" aria-label={`View ${runLabel}`}>
+        <Button
+          asChild
+          size="sm"
+          variant="ghost"
+          aria-label={`View ${runLabel}`}
+        >
           <Link href={href}>
             <Eye size={12} weight="regular" />
           </Link>

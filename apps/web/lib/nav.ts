@@ -7,7 +7,6 @@ import {
   Key,
   PlugsConnected,
   Pulse,
-  User,
 } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
 
@@ -59,16 +58,17 @@ export const navSections: ReadonlyArray<NavSectionConfig> = [
     key: "data-health",
     label: "DATA HEALTH",
     items: [
-      { label: "Providers", href: "/data-health/providers", icon: PlugsConnected },
+      {
+        label: "Providers",
+        href: "/data-health/providers",
+        icon: PlugsConnected,
+      },
     ],
   },
   {
     key: "settings",
     label: "SETTINGS",
-    items: [
-      { label: "Account", href: "/settings/account", icon: User },
-      { label: "API Keys", href: "/settings/api-keys", icon: Key },
-    ],
+    items: [{ label: "API Keys", href: "/settings/api-keys", icon: Key }],
   },
 ] as const;
 

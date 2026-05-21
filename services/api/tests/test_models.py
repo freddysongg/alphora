@@ -89,7 +89,7 @@ def test_strategy_enum_values() -> None:
 
 
 @pytest.mark.usefixtures("initialized_schema")
-async def test_research_run_defaults_strategy_to_tradingagents() -> None:
+async def test_research_run_db_default_strategy_is_tradingagents() -> None:
     async with session_factory() as session:
         run = ResearchRun(
             ticker="AAPL",

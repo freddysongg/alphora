@@ -65,7 +65,6 @@ async def test_run_macro_brief_end_to_end_success(initialized_schema: None) -> N
     from app.services.source_clients.fred import FredObservation, FredSeriesObservations
     from app.services.strategies.funnel_research._ingest import SourceFetcher
     from app.services.strategies.funnel_research.core import run_macro_brief
-    from app.trading_agents.adapter import TradingAgentsAdapter
 
     run_id = uuid.uuid4()
     async with session_factory() as setup:
@@ -152,9 +151,7 @@ async def test_run_macro_brief_end_to_end_success(initialized_schema: None) -> N
                 log_id=log.id,
             )
 
-    orchestrator = RunOrchestrator(
-        session_factory=session_factory, adapter=TradingAgentsAdapter()
-    )
+    orchestrator = RunOrchestrator(session_factory=session_factory)
 
     async with httpx.AsyncClient() as http_client:
         await run_macro_brief(
@@ -226,7 +223,6 @@ async def test_run_macro_brief_invalid_scope_fails_run(initialized_schema: None)
     from app.services.run_orchestrator import RunOrchestrator
     from app.services.strategies.funnel_research._ingest import SourceFetcher
     from app.services.strategies.funnel_research.core import run_macro_brief
-    from app.trading_agents.adapter import TradingAgentsAdapter
 
     run_id = uuid.uuid4()
     async with session_factory() as setup:
@@ -254,9 +250,7 @@ async def test_run_macro_brief_invalid_scope_fails_run(initialized_schema: None)
         async def complete(self, **kwargs: Any) -> LlmCompletionResult:
             raise AssertionError("should not reach llm")
 
-    orchestrator = RunOrchestrator(
-        session_factory=session_factory, adapter=TradingAgentsAdapter()
-    )
+    orchestrator = RunOrchestrator(session_factory=session_factory)
 
     async with httpx.AsyncClient() as http_client:
         await run_macro_brief(
@@ -306,7 +300,6 @@ async def test_run_macro_brief_resume_with_all_stages_persisted_skips_all_llm(
     )
     from app.services.strategies.funnel_research._ingest import SourceFetcher
     from app.services.strategies.funnel_research.core import run_macro_brief
-    from app.trading_agents.adapter import TradingAgentsAdapter
 
     run_id = uuid.uuid4()
     sector_entity_id = uuid.uuid4()
@@ -506,9 +499,7 @@ async def test_run_macro_brief_resume_with_all_stages_persisted_skips_all_llm(
                 "no llm call expected when all stages already persisted"
             )
 
-    orchestrator = RunOrchestrator(
-        session_factory=session_factory, adapter=TradingAgentsAdapter()
-    )
+    orchestrator = RunOrchestrator(session_factory=session_factory)
 
     async with httpx.AsyncClient() as http_client:
         await run_macro_brief(
@@ -577,7 +568,6 @@ async def test_run_macro_brief_resume_with_persisted_macro_skips_synthesis(
     from app.services.run_orchestrator import RunOrchestrator
     from app.services.strategies.funnel_research._ingest import SourceFetcher
     from app.services.strategies.funnel_research.core import run_macro_brief
-    from app.trading_agents.adapter import TradingAgentsAdapter
 
     run_id = uuid.uuid4()
     async with session_factory() as setup:
@@ -686,9 +676,7 @@ async def test_run_macro_brief_resume_with_persisted_macro_skips_synthesis(
             )
 
     llm = StubLlm()
-    orchestrator = RunOrchestrator(
-        session_factory=session_factory, adapter=TradingAgentsAdapter()
-    )
+    orchestrator = RunOrchestrator(session_factory=session_factory)
 
     async with httpx.AsyncClient() as http_client:
         await run_macro_brief(
@@ -752,7 +740,6 @@ async def test_run_macro_brief_invalid_llm_json_marks_run_failed(
     from app.services.strategies.funnel_research import FunnelResearchError
     from app.services.strategies.funnel_research._ingest import SourceFetcher
     from app.services.strategies.funnel_research.core import run_macro_brief
-    from app.trading_agents.adapter import TradingAgentsAdapter
 
     run_id = uuid.uuid4()
     async with session_factory() as setup:
@@ -806,9 +793,7 @@ async def test_run_macro_brief_invalid_llm_json_marks_run_failed(
                 log_id=uuid.uuid4(),
             )
 
-    orchestrator = RunOrchestrator(
-        session_factory=session_factory, adapter=TradingAgentsAdapter()
-    )
+    orchestrator = RunOrchestrator(session_factory=session_factory)
 
     async with httpx.AsyncClient() as http_client:
         with pytest.raises(FunnelResearchError):

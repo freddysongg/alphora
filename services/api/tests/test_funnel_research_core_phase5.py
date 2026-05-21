@@ -148,7 +148,6 @@ async def test_run_macro_brief_fails_when_all_sectors_fail(
     """When every selected sector fails, the parent run is marked failed."""
     from app.services.run_orchestrator import RunOrchestrator
     from app.services.strategies.funnel_research.core import run_macro_brief
-    from app.trading_agents.adapter import TradingAgentsAdapter
 
     run_id = await _seed_run()
     runtime_state: dict[str, uuid.UUID] = {}
@@ -160,9 +159,7 @@ async def test_run_macro_brief_fails_when_all_sectors_fail(
     async def fake_run_sector_fanout(**_: Any) -> SectorFanoutOutcome:
         return fail_outcome
 
-    orchestrator = RunOrchestrator(
-        session_factory=session_factory, adapter=TradingAgentsAdapter()
-    )
+    orchestrator = RunOrchestrator(session_factory=session_factory)
 
     with patch(
         "app.services.strategies.funnel_research.core.run_sector_fanout",
@@ -213,7 +210,6 @@ async def test_run_macro_brief_succeeds_when_fanout_partially_persists(
     """When at least one sector persists, the parent run still succeeds."""
     from app.services.run_orchestrator import RunOrchestrator
     from app.services.strategies.funnel_research.core import run_macro_brief
-    from app.trading_agents.adapter import TradingAgentsAdapter
 
     run_id = await _seed_run()
     runtime_state: dict[str, uuid.UUID] = {}
@@ -225,9 +221,7 @@ async def test_run_macro_brief_succeeds_when_fanout_partially_persists(
     async def fake_run_sector_fanout(**_: Any) -> SectorFanoutOutcome:
         return partial_outcome
 
-    orchestrator = RunOrchestrator(
-        session_factory=session_factory, adapter=TradingAgentsAdapter()
-    )
+    orchestrator = RunOrchestrator(session_factory=session_factory)
 
     with patch(
         "app.services.strategies.funnel_research.core.run_sector_fanout",
@@ -266,7 +260,6 @@ async def test_run_macro_brief_halts_when_cancelled_between_macro_persist_and_se
         persist_macro_brief as real_persist_macro_brief,
     )
     from app.services.strategies.funnel_research.core import run_macro_brief
-    from app.trading_agents.adapter import TradingAgentsAdapter
 
     run_id = await _seed_run()
     runtime_state: dict[str, uuid.UUID] = {}
@@ -292,9 +285,7 @@ async def test_run_macro_brief_halts_when_cancelled_between_macro_persist_and_se
         await session.flush()
         return result
 
-    orchestrator = RunOrchestrator(
-        session_factory=session_factory, adapter=TradingAgentsAdapter()
-    )
+    orchestrator = RunOrchestrator(session_factory=session_factory)
 
     with patch.object(
         core_module, "run_sector_fanout", new=tracking_run_sector_fanout
@@ -333,7 +324,6 @@ async def test_run_macro_brief_succeeds_when_all_sectors_skip(
     """All-skipped is not all-failed; the macro brief stands alone."""
     from app.services.run_orchestrator import RunOrchestrator
     from app.services.strategies.funnel_research.core import run_macro_brief
-    from app.trading_agents.adapter import TradingAgentsAdapter
 
     run_id = await _seed_run()
     runtime_state: dict[str, uuid.UUID] = {}
@@ -345,9 +335,7 @@ async def test_run_macro_brief_succeeds_when_all_sectors_skip(
     async def fake_run_sector_fanout(**_: Any) -> SectorFanoutOutcome:
         return skip_outcome
 
-    orchestrator = RunOrchestrator(
-        session_factory=session_factory, adapter=TradingAgentsAdapter()
-    )
+    orchestrator = RunOrchestrator(session_factory=session_factory)
 
     with patch(
         "app.services.strategies.funnel_research.core.run_sector_fanout",

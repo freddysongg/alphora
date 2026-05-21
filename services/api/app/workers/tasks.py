@@ -25,7 +25,6 @@ from app.services.strategies.funnel_research import (
     FunnelResearchError,
     run_macro_brief,
 )
-from app.trading_agents.adapter import TradingAgentsAdapter
 
 _logger = get_logger(__name__)
 
@@ -139,11 +138,7 @@ async def _close_async_redis_client(client: AsyncRedis) -> None:
 
 async def _dispatch(run_id: UUID) -> None:
     strategy = await _load_strategy(run_id)
-    adapter = TradingAgentsAdapter()
-    orchestrator = RunOrchestrator(session_factory=session_factory, adapter=adapter)
-    if strategy == Strategy.tradingagents.value:
-        await orchestrator.execute(run_id)
-        return
+    orchestrator = RunOrchestrator(session_factory=session_factory)
     if strategy == Strategy.funnel_research.value:
         await _dispatch_funnel_research(run_id=run_id, orchestrator=orchestrator)
         return

@@ -17,7 +17,6 @@ const segmentLabels: Record<string, string> = {
   "data-health": "data health",
   providers: "providers",
   settings: "settings",
-  account: "account",
   "api-keys": "api keys",
 };
 
@@ -42,7 +41,9 @@ function readableLabel(segment: string): string {
   return segment;
 }
 
-export function buildBreadcrumb(pathname: string): ReadonlyArray<BreadcrumbSegment> {
+export function buildBreadcrumb(
+  pathname: string,
+): ReadonlyArray<BreadcrumbSegment> {
   const cleaned = pathname.split("?")[0] ?? pathname;
   const parts = cleaned.split("/").filter((part) => part.length > 0);
   const result: BreadcrumbSegment[] = [];

@@ -19,24 +19,20 @@ def test_create_research_runs_persists_rows_and_enqueues(
 ) -> None:
     _ = initialized_schema
     payload: dict[str, Any] = {
-        "tickers": ["aapl", "msft"],
+        "strategy": "funnel_research",
         "trade_date": "2026-05-15",
-        "llm_provider": "openai",
-        "llm_model": "gpt-4o-mini",
-        "debate_depth": 3,
+        "scope_payload": {"kind": "macro", "universe": "us_equities"},
     }
     with TestClient(app) as client:
         response = client.post("/api/research-runs", json=payload)
     assert response.status_code == 201, response.text
     body = response.json()
     assert isinstance(body, list)
-    assert len(body) == 2
-    tickers_returned = {row["ticker"] for row in body}
-    assert tickers_returned == {"AAPL", "MSFT"}
-    for row in body:
-        assert row["status"] == "queued"
-        assert "id" in row
-    assert len(fake_queue.calls) == 2
+    assert len(body) == 1
+    assert body[0]["ticker"] is None
+    assert body[0]["status"] == "queued"
+    assert "id" in body[0]
+    assert len(fake_queue.calls) == 1
     enqueue_args = [call[0] for call in fake_queue.calls]
     assert enqueue_args[0][0] == "app.workers.tasks.execute_research_run"
 
@@ -47,10 +43,9 @@ def test_list_research_runs_returns_recent_first(
     _ = initialized_schema
     _ = fake_queue
     payload: dict[str, Any] = {
-        "tickers": ["AAPL"],
+        "strategy": "funnel_research",
         "trade_date": "2026-05-15",
-        "llm_provider": "openai",
-        "llm_model": "gpt-4o-mini",
+        "scope_payload": {"kind": "macro", "universe": "us_equities"},
     }
     with TestClient(app) as client:
         create_response = client.post("/api/research-runs", json=payload)
@@ -59,7 +54,7 @@ def test_list_research_runs_returns_recent_first(
     assert list_response.status_code == 200
     runs = list_response.json()
     assert len(runs) == 1
-    assert runs[0]["ticker"] == "AAPL"
+    assert runs[0]["ticker"] is None
     assert runs[0]["status"] == "queued"
 
 
@@ -69,10 +64,9 @@ def test_get_research_run_returns_detail_with_nested_arrays(
     _ = initialized_schema
     _ = fake_queue
     payload: dict[str, Any] = {
-        "tickers": ["AAPL"],
+        "strategy": "funnel_research",
         "trade_date": "2026-05-15",
-        "llm_provider": "openai",
-        "llm_model": "gpt-4o-mini",
+        "scope_payload": {"kind": "macro", "universe": "us_equities"},
     }
     with TestClient(app) as client:
         create_response = client.post("/api/research-runs", json=payload)
@@ -80,12 +74,12 @@ def test_get_research_run_returns_detail_with_nested_arrays(
         detail_response = client.get(f"/api/research-runs/{run_id}")
     assert detail_response.status_code == 200
     detail = detail_response.json()
-    assert detail["ticker"] == "AAPL"
+    assert detail["ticker"] is None
     assert detail["status"] == "queued"
     assert detail["reports"] == []
     assert detail["events"] == []
     assert detail["provenance"] == []
-    assert detail["config"]["llm_provider"] == "openai"
+    assert detail["scope_payload"] == {"kind": "macro", "universe": "us_equities"}
 
 
 def test_get_research_run_detail_exposes_source_client_cache_stats(
@@ -96,10 +90,9 @@ def test_get_research_run_detail_exposes_source_client_cache_stats(
     import asyncio
 
     payload: dict[str, Any] = {
-        "tickers": ["MSFT"],
+        "strategy": "funnel_research",
         "trade_date": "2026-05-20",
-        "llm_provider": "openai",
-        "llm_model": "gpt-4o-mini",
+        "scope_payload": {"kind": "macro", "universe": "us_equities"},
     }
     with TestClient(app) as client:
         create_response = client.post("/api/research-runs", json=payload)
@@ -147,10 +140,9 @@ def test_list_research_runs_filters_by_status(
     _ = initialized_schema
     _ = fake_queue
     payload: dict[str, Any] = {
-        "tickers": ["AAPL"],
+        "strategy": "funnel_research",
         "trade_date": "2026-05-15",
-        "llm_provider": "openai",
-        "llm_model": "gpt-4o-mini",
+        "scope_payload": {"kind": "macro", "universe": "us_equities"},
     }
     with TestClient(app) as client:
         client.post("/api/research-runs", json=payload)
@@ -168,10 +160,9 @@ def test_list_research_runs_grouped_view(
     _ = initialized_schema
     _ = fake_queue
     payload: dict[str, Any] = {
-        "tickers": ["AAPL"],
+        "strategy": "funnel_research",
         "trade_date": "2026-05-15",
-        "llm_provider": "openai",
-        "llm_model": "gpt-4o-mini",
+        "scope_payload": {"kind": "macro", "universe": "us_equities"},
     }
     with TestClient(app) as client:
         client.post("/api/research-runs", json=payload)
@@ -189,10 +180,9 @@ def test_list_research_runs_grouped_view_returns_cancelled_runs(
     _ = initialized_schema
     _ = fake_queue
     payload: dict[str, Any] = {
-        "tickers": ["AAPL"],
+        "strategy": "funnel_research",
         "trade_date": "2026-05-15",
-        "llm_provider": "openai",
-        "llm_model": "gpt-4o-mini",
+        "scope_payload": {"kind": "macro", "universe": "us_equities"},
     }
     with TestClient(app) as client:
         create_response = client.post("/api/research-runs", json=payload)
@@ -213,10 +203,9 @@ def test_cancel_research_run_marks_cancelled(
     _ = initialized_schema
     _ = fake_queue
     payload: dict[str, Any] = {
-        "tickers": ["AAPL"],
+        "strategy": "funnel_research",
         "trade_date": "2026-05-15",
-        "llm_provider": "openai",
-        "llm_model": "gpt-4o-mini",
+        "scope_payload": {"kind": "macro", "universe": "us_equities"},
     }
     with TestClient(app) as client:
         create_response = client.post("/api/research-runs", json=payload)
@@ -260,27 +249,14 @@ def test_cancel_research_run_returns_404_when_missing(initialized_schema: None) 
     assert response.status_code == 404
 
 
-def test_create_research_runs_rejects_empty_tickers(initialized_schema: None) -> None:
-    _ = initialized_schema
-    payload: dict[str, Any] = {
-        "tickers": [],
-        "trade_date": "2026-05-15",
-        "llm_provider": "openai",
-        "llm_model": "gpt-4o-mini",
-    }
-    with TestClient(app) as client:
-        response = client.post("/api/research-runs", json=payload)
-    assert response.status_code == 422
-
-
-def test_tradingagents_post_rejects_more_than_25_tickers(
+def test_create_research_runs_rejects_tradingagents_post(
     initialized_schema: None,
 ) -> None:
     _ = initialized_schema
     payload: dict[str, Any] = {
         "strategy": "tradingagents",
-        "trade_date": "2026-05-18",
-        "tickers": [f"T{i}" for i in range(26)],
+        "tickers": ["AAPL"],
+        "trade_date": "2026-05-15",
         "llm_provider": "openai",
         "llm_model": "gpt-4o-mini",
     }
@@ -295,10 +271,9 @@ def test_create_research_runs_actually_persists(
     _ = initialized_schema
     _ = fake_queue
     payload: dict[str, Any] = {
-        "tickers": ["AAPL"],
+        "strategy": "funnel_research",
         "trade_date": "2026-05-15",
-        "llm_provider": "openai",
-        "llm_model": "gpt-4o-mini",
+        "scope_payload": {"kind": "macro", "universe": "us_equities"},
     }
     with TestClient(app) as client:
         response = client.post("/api/research-runs", json=payload)

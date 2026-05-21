@@ -57,41 +57,18 @@ async def create_research_runs(
     strategy = payload.strategy.value
     created: list[ResearchRun] = []
 
-    if payload.strategy is StrategyEnum.funnel_research:
-        assert payload.scope_payload is not None
-        run = ResearchRun(
-            id=uuid.uuid4(),
-            ticker=None,
-            trade_date=payload.trade_date,
-            strategy=strategy,
-            status=RunStatus.queued,
-            config={"prompt_version": PROMPT_VERSION},
-            scope_payload=payload.scope_payload.model_dump(mode="json"),
-        )
-        session.add(run)
-        created.append(run)
-    else:
-        tickers = payload.tickers or []
-        provider = payload.llm_provider
-        model = payload.llm_model
-        assert provider is not None and model is not None
-        config: dict[str, object] = {
-            "analysts": [a.value for a in payload.analysts],
-            "llm_provider": provider.value,
-            "llm_model": model,
-            "debate_depth": payload.debate_depth,
-        }
-        for ticker in tickers:
-            run = ResearchRun(
-                id=uuid.uuid4(),
-                ticker=ticker,
-                trade_date=payload.trade_date,
-                strategy=strategy,
-                status=RunStatus.queued,
-                config=config,
-            )
-            session.add(run)
-            created.append(run)
+    assert payload.scope_payload is not None
+    run = ResearchRun(
+        id=uuid.uuid4(),
+        ticker=None,
+        trade_date=payload.trade_date,
+        strategy=strategy,
+        status=RunStatus.queued,
+        config={"prompt_version": PROMPT_VERSION},
+        scope_payload=payload.scope_payload.model_dump(mode="json"),
+    )
+    session.add(run)
+    created.append(run)
 
     await session.commit()
     for run in created:

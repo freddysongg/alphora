@@ -4,10 +4,13 @@ import { updateTag } from "next/cache";
 
 import { getServerApi, isApiError } from "@/lib/api";
 import type { components } from "@/lib/api";
+import type {
+  UpdateSettingsActionState,
+  UpdateSettingsFieldErrors,
+} from "./action-state";
 
 type LlmProvider = components["schemas"]["LlmProviderEnum"];
-type UpdateRequest =
-  components["schemas"]["UpdateApplicationSettingsRequest"];
+type UpdateRequest = components["schemas"]["UpdateApplicationSettingsRequest"];
 
 const ALLOWED_PROVIDERS: ReadonlySet<LlmProvider> = new Set<LlmProvider>([
   "openai",
@@ -18,27 +21,6 @@ const ALLOWED_PROVIDERS: ReadonlySet<LlmProvider> = new Set<LlmProvider>([
 const DEPTH_MIN = 1;
 const DEPTH_MAX = 10;
 const MODEL_MAX_LENGTH = 128;
-
-export interface UpdateSettingsFieldErrors {
-  llm_provider?: readonly string[];
-  llm_model?: readonly string[];
-  llm_api_key?: readonly string[];
-  alpha_vantage_key?: readonly string[];
-  default_depth?: readonly string[];
-  default_model?: readonly string[];
-}
-
-export interface UpdateSettingsActionState {
-  status: "idle" | "ok" | "error";
-  message: string | null;
-  fields: UpdateSettingsFieldErrors;
-}
-
-export const initialUpdateSettingsState: UpdateSettingsActionState = {
-  status: "idle",
-  message: null,
-  fields: {},
-};
 
 function readOptional(formData: FormData, key: string): string {
   const raw = formData.get(key);

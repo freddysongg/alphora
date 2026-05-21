@@ -18,9 +18,9 @@ import {
 import type { components } from "@/lib/api";
 import {
   initialUpdateSettingsState,
-  updateProviderSettings,
-} from "./actions";
-import type { UpdateSettingsActionState } from "./actions";
+  type UpdateSettingsActionState,
+} from "./action-state";
+import { updateProviderSettings } from "./actions";
 import { MaskedKeyInput } from "./masked-key-input";
 
 type LlmProvider = components["schemas"]["LlmProviderEnum"];
@@ -216,7 +216,9 @@ export function SettingsForm(props: SettingsFormProps): ReactElement {
                 ))}
               </div>
             ) : (
-              <span className="text-xs text-fg-subtle">No analysts configured.</span>
+              <span className="text-xs text-fg-subtle">
+                No analysts configured.
+              </span>
             )}
           </div>
           <div className="flex flex-col gap-2">

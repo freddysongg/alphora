@@ -3,19 +3,13 @@ import type { ReactElement } from "react";
 import type { Route } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
 
+import { Button, CapsLabel, HexPill, StatusDot } from "@/components/ui";
+import type { StatusKind } from "@/components/ui";
 import { getServerApi, isApiError } from "@/lib/api";
 import type { components } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle, HexPill } from "@/components/ui";
-import { CostLedger } from "@/components/research/cost-ledger";
-import { CounterfactualMatrix } from "@/components/research/counterfactual-matrix";
-import { EvidenceFlow } from "@/components/research/evidence-flow";
-import { KnowledgeGraph } from "@/components/research/knowledge-graph";
-import { LeakageChart } from "@/components/research/leakage-chart";
-import { RunTimelineFlame } from "@/components/research/run-timeline-flame";
-import type { InlineClaim } from "@/components/research/inline-claim-review";
-
-import { InlineClaimReviewSection } from "./inline-claim-review-section";
+import { cn } from "@/lib/cn";
 
 export const metadata: Metadata = {
   title: "Run Observability · Alphora",
@@ -32,16 +26,22 @@ type CounterfactualRunSummary =
   components["schemas"]["CounterfactualRunSummary"];
 type LeakageRunPublic = components["schemas"]["LeakageRunPublic"];
 type MacroBriefPublic = components["schemas"]["MacroBriefPublic"];
-type CitedClaim = components["schemas"]["CitedClaim"];
-
-const NOT_FOUND_STATUS = 404;
-const LLM_CALL_FETCH_LIMIT = 500;
-const LEAKAGE_FETCH_LIMIT = 50;
-const INLINE_CLAIM_LIMIT = 20;
 
 interface ObservabilityPageProps {
   params: Promise<{ id: string }>;
 }
+
+interface DimensionEntry {
+  key: string;
+  label: string;
+  status: StatusKind;
+  summary: string;
+  href: Route;
+}
+
+const NOT_FOUND_STATUS = 404;
+const LLM_CALL_FETCH_LIMIT = 500;
+const LEAKAGE_FETCH_LIMIT = 50;
 
 async function loadRunDetail(runId: string): Promise<ResearchRunDetail | null> {
   try {
@@ -58,7 +58,9 @@ async function loadRunDetail(runId: string): Promise<ResearchRunDetail | null> {
   }
 }
 
-async function loadLlmCalls(runId: string): Promise<readonly LlmCallLogPublic[]> {
+async function loadLlmCalls(
+  runId: string,
+): Promise<readonly LlmCallLogPublic[]> {
   try {
     const { data } = await getServerApi().GET(
       "/api/research-runs/{run_id}/llm-calls",
@@ -97,7 +99,9 @@ async function loadCostLedger(runId: string): Promise<RunCostLedger | null> {
   }
 }
 
-async function loadEvidenceFlow(runId: string): Promise<RunEvidenceFlow | null> {
+async function loadEvidenceFlow(
+  runId: string,
+): Promise<RunEvidenceFlow | null> {
   try {
     const { data } = await getServerApi().GET(
       "/api/research-runs/{run_id}/evidence-flow",
@@ -188,42 +192,108 @@ async function loadMacroBrief(runId: string): Promise<MacroBriefPublic | null> {
   }
 }
 
-function defaultWeekStart(): string {
-  const now = new Date();
-  const day = now.getUTCDay();
-  const diff = (day + 6) % 7;
-  const monday = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - diff),
-  );
-  return monday.toISOString().slice(0, 10);
+function formatUsd(value: string | number): string {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed)) {
+    return "$—";
+  }
+  return `$${parsed.toFixed(4)}`;
 }
 
-function projectClaims(
-  macroBrief: MacroBriefPublic | null,
-): readonly InlineClaim[] {
-  if (macroBrief === null) {
-    return [];
+function statusFromCount(count: number): StatusKind {
+  return count > 0 ? "succeeded" : "pending";
+}
+
+function summarizeCount(count: number, noun: string): string {
+  if (count === 0) {
+    return "No data";
   }
-  const seenChunkIds = new Set<string>();
-  const projected: InlineClaim[] = [];
-  const claims: readonly CitedClaim[] = macroBrief.brief.cited_claims;
-  for (const claim of claims) {
-    if (seenChunkIds.has(claim.chunk_id)) {
-      continue;
-    }
-    seenChunkIds.add(claim.chunk_id);
-    projected.push({
-      chunkId: claim.chunk_id,
-      quote: claim.exact_quote,
-      briefKind: "macro",
-      briefId: null,
-      source: claim.source,
-    });
-    if (projected.length >= INLINE_CLAIM_LIMIT) {
-      break;
-    }
-  }
-  return projected;
+  return `${count} ${noun}`;
+}
+
+function deriveDimensions(args: {
+  runId: string;
+  calls: readonly LlmCallLogPublic[];
+  costLedger: RunCostLedger | null;
+  evidenceFlow: RunEvidenceFlow | null;
+  runGraph: RunGraph | null;
+  counterfactuals: CounterfactualRunSummary | null;
+  leakage: readonly LeakageRunPublic[];
+  macroBrief: MacroBriefPublic | null;
+}): readonly DimensionEntry[] {
+  const {
+    runId,
+    calls,
+    costLedger,
+    evidenceFlow,
+    runGraph,
+    counterfactuals,
+    leakage,
+    macroBrief,
+  } = args;
+  const base = `/research/runs/${runId}/observability`;
+  const callCount = calls.length;
+  const evidenceSources = evidenceFlow?.sources.length ?? 0;
+  const evidenceCount = evidenceFlow?.total_evidence ?? evidenceSources;
+  const graphNodes = runGraph?.nodes.length ?? 0;
+  const cfCount = counterfactuals?.perturbations.length ?? 0;
+  const leakageCount = leakage.length;
+  const claimCount = macroBrief?.brief.cited_claims.length ?? 0;
+  const totalCost = costLedger?.total_cost_usd ?? null;
+  return [
+    {
+      key: "llm-calls",
+      label: "LLM CALLS",
+      status: statusFromCount(callCount),
+      summary: summarizeCount(callCount, "calls"),
+      href: `${base}/llm-calls` as Route,
+    },
+    {
+      key: "cost",
+      label: "COST LEDGER",
+      status: totalCost !== null ? "succeeded" : "pending",
+      summary: totalCost !== null ? formatUsd(totalCost) : "No cost recorded",
+      href: `${base}/cost` as Route,
+    },
+    {
+      key: "evidence",
+      label: "EVIDENCE FLOW",
+      status: statusFromCount(evidenceCount),
+      summary:
+        evidenceCount === 0
+          ? "No data"
+          : `${evidenceCount} evidence · ${evidenceSources} sources`,
+      href: `${base}/evidence` as Route,
+    },
+    {
+      key: "graph",
+      label: "KNOWLEDGE GRAPH",
+      status: statusFromCount(graphNodes),
+      summary: summarizeCount(graphNodes, "nodes"),
+      href: `${base}/graph` as Route,
+    },
+    {
+      key: "counterfactuals",
+      label: "COUNTERFACTUALS",
+      status: statusFromCount(cfCount),
+      summary: summarizeCount(cfCount, "perturbations"),
+      href: `${base}/counterfactuals` as Route,
+    },
+    {
+      key: "leakage",
+      label: "LEAKAGE",
+      status: statusFromCount(leakageCount),
+      summary: summarizeCount(leakageCount, "holdout runs"),
+      href: `${base}/leakage` as Route,
+    },
+    {
+      key: "claims",
+      label: "CLAIM REVIEW",
+      status: statusFromCount(claimCount),
+      summary: summarizeCount(claimCount, "cited claims"),
+      href: `${base}/claims` as Route,
+    },
+  ];
 }
 
 export default async function RunObservabilityPage(
@@ -234,27 +304,44 @@ export default async function RunObservabilityPage(
   if (detail === null) {
     notFound();
   }
-  const [calls, costLedger, evidenceFlow, runGraph, counterfactuals, leakageRuns, macroBrief] =
-    await Promise.all([
-      loadLlmCalls(id),
-      loadCostLedger(id),
-      loadEvidenceFlow(id),
-      loadRunGraph(id),
-      loadCounterfactuals(id),
-      loadLeakageRuns(id),
-      detail.strategy === "funnel_research" ? loadMacroBrief(id) : Promise.resolve(null),
-    ]);
-  const inlineClaims = projectClaims(macroBrief);
+  const isFunnel = detail.strategy === "funnel_research";
+  const [
+    calls,
+    costLedger,
+    evidenceFlow,
+    runGraph,
+    counterfactuals,
+    leakage,
+    macroBrief,
+  ] = await Promise.all([
+    loadLlmCalls(id),
+    loadCostLedger(id),
+    loadEvidenceFlow(id),
+    loadRunGraph(id),
+    loadCounterfactuals(id),
+    loadLeakageRuns(id),
+    isFunnel ? loadMacroBrief(id) : Promise.resolve(null),
+  ]);
+  const dimensions = deriveDimensions({
+    runId: id,
+    calls,
+    costLedger,
+    evidenceFlow,
+    runGraph,
+    counterfactuals,
+    leakage,
+    macroBrief,
+  });
+  const runHref = `/research/runs/${id}` as Route;
   return (
-    <div className="max-w-[1400px] mx-auto" data-testid="observability-page">
+    <div className="max-w-[1100px] mx-auto" data-testid="observability-page">
       <header className="sticky top-0 z-10 bg-canvas border-b border-line">
         <div className="flex items-center gap-4 px-6 py-4">
-          <Link
-            href={`/research/runs/${detail.id}` as Route}
-            className="text-sm text-fg-muted hover:text-fg underline-offset-2 hover:underline"
-          >
-            ← RUN DETAIL
-          </Link>
+          <Button asChild size="sm" variant="ghost" aria-label="Back to run">
+            <Link href={runHref}>
+              <ArrowLeft size={12} weight="regular" />
+            </Link>
+          </Button>
           <span className="text-2xl font-mono tabular-nums text-fg">
             OBSERVABILITY
           </span>
@@ -262,41 +349,47 @@ export default async function RunObservabilityPage(
         </div>
       </header>
 
-      <div className="px-6 pt-4 pb-12 flex flex-col gap-6">
-        <RunTimelineFlame calls={calls} />
-        <CostLedger
-          ledger={costLedger}
-          sourceClientCacheStats={
-            (detail.source_client_cache_stats as
-              | { hits?: number; misses?: number; evictions?: number; hit_rate?: number }
-              | null
-              | undefined) ?? null
-          }
-        />
-        <EvidenceFlow flow={evidenceFlow} />
-        <CounterfactualMatrix
-          perturbations={counterfactuals?.perturbations ?? []}
-        />
-        <LeakageChart runs={leakageRuns} />
-        <InlineClaimReviewSection
-          runId={detail.id}
-          defaultWeekStart={defaultWeekStart()}
-          claims={inlineClaims}
-        />
-        <KnowledgeGraph graph={runGraph} />
-        {inlineClaims.length === 0 && macroBrief === null ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>NO MACRO BRIEF</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-fg-subtle">
-                Inline claim review is empty because this run has no macro brief yet.
-              </p>
-            </CardContent>
-          </Card>
-        ) : null}
+      <div className="px-6 pt-6 pb-12">
+        <ul className="flex flex-col">
+          {dimensions.map((entry) => (
+            <DimensionRow key={entry.key} entry={entry} />
+          ))}
+        </ul>
       </div>
     </div>
+  );
+}
+
+interface DimensionRowProps {
+  entry: DimensionEntry;
+}
+
+function DimensionRow(props: DimensionRowProps): ReactElement {
+  const { entry } = props;
+  return (
+    <li>
+      <Link
+        href={entry.href}
+        className={cn(
+          "group block px-3 -mx-3 rounded-md transition-colors duration-150",
+          "hover:bg-surface-2",
+        )}
+      >
+        <div className="flex items-center gap-4 py-4 border-t border-line/60">
+          <div className="w-56 shrink-0">
+            <CapsLabel className="text-fg">{entry.label}</CapsLabel>
+          </div>
+          <StatusDot status={entry.status} />
+          <span className="text-sm text-fg-muted truncate min-w-0 flex-1">
+            {entry.summary}
+          </span>
+          <CaretRight
+            size={14}
+            weight="regular"
+            className="text-fg-subtle group-hover:text-fg shrink-0"
+          />
+        </div>
+      </Link>
+    </li>
   );
 }

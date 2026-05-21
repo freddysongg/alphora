@@ -8,22 +8,21 @@ from app.db.session import session_factory
 from app.main import app
 
 
-def test_create_research_runs_defaults_strategy_to_tradingagents(
+def test_create_research_runs_persists_funnel_research_strategy(
     initialized_schema: None, fake_queue: Any
 ) -> None:
     _ = initialized_schema
     _ = fake_queue
     payload: dict[str, Any] = {
-        "tickers": ["AAPL"],
+        "strategy": "funnel_research",
         "trade_date": "2026-05-15",
-        "llm_provider": "openai",
-        "llm_model": "gpt-4o-mini",
+        "scope_payload": {"kind": "macro", "universe": "us_equities"},
     }
     with TestClient(app) as client:
         response = client.post("/api/research-runs", json=payload)
     assert response.status_code == 201, response.text
     body = response.json()
-    assert body[0]["strategy"] == Strategy.tradingagents.value
+    assert body[0]["strategy"] == Strategy.funnel_research.value
 
     import asyncio
 
@@ -33,39 +32,40 @@ def test_create_research_runs_defaults_strategy_to_tradingagents(
             return [row.strategy for row in rows]
 
     persisted = asyncio.run(_load_strategies())
-    assert persisted == [Strategy.tradingagents.value]
+    assert persisted == [Strategy.funnel_research.value]
 
 
-def test_create_research_runs_persists_requested_strategy(
+def test_create_research_runs_defaults_strategy_to_funnel_research(
     initialized_schema: None, fake_queue: Any
 ) -> None:
     _ = initialized_schema
     _ = fake_queue
     payload: dict[str, Any] = {
-        "tickers": ["AAPL", "MSFT"],
         "trade_date": "2026-05-15",
-        "llm_provider": "openai",
-        "llm_model": "gpt-4o-mini",
-        "strategy": "tradingagents",
+        "scope_payload": {"kind": "macro", "universe": "us_equities"},
     }
     with TestClient(app) as client:
         response = client.post("/api/research-runs", json=payload)
     assert response.status_code == 201, response.text
     body = response.json()
-    assert {row["strategy"] for row in body} == {Strategy.tradingagents.value}
+    assert body[0]["strategy"] == Strategy.funnel_research.value
 
-    import asyncio
 
-    async def _load_strategies() -> list[str]:
-        async with session_factory() as session:
-            rows = (await session.execute(select(ResearchRun))).scalars().all()
-            return sorted(row.strategy for row in rows)
-
-    persisted = asyncio.run(_load_strategies())
-    assert persisted == [
-        Strategy.tradingagents.value,
-        Strategy.tradingagents.value,
-    ]
+def test_create_research_runs_rejects_tradingagents_strategy(
+    initialized_schema: None, fake_queue: Any
+) -> None:
+    _ = initialized_schema
+    _ = fake_queue
+    payload: dict[str, Any] = {
+        "strategy": "tradingagents",
+        "trade_date": "2026-05-15",
+        "tickers": ["AAPL"],
+        "llm_provider": "openai",
+        "llm_model": "gpt-4o-mini",
+    }
+    with TestClient(app) as client:
+        response = client.post("/api/research-runs", json=payload)
+    assert response.status_code == 422
 
 
 def test_create_research_runs_rejects_unknown_strategy(
@@ -74,11 +74,9 @@ def test_create_research_runs_rejects_unknown_strategy(
     _ = initialized_schema
     _ = fake_queue
     payload: dict[str, Any] = {
-        "tickers": ["AAPL"],
-        "trade_date": "2026-05-15",
-        "llm_provider": "openai",
-        "llm_model": "gpt-4o-mini",
         "strategy": "not_a_real_strategy",
+        "trade_date": "2026-05-15",
+        "scope_payload": {"kind": "macro", "universe": "us_equities"},
     }
     with TestClient(app) as client:
         response = client.post("/api/research-runs", json=payload)
@@ -91,11 +89,9 @@ def test_get_research_run_detail_exposes_strategy(
     _ = initialized_schema
     _ = fake_queue
     payload: dict[str, Any] = {
-        "tickers": ["AAPL"],
+        "strategy": "funnel_research",
         "trade_date": "2026-05-15",
-        "llm_provider": "openai",
-        "llm_model": "gpt-4o-mini",
-        "strategy": "tradingagents",
+        "scope_payload": {"kind": "macro", "universe": "us_equities"},
     }
     with TestClient(app) as client:
         create_response = client.post("/api/research-runs", json=payload)
@@ -103,4 +99,4 @@ def test_get_research_run_detail_exposes_strategy(
         run_id = create_response.json()[0]["id"]
         detail_response = client.get(f"/api/research-runs/{run_id}")
     assert detail_response.status_code == 200
-    assert detail_response.json()["strategy"] == Strategy.tradingagents.value
+    assert detail_response.json()["strategy"] == Strategy.funnel_research.value

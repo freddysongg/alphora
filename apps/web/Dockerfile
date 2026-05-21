@@ -2,11 +2,12 @@ FROM node:22-bookworm-slim AS deps
 WORKDIR /repo
 COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/package.json
-RUN npm install --workspace=@alphora/web --include-workspace-root --no-audit --no-fund
+RUN npm install --workspace=@alphora/web --include-workspace-root --include=optional --no-audit --no-fund
 
 FROM node:22-bookworm-slim AS builder
 WORKDIR /repo
 ENV NEXT_TELEMETRY_DISABLED=1
+RUN corepack enable
 COPY --from=deps /repo/node_modules ./node_modules
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY apps/web ./apps/web

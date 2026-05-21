@@ -47,13 +47,6 @@ export function CommandPaletteMount(): ReactElement {
     ];
     const settingItems: CommandItem[] = [
       {
-        id: "settings-account",
-        label: "Account",
-        hint: "Settings",
-        section: "settings",
-        onSelect: () => router.push("/settings/account" as Route),
-      },
-      {
         id: "settings-api-keys",
         label: "API Keys",
         hint: "Settings",

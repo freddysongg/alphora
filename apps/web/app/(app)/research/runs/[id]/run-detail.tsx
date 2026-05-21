@@ -5,89 +5,31 @@ import type { ReactElement } from "react";
 import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { ColumnDef } from "@tanstack/react-table";
-import {
-  Button,
-  CapsLabel,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  DataTable,
-  HexPill,
-  MetricQuadrant,
-  StatusDot,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui";
-import type { MetricTile, StatusKind } from "@/components/ui";
+import { CaretRight } from "@phosphor-icons/react/dist/ssr";
+import { Button, CapsLabel, HexPill, StatusDot } from "@/components/ui";
+import type { StatusKind } from "@/components/ui";
 import type { components } from "@/lib/api";
-import { readNumber, readStringArray } from "@/lib/api/config";
-import { formatWallClock } from "@/lib/format/wall-clock";
-import { mapEventsToLogLines } from "@/lib/research/map-events-to-log-lines";
-import {
-  compareAnalysts,
-  resolveAnalystLabel,
-} from "@/lib/research/analyst-labels";
-import {
-  isTerminal,
-  provenanceStatusToStatusKind,
-  runStatusToStatusKind,
-} from "@/lib/research/status-mapping";
-import { RunLogStream } from "@/components/research/run-log-stream";
-import { RunCostMeter } from "@/components/research/run-cost-meter";
-import type { CostMeterState } from "@/components/research/run-cost-meter";
 import { RunSseProvider } from "@/components/research/run-sse-context";
-import { CounterfactualGateSummary } from "@/components/research/counterfactual-gate-summary";
 import { HumanReviewForm } from "@/components/research/human-review-form";
 import { HumanReviewSummaryWidget } from "@/components/research/human-review-summary";
+import type { HypothesisBeliefBundle } from "@/components/research/hypothesis-belief-explainer";
+import type { HypothesisLifecycleBundle } from "@/components/research/hypothesis-lifecycle-card";
+import { LiveCostStrip } from "@/components/research/live-cost-strip";
+import type { CostMeterState } from "@/components/research/live-cost-strip";
 import {
-  HypothesisBeliefExplainer,
-  type HypothesisBeliefBundle,
-} from "@/components/research/hypothesis-belief-explainer";
-import {
-  HypothesisLifecycleCard,
-  type HypothesisLifecycleBundle,
-} from "@/components/research/hypothesis-lifecycle-card";
+  isTerminal,
+  runStatusToStatusKind,
+} from "@/lib/research/status-mapping";
 import { cn } from "@/lib/cn";
 import { CancelRunButton } from "./cancel-run-button";
-import { MacroBriefDetail } from "./macro-brief-detail";
-import { RerunButton } from "./rerun-button";
 
 type ResearchRunDetail = components["schemas"]["ResearchRunDetail"];
 type RunStatus = components["schemas"]["RunStatusEnum"];
-type FinalRating = components["schemas"]["FinalRatingEnum"];
-type RunReport = components["schemas"]["RunReportPublic"];
-type SourceProvenance = components["schemas"]["SourceProvenancePublic"];
 type MacroBriefPublic = components["schemas"]["MacroBriefPublic"];
-type CounterfactualGateRow =
-  components["schemas"]["CounterfactualGateRunPublic"];
+type PortfolioBriefPublic = components["schemas"]["PortfolioBriefPublic"];
 type HumanReviewSummary = components["schemas"]["HumanReviewSummary"];
 type RunCostEstimate = components["schemas"]["RunCostEstimate"];
-
-type TabKey =
-  | "overview"
-  | "reports"
-  | "debate"
-  | "risk"
-  | "logs"
-  | "provenance";
-
-interface TabConfig {
-  key: TabKey;
-  label: string;
-}
-
-const tabConfigs: readonly TabConfig[] = [
-  { key: "overview", label: "OVERVIEW" },
-  { key: "reports", label: "REPORTS" },
-  { key: "debate", label: "DEBATE" },
-  { key: "risk", label: "RISK" },
-  { key: "logs", label: "LOGS" },
-  { key: "provenance", label: "PROVENANCE" },
-];
+type ScopePayload = ResearchRunDetail["scope_payload"];
 
 const statusToLabel: Record<RunStatus, string> = {
   queued: "QUEUED",
@@ -98,417 +40,428 @@ const statusToLabel: Record<RunStatus, string> = {
   paused: "PAUSED",
 };
 
-const ratingToLabel: Record<FinalRating, string> = {
-  buy: "BUY",
-  hold: "HOLD",
-  sell: "SELL",
-  none: "—",
+const SCOPE_UNIVERSE_LABEL: Record<string, string> = {
+  us_equities: "US EQUITIES",
 };
 
-const ratingToAccent: Record<FinalRating, string> = {
-  buy: "text-accent-text",
-  hold: "text-fg",
-  sell: "text-danger",
-  none: "text-fg-subtle",
-};
-
-function resolveRatingLabel(rating: FinalRating | null): string {
-  if (rating === null) {
-    return "—";
-  }
-  return ratingToLabel[rating];
-}
-
-function resolveRatingClass(rating: FinalRating | null): string {
-  if (rating === null) {
-    return "text-fg-subtle";
-  }
-  return ratingToAccent[rating];
-}
-
-const provenanceColumns: ColumnDef<SourceProvenance, unknown>[] = [
-  {
-    accessorKey: "provider",
-    header: "Provider",
-    cell: ({ getValue }) => (
-      <span className="text-fg">{String(getValue<string>())}</span>
-    ),
-  },
-  {
-    accessorKey: "tool",
-    header: "Tool",
-    cell: ({ getValue }) => (
-      <span className="text-fg-muted">{String(getValue<string>())}</span>
-    ),
-  },
-  {
-    accessorKey: "ticker",
-    header: "Ticker",
-    cell: ({ getValue }) => (
-      <span className="font-mono text-fg">{String(getValue<string>())}</span>
-    ),
-  },
-  {
-    accessorKey: "latency_ms",
-    header: "Latency",
-    meta: { numeric: true },
-    cell: ({ getValue }) => (
-      <span>{getValue<number>().toLocaleString()}</span>
-    ),
-  },
-  {
-    accessorKey: "sample_count",
-    header: "Samples",
-    meta: { numeric: true },
-    cell: ({ getValue }) => (
-      <span>{getValue<number>().toLocaleString()}</span>
-    ),
-  },
-  {
-    accessorKey: "as_of",
-    header: "As-of",
-    meta: { numeric: true },
-    cell: ({ getValue }) => {
-      const raw = getValue<string | null>();
-      return <span>{raw ?? "—"}</span>;
-    },
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ getValue }) => (
-      <StatusDot
-        status={provenanceStatusToStatusKind(
-          getValue<SourceProvenance["status"]>(),
-        )}
-      />
-    ),
-  },
-];
-
-interface AnalystChipModel {
+interface StageEntry {
   key: string;
   label: string;
+  count: string | null;
   status: StatusKind;
-}
-
-function buildAnalystChips(
-  analystKeys: readonly string[],
-  reports: readonly RunReport[],
-): AnalystChipModel[] {
-  const fulfilled = new Set<string>();
-  for (const report of reports) {
-    fulfilled.add(report.analyst);
-  }
-  const union = new Set<string>(analystKeys);
-  for (const report of reports) {
-    union.add(report.analyst);
-  }
-  const ordered = Array.from(union).sort(compareAnalysts);
-  return ordered.map((key) => ({
-    key,
-    label: resolveAnalystLabel(key).toUpperCase(),
-    status: fulfilled.has(key) ? "succeeded" : "pending",
-  }));
-}
-
-function buildMetricTiles(detail: ResearchRunDetail): MetricTile[] {
-  const debateDepth = readNumber(detail.config, "debate_depth");
-  return [
-    { label: "TOKENS USED", value: "—", sparkline: [] },
-    {
-      label: "TOOL CALLS",
-      value: detail.provenance.length.toLocaleString(),
-      sparkline: [],
-    },
-    {
-      label: "DEBATE ROUNDS",
-      value: debateDepth !== null ? debateDepth.toString() : "—",
-      sparkline: [],
-    },
-    {
-      label: "WALL CLOCK",
-      value: formatWallClock(detail.wall_clock_ms),
-      sparkline: [],
-    },
-  ];
+  summary: string;
+  href: Route | null;
 }
 
 export interface RunDetailProps {
   detail: ResearchRunDetail;
   macroBrief: MacroBriefPublic | null;
+  portfolioBrief: PortfolioBriefPublic | null;
   initialCostState: CostMeterState;
   initialSeenLogIds: readonly string[];
   costEstimate: RunCostEstimate | null;
-  counterfactualGates: readonly CounterfactualGateRow[];
   humanReviewSummary: HumanReviewSummary;
   defaultWeekStart: string;
   beliefBundles: readonly HypothesisBeliefBundle[];
   lifecycleBundles: readonly HypothesisLifecycleBundle[];
 }
 
+function resolveHeaderLabel(detail: ResearchRunDetail): string {
+  if (detail.ticker !== null) {
+    return detail.ticker;
+  }
+  return resolveScopeLabel(detail.scope_payload) ?? "—";
+}
+
+function resolveScopeLabel(scope: ScopePayload): string | null {
+  if (scope === null || scope === undefined) {
+    return null;
+  }
+  const record = scope as Record<string, unknown>;
+  const kind = record["kind"];
+  const universe = record["universe"];
+  if (typeof kind !== "string" || typeof universe !== "string") {
+    return null;
+  }
+  const universeLabel =
+    SCOPE_UNIVERSE_LABEL[universe] ?? universe.toUpperCase();
+  return `${kind.toUpperCase()} · ${universeLabel}`;
+}
+
+function deriveMacroStage(
+  detail: ResearchRunDetail,
+  macroBrief: MacroBriefPublic | null,
+): StageEntry {
+  const runId = detail.id;
+  if (macroBrief !== null) {
+    const themeCount = macroBrief.brief.themes.length;
+    const sectorCallCount = macroBrief.brief.sector_calls.length;
+    return {
+      key: "macro",
+      label: "MACRO BRIEF",
+      count: null,
+      status: "succeeded",
+      summary: `${themeCount} themes · ${sectorCallCount} sector calls`,
+      href: `/research/runs/${runId}/macro-brief` as Route,
+    };
+  }
+  return {
+    key: "macro",
+    label: "MACRO BRIEF",
+    count: null,
+    status: stageStatusForMissing(detail.status),
+    summary: missingSummary(detail.status, "Generating"),
+    href: null,
+  };
+}
+
+function deriveHypothesesStage(
+  detail: ResearchRunDetail,
+  bundles: readonly HypothesisBeliefBundle[],
+  lifecycle: readonly HypothesisLifecycleBundle[],
+): StageEntry {
+  const runId = detail.id;
+  if (bundles.length === 0) {
+    return {
+      key: "hypotheses",
+      label: "HYPOTHESES",
+      count: null,
+      status: stageStatusForMissing(detail.status),
+      summary: missingSummary(detail.status, "Pending macro brief"),
+      href: null,
+    };
+  }
+  const activeCount = lifecycle.filter(
+    (bundle) => bundle.hypothesis.state === "active",
+  ).length;
+  const validatedCount = lifecycle.filter(
+    (bundle) => bundle.hypothesis.state === "validated",
+  ).length;
+  const falsifiedCount = lifecycle.filter(
+    (bundle) => bundle.hypothesis.state === "falsified",
+  ).length;
+  return {
+    key: "hypotheses",
+    label: "HYPOTHESES",
+    count: `(${bundles.length})`,
+    status: "succeeded",
+    summary: `${activeCount} active · ${validatedCount} validated · ${falsifiedCount} falsified`,
+    href: `/research/runs/${runId}/hypotheses` as Route,
+  };
+}
+
+function deriveSectorsStage(
+  detail: ResearchRunDetail,
+  macroBrief: MacroBriefPublic | null,
+): StageEntry {
+  const runId = detail.id;
+  const sectorBriefs = macroBrief?.sector_briefs ?? [];
+  if (sectorBriefs.length === 0) {
+    return {
+      key: "sectors",
+      label: "SECTORS",
+      count: null,
+      status: stageStatusForMissing(detail.status),
+      summary: missingSummary(detail.status, "Awaiting fan-out"),
+      href: null,
+    };
+  }
+  const sectorNames = sectorBriefs
+    .map((sb) => sb.brief.sector_name)
+    .slice(0, 3)
+    .join(", ");
+  const overflow =
+    sectorBriefs.length > 3 ? ` + ${sectorBriefs.length - 3} more` : "";
+  return {
+    key: "sectors",
+    label: "SECTORS",
+    count: `(${sectorBriefs.length})`,
+    status: "succeeded",
+    summary: `${sectorNames}${overflow}`,
+    href: `/research/runs/${runId}/sectors` as Route,
+  };
+}
+
+function deriveCompaniesStage(
+  detail: ResearchRunDetail,
+  macroBrief: MacroBriefPublic | null,
+): StageEntry {
+  const runId = detail.id;
+  const sectorBriefs = macroBrief?.sector_briefs ?? [];
+  const totalCompanies = sectorBriefs.reduce(
+    (sum, sb) => sum + sb.brief.companies.length,
+    0,
+  );
+  if (totalCompanies === 0) {
+    return {
+      key: "companies",
+      label: "COMPANIES",
+      count: null,
+      status: stageStatusForMissing(detail.status),
+      summary: missingSummary(detail.status, "Awaiting sector briefs"),
+      href: null,
+    };
+  }
+  return {
+    key: "companies",
+    label: "COMPANIES",
+    count: `(${totalCompanies})`,
+    status: "succeeded",
+    summary: `Across ${sectorBriefs.length} sectors`,
+    href: `/research/runs/${runId}/companies` as Route,
+  };
+}
+
+function derivePortfolioStage(
+  detail: ResearchRunDetail,
+  portfolioBrief: PortfolioBriefPublic | null,
+): StageEntry {
+  const runId = detail.id;
+  if (portfolioBrief !== null) {
+    const pickCount = portfolioBrief.brief.companies.length;
+    return {
+      key: "portfolio",
+      label: "PORTFOLIO BRIEF",
+      count: null,
+      status: "succeeded",
+      summary: `${pickCount} picks`,
+      href: `/research/runs/${runId}/portfolio-brief` as Route,
+    };
+  }
+  return {
+    key: "portfolio",
+    label: "PORTFOLIO BRIEF",
+    count: null,
+    status: stageStatusForMissing(detail.status),
+    summary: missingSummary(detail.status, "Awaiting company theses"),
+    href: null,
+  };
+}
+
+function deriveHumanReviewStage(
+  detail: ResearchRunDetail,
+  summary: HumanReviewSummary,
+): StageEntry {
+  const submittedWeeks = summary.weeks.length;
+  if (!isTerminal(detail.status)) {
+    return {
+      key: "human-review",
+      label: "HUMAN REVIEW",
+      count: null,
+      status: "pending",
+      summary: "Available after run completes",
+      href: null,
+    };
+  }
+  if (submittedWeeks > 0) {
+    return {
+      key: "human-review",
+      label: "HUMAN REVIEW",
+      count: null,
+      status: "succeeded",
+      summary: `${submittedWeeks} submitted reviews`,
+      href: null,
+    };
+  }
+  return {
+    key: "human-review",
+    label: "HUMAN REVIEW",
+    count: null,
+    status: "pending",
+    summary: "Open form below",
+    href: null,
+  };
+}
+
+function stageStatusForMissing(runStatus: RunStatus): StatusKind {
+  if (runStatus === "failed" || runStatus === "cancelled") {
+    return "stale";
+  }
+  if (runStatus === "running") {
+    return "live";
+  }
+  return "pending";
+}
+
+function missingSummary(runStatus: RunStatus, generating: string): string {
+  if (runStatus === "failed") {
+    return "Did not run";
+  }
+  if (runStatus === "cancelled") {
+    return "Cancelled";
+  }
+  if (runStatus === "running") {
+    return generating;
+  }
+  return "—";
+}
+
 export function RunDetail(props: RunDetailProps): ReactElement {
   const {
     detail,
     macroBrief,
+    portfolioBrief,
     initialCostState,
     initialSeenLogIds,
     costEstimate,
-    counterfactualGates,
     humanReviewSummary,
     defaultWeekStart,
     beliefBundles,
     lifecycleBundles,
   } = props;
   const router = useRouter();
-  const isFunnelResearch = detail.strategy === "funnel_research";
-  const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [optimisticStatus, setOptimisticStatus] = useState<RunStatus | null>(
     null,
   );
+  const resolvedStatus = optimisticStatus ?? detail.status;
+  const isCancellable =
+    resolvedStatus === "queued" ||
+    resolvedStatus === "running" ||
+    resolvedStatus === "paused";
+  const isLogStreamTerminal = isTerminal(resolvedStatus);
+  const headerLabel = resolveHeaderLabel(detail);
 
+  const stages = useMemo<readonly StageEntry[]>(
+    () => [
+      deriveMacroStage(detail, macroBrief),
+      deriveHypothesesStage(detail, beliefBundles, lifecycleBundles),
+      deriveSectorsStage(detail, macroBrief),
+      deriveCompaniesStage(detail, macroBrief),
+      derivePortfolioStage(detail, portfolioBrief),
+      deriveHumanReviewStage(detail, humanReviewSummary),
+    ],
+    [
+      detail,
+      macroBrief,
+      portfolioBrief,
+      beliefBundles,
+      lifecycleBundles,
+      humanReviewSummary,
+    ],
+  );
+
+  const handleOptimisticCancel = useCallback((): void => {
+    setOptimisticStatus("cancelled");
+  }, []);
+  const handleCancelRollback = useCallback((): void => {
+    setOptimisticStatus(null);
+  }, []);
   const handleReviewSubmitted = useCallback((): void => {
     router.refresh();
   }, [router]);
 
-  const resolvedStatus = optimisticStatus ?? detail.status;
-  const analystKeys = useMemo(
-    () => readStringArray(detail.config, "analysts"),
-    [detail.config],
-  );
-  const analystChips = useMemo(
-    () => buildAnalystChips(analystKeys, detail.reports),
-    [analystKeys, detail.reports],
-  );
-  const metricTiles = useMemo(() => buildMetricTiles(detail), [detail]);
-  const initialLogLines = useMemo(
-    () => mapEventsToLogLines(detail.events),
-    [detail.events],
-  );
-  const reportOptions = useMemo(
-    () =>
-      detail.reports.map((report) => ({
-        key: report.id,
-        analyst: report.analyst,
-        label: resolveAnalystLabel(report.analyst),
-        markdown: report.markdown,
-      })),
-    [detail.reports],
-  );
-  const [activeReportId, setActiveReportId] = useState<string | null>(
-    reportOptions[0]?.key ?? null,
-  );
-  const activeReport = useMemo(() => {
-    if (activeReportId === null) {
-      return null;
-    }
-    return reportOptions.find((option) => option.key === activeReportId) ?? null;
-  }, [activeReportId, reportOptions]);
-  const isCancellable =
-    resolvedStatus === "queued"
-    || resolvedStatus === "running"
-    || resolvedStatus === "paused";
-  const isLogStreamTerminal = isTerminal(resolvedStatus);
-
-  const handleOptimisticCancel = (): void => {
-    setOptimisticStatus("cancelled");
-  };
-  const handleCancelRollback = (): void => {
-    setOptimisticStatus(null);
-  };
+  const showReviewForm =
+    isTerminal(resolvedStatus) && humanReviewSummary.weeks.length === 0;
 
   return (
     <RunSseProvider runId={detail.id} isTerminal={isLogStreamTerminal}>
-    <div className="max-w-[1400px] mx-auto">
-      <header className="sticky top-0 z-10 bg-canvas border-b border-line">
-        <div className="flex items-center gap-4 px-6 py-4">
-          <span className="text-2xl font-mono tabular-nums text-fg">
-            {detail.ticker ?? "—"}
-          </span>
-          <HexPill value={detail.id} />
-          <StatusDot
-            status={runStatusToStatusKind(resolvedStatus)}
-            label={statusToLabel[resolvedStatus]}
-          />
-          <div className="flex-1" />
-          {isFunnelResearch ? (
-            <Button asChild size="sm" variant="ghost">
-              <Link
-                href={`/research/runs/${detail.id}/portfolio-brief` as Route}
-              >
-                PORTFOLIO BRIEF
-              </Link>
-            </Button>
-          ) : null}
-          <Button asChild size="sm" variant="ghost">
-            <Link href={`/research/runs/${detail.id}/observability` as Route}>
-              OBSERVABILITY
-            </Link>
-          </Button>
-          {isCancellable ? (
-            <CancelRunButton
-              runId={detail.id}
-              onOptimisticCancel={handleOptimisticCancel}
-              onCancelRollback={handleCancelRollback}
+      <div className="max-w-[1100px] mx-auto">
+        <header className="sticky top-0 z-10 bg-canvas border-b border-line">
+          <div className="flex items-center gap-4 px-6 py-4">
+            <span className="text-2xl font-mono tabular-nums text-fg">
+              {headerLabel}
+            </span>
+            <HexPill value={detail.id} />
+            <StatusDot
+              status={runStatusToStatusKind(resolvedStatus)}
+              label={statusToLabel[resolvedStatus]}
             />
-          ) : detail.ticker !== null ? (
-            <RerunButton runId={detail.id} />
-          ) : null}
-        </div>
-      </header>
-
-      <div className="px-6 pt-4 pb-12 flex flex-col gap-6">
-        <RunCostMeter
-          initialState={initialCostState}
-          initialSeenLogIds={initialSeenLogIds}
-          costEstimate={costEstimate}
-        />
-        <CounterfactualGateSummary gates={counterfactualGates} />
-        <HypothesisBeliefExplainer bundles={beliefBundles} />
-        <HypothesisLifecycleCard bundles={lifecycleBundles} />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <HumanReviewForm
-            runId={detail.id}
-            defaultWeekStart={defaultWeekStart}
-            onSubmitted={handleReviewSubmitted}
-          />
-          <HumanReviewSummaryWidget summary={humanReviewSummary} />
-        </div>
-        {isFunnelResearch && macroBrief !== null ? (
-          <MacroBriefDetail data={macroBrief} runId={detail.id} />
-        ) : isFunnelResearch &&
-          (resolvedStatus === "failed" || resolvedStatus === "cancelled") ? (
-          <p className="text-sm text-fg-muted">
-            Macro brief was not produced because the run was {resolvedStatus}.
-          </p>
-        ) : isFunnelResearch ? (
-          <p className="text-sm text-fg-muted">Macro brief is generating…</p>
-        ) : (
-          <Tabs
-            value={activeTab}
-            onValueChange={(next) => setActiveTab(next as TabKey)}
-          >
-            <TabsList>
-              {tabConfigs.map((tab) => (
-                <TabsTrigger key={tab.key} value={tab.key}>
-                  {tab.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
-            <TabsContent value="overview">
-              <div className="flex flex-col gap-6">
-                <MetricQuadrant tiles={metricTiles} />
-                <Card>
-                  <CardHeader>
-                    <CardTitle>FINAL DECISION</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-baseline gap-4">
-                      <span
-                        className={cn(
-                          "text-2xl font-mono tabular-nums",
-                          resolveRatingClass(detail.final_rating),
-                        )}
-                      >
-                        {resolveRatingLabel(detail.final_rating)}
-                      </span>
-                    </div>
-                    <p className="mt-4 text-sm text-fg-muted leading-relaxed whitespace-pre-wrap">
-                      {detail.final_decision_summary ?? "Decision pending."}
-                    </p>
-                    {analystChips.length > 0 ? (
-                      <div className="mt-6 flex flex-wrap gap-4">
-                        {analystChips.map((chip) => (
-                          <StatusDot
-                            key={chip.key}
-                            status={chip.status}
-                            label={chip.label}
-                          />
-                        ))}
-                      </div>
-                    ) : null}
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="reports">
-              {reportOptions.length === 0 ? (
-                <p className="text-sm text-fg-subtle py-6">
-                  Reports will appear here as analysts finish.
-                </p>
-              ) : (
-                <div className="flex gap-6">
-                  <aside className="w-56 shrink-0">
-                    <CapsLabel className="px-2 py-2 block">ANALYSTS</CapsLabel>
-                    <ul className="flex flex-col">
-                      {reportOptions.map((option) => {
-                        const isActive = option.key === activeReportId;
-                        return (
-                          <li key={option.key}>
-                            <button
-                              type="button"
-                              onClick={() => setActiveReportId(option.key)}
-                              className={cn(
-                                "w-full text-left px-2 py-2 text-sm transition-colors duration-150 border-l-2",
-                                isActive
-                                  ? "border-l-accent bg-surface-2 text-accent-text"
-                                  : "border-l-transparent text-fg-muted hover:text-fg hover:bg-surface",
-                              )}
-                            >
-                              {option.label}
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </aside>
-                  <section className="flex-1 min-w-0 flex flex-col gap-6">
-                    <CapsLabel>REPORT</CapsLabel>
-                    {activeReport !== null ? (
-                      <p className="text-sm text-fg leading-relaxed whitespace-pre-wrap">
-                        {activeReport.markdown}
-                      </p>
-                    ) : (
-                      <p className="text-sm text-fg-subtle">
-                        Select a report to view its contents.
-                      </p>
-                    )}
-                  </section>
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="debate">
-              <p className="text-sm text-fg-subtle py-6">
-                Debate transcript not available for this run.
-              </p>
-            </TabsContent>
-
-            <TabsContent value="risk">
-              <p className="text-sm text-fg-subtle py-6">Risk check pending.</p>
-            </TabsContent>
-
-            <TabsContent value="logs">
-              <RunLogStream
+            <div className="flex-1" />
+            {isCancellable ? (
+              <CancelRunButton
                 runId={detail.id}
-                initialLines={initialLogLines}
-                isTerminal={isLogStreamTerminal}
+                onOptimisticCancel={handleOptimisticCancel}
+                onCancelRollback={handleCancelRollback}
               />
-            </TabsContent>
+            ) : null}
+          </div>
+        </header>
 
-            <TabsContent value="provenance">
-              <DataTable<SourceProvenance>
-                data={[...detail.provenance]}
-                columns={provenanceColumns}
-                getRowId={(row) => row.id}
+        <div className="px-6 pt-6 pb-12 flex flex-col gap-8">
+          {detail.error_message !== null ? (
+            <div
+              role="alert"
+              className="rounded-md border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger"
+            >
+              <span className="font-medium">Run halted:</span>{" "}
+              {detail.error_message}
+            </div>
+          ) : null}
+
+          <ul className="flex flex-col">
+            {stages.map((entry) => (
+              <StageRow key={entry.key} entry={entry} />
+            ))}
+          </ul>
+
+          {showReviewForm ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <HumanReviewForm
+                runId={detail.id}
+                defaultWeekStart={defaultWeekStart}
+                onSubmitted={handleReviewSubmitted}
               />
-            </TabsContent>
-          </Tabs>
-        )}
+              <HumanReviewSummaryWidget summary={humanReviewSummary} />
+            </div>
+          ) : humanReviewSummary.weeks.length > 0 ? (
+            <HumanReviewSummaryWidget summary={humanReviewSummary} />
+          ) : null}
+
+          <LiveCostStrip
+            runId={detail.id}
+            initialState={initialCostState}
+            initialSeenLogIds={initialSeenLogIds}
+            costEstimate={costEstimate}
+          />
+        </div>
       </div>
-    </div>
     </RunSseProvider>
+  );
+}
+
+interface StageRowProps {
+  entry: StageEntry;
+}
+
+function StageRow(props: StageRowProps): ReactElement {
+  const { entry } = props;
+  const inner = (
+    <div className="flex items-center gap-4 py-4 border-t border-line/60">
+      <div className="flex items-center gap-2 w-56 shrink-0">
+        <CapsLabel className="text-fg">{entry.label}</CapsLabel>
+        {entry.count !== null ? (
+          <span className="font-mono text-xs text-fg-subtle">
+            {entry.count}
+          </span>
+        ) : null}
+      </div>
+      <StatusDot status={entry.status} />
+      <span className="text-sm text-fg-muted truncate min-w-0 flex-1">
+        {entry.summary}
+      </span>
+      {entry.href !== null ? (
+        <CaretRight
+          size={14}
+          weight="regular"
+          className="text-fg-subtle group-hover:text-fg shrink-0"
+        />
+      ) : null}
+    </div>
+  );
+  if (entry.href === null) {
+    return <li>{inner}</li>;
+  }
+  return (
+    <li>
+      <Link
+        href={entry.href}
+        className={cn(
+          "group block px-3 -mx-3 rounded-md transition-colors duration-150",
+          "hover:bg-surface-2",
+        )}
+      >
+        {inner}
+      </Link>
+    </li>
   );
 }

@@ -31,7 +31,8 @@ import {
   recordToWeights,
 } from "@/lib/screener/parse-weights";
 import type { FactorKey, FactorWeights } from "@/lib/screener/parse-weights";
-import { initialRunScreenerState, runScreener } from "./actions";
+import { initialRunScreenerState } from "./action-state";
+import { runScreener } from "./actions";
 
 type ScreenerRunResponse = components["schemas"]["ScreenerRunResponse"];
 type ScreenerResult = components["schemas"]["ScreenerResultPublic"];
@@ -290,9 +291,7 @@ export function Screener(props: ScreenerProps): ReactElement {
                         <TooltipTrigger asChild>
                           <span className="block">{item}</span>
                         </TooltipTrigger>
-                        <TooltipContent>
-                          {option.disabledReason}
-                        </TooltipContent>
+                        <TooltipContent>{option.disabledReason}</TooltipContent>
                       </Tooltip>
                     );
                   })}

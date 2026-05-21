@@ -5,7 +5,6 @@ import { Button, CapsLabel } from "@/components/ui";
 import { getServerApi, isApiError } from "@/lib/api";
 import type { components } from "@/lib/api";
 import { NewMacroBriefDialog } from "./new-macro-brief-dialog";
-import { NewRunDialog } from "./new-run-dialog";
 import { RunRow } from "./run-row";
 
 export const metadata: Metadata = {
@@ -77,10 +76,7 @@ interface RunSectionProps {
 function RunSection(props: RunSectionProps): ReactElement {
   const { label, runs, defaultOpen } = props;
   return (
-    <details
-      open={defaultOpen}
-      className="group border-t border-line"
-    >
+    <details open={defaultOpen} className="group border-t border-line">
       <summary className="flex items-center gap-2 cursor-pointer select-none py-3 px-3 hover:bg-surface-2 transition-colors duration-150 list-none [&::-webkit-details-marker]:hidden">
         <CaretRight
           size={12}
@@ -88,10 +84,14 @@ function RunSection(props: RunSectionProps): ReactElement {
           className="text-fg-subtle transition-transform duration-150 group-open:rotate-90"
         />
         <CapsLabel>{label}</CapsLabel>
-        <span className="font-mono text-xs text-fg-subtle">({runs.length})</span>
+        <span className="font-mono text-xs text-fg-subtle">
+          ({runs.length})
+        </span>
       </summary>
       {runs.length === 0 ? (
-        <p className="px-3 pb-4 text-xs text-fg-subtle">No runs in this state.</p>
+        <p className="px-3 pb-4 text-xs text-fg-subtle">
+          No runs in this state.
+        </p>
       ) : (
         <ul className="pb-2">
           {runs.map((run) => (
@@ -112,9 +112,8 @@ export default async function ResearchRunsPage(): Promise<ReactElement> {
           RESEARCH RUNS
         </CapsLabel>
         <div className="flex items-center gap-2">
-          <NewRunDialog />
           <NewMacroBriefDialog
-            trigger={<Button variant="default">Run macro brief</Button>}
+            trigger={<Button variant="primary">Run macro brief</Button>}
           />
         </div>
       </header>

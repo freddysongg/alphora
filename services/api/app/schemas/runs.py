@@ -31,13 +31,13 @@ class ResearchRunCreate(BaseModel):
     ticker: str = Field(min_length=1, max_length=16)
     trade_date: date
     config: dict[str, object] = Field(default_factory=dict)
-    strategy: StrategyEnum = StrategyEnum.tradingagents
+    strategy: StrategyEnum = StrategyEnum.funnel_research
 
 
 class CreateResearchRunsRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    strategy: StrategyEnum = StrategyEnum.tradingagents
+    strategy: StrategyEnum = StrategyEnum.funnel_research
     trade_date: date
     tickers: list[str] | None = Field(default=None, min_length=1, max_length=25)
     scope_payload: MacroBriefScope | None = None
@@ -70,20 +70,15 @@ class CreateResearchRunsRequest(BaseModel):
 
     @model_validator(mode="after")
     def _validate_strategy_branch(self) -> Self:
-        if self.strategy is StrategyEnum.tradingagents:
-            if not self.tickers:
-                raise ValueError("tradingagents strategy requires tickers")
-            if self.scope_payload is not None:
-                raise ValueError("scope_payload is only valid for funnel_research")
-            if self.llm_provider is None or self.llm_model is None:
-                raise ValueError(
-                    "tradingagents strategy requires llm_provider and llm_model"
-                )
-        elif self.strategy is StrategyEnum.funnel_research:
-            if self.tickers:
-                raise ValueError("funnel_research strategy does not accept tickers")
-            if self.scope_payload is None:
-                raise ValueError("funnel_research strategy requires scope_payload")
+        if self.strategy is not StrategyEnum.funnel_research:
+            raise ValueError(
+                f"strategy {self.strategy.value!r} is no longer supported; "
+                "use funnel_research"
+            )
+        if self.tickers:
+            raise ValueError("funnel_research strategy does not accept tickers")
+        if self.scope_payload is None:
+            raise ValueError("funnel_research strategy requires scope_payload")
         return self
 
 

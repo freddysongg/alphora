@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getServerApi, isApiError } from "@/lib/api";
 import type { components } from "@/lib/api";
 import { formDataToWeights } from "@/lib/screener/parse-weights";
+import type { RunScreenerActionState } from "./action-state";
 
 type ScreenerUniverse = components["schemas"]["ScreenerUniverseEnum"];
 
@@ -15,18 +16,6 @@ const ALLOWED_UNIVERSES: readonly ScreenerUniverse[] = [
   "sp500",
   "nasdaq100",
 ] as const;
-
-export interface RunScreenerActionState {
-  status: "idle" | "error";
-  message: string | null;
-  fields: Readonly<Record<string, readonly string[]>>;
-}
-
-export const initialRunScreenerState: RunScreenerActionState = {
-  status: "idle",
-  message: null,
-  fields: {},
-};
 
 function isAllowedUniverse(value: string): value is ScreenerUniverse {
   return (ALLOWED_UNIVERSES as readonly string[]).includes(value);

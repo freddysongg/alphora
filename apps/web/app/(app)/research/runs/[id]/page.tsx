@@ -7,12 +7,12 @@ import type { components } from "@/lib/api";
 import type {
   BudgetAction,
   CostMeterState,
-} from "@/components/research/run-cost-meter";
-import { getMacroBrief } from "./actions";
+} from "@/components/research/live-cost-strip";
+import { getMacroBrief, getPortfolioBrief } from "./actions";
 import { RunDetail } from "./run-detail";
+import type { HypothesisBeliefBundle } from "@/components/research/hypothesis-belief-explainer";
+import type { HypothesisLifecycleBundle } from "@/components/research/hypothesis-lifecycle-card";
 
-type CounterfactualRunSummary =
-  components["schemas"]["CounterfactualRunSummary"];
 type HumanReviewSummary = components["schemas"]["HumanReviewSummary"];
 type HypothesisPublic = components["schemas"]["HypothesisPublic"];
 type BeliefRecomputationPublic =
@@ -20,8 +20,6 @@ type BeliefRecomputationPublic =
 type HypothesisLifecycleResponse =
   components["schemas"]["HypothesisLifecycleResponse"];
 type RunCostEstimate = components["schemas"]["RunCostEstimate"];
-import type { HypothesisBeliefBundle } from "@/components/research/hypothesis-belief-explainer";
-import type { HypothesisLifecycleBundle } from "@/components/research/hypothesis-lifecycle-card";
 
 export const metadata: Metadata = {
   title: "Run Detail · Alphora",
@@ -51,13 +49,13 @@ const KNOWN_BUDGET_ACTIONS: readonly BudgetAction[] = [
 ];
 
 function isBudgetAction(value: unknown): value is BudgetAction {
-  return typeof value === "string"
-    && (KNOWN_BUDGET_ACTIONS as readonly string[]).includes(value);
+  return (
+    typeof value === "string" &&
+    (KNOWN_BUDGET_ACTIONS as readonly string[]).includes(value)
+  );
 }
 
-async function loadRunDetail(
-  runId: string,
-): Promise<ResearchRunDetail | null> {
+async function loadRunDetail(runId: string): Promise<ResearchRunDetail | null> {
   try {
     const { data } = await getServerApi().GET("/api/research-runs/{run_id}", {
       params: { path: { run_id: runId } },
@@ -76,7 +74,9 @@ async function loadRunDetail(
   }
 }
 
-async function loadInitialCostBundle(runId: string): Promise<InitialCostBundle> {
+async function loadInitialCostBundle(
+  runId: string,
+): Promise<InitialCostBundle> {
   const emptyState: CostMeterState = {
     cumulativeCostUsd: 0,
     inputTokensTotal: 0,
@@ -148,53 +148,37 @@ function byCreatedAtAscending(
   return a.created_at.localeCompare(b.created_at);
 }
 
-async function loadCounterfactualSummary(
-  runId: string,
-): Promise<CounterfactualRunSummary | null> {
-  try {
-    const { data } = await getServerApi().GET(
-      "/api/research-runs/{run_id}/counterfactuals",
-      {
-        params: { path: { run_id: runId } },
-        cache: "no-store",
-      },
-    );
-    return data ?? null;
-  } catch (caught) {
-    if (isApiError(caught) && caught.status === NOT_FOUND_STATUS) {
-      return null;
-    }
-    throw caught;
-  }
-}
-
-async function loadHypothesisBeliefBundles(
-  runId: string,
-): Promise<readonly HypothesisBeliefBundle[]> {
+async function loadHypothesisBeliefBundles(runId: string): Promise<{
+  beliefBundles: readonly HypothesisBeliefBundle[];
+  lifecycleBundles: readonly HypothesisLifecycleBundle[];
+}> {
   const hypotheses = await loadHypothesesForRun(runId);
   if (hypotheses.length === 0) {
-    return [];
+    return { beliefBundles: [], lifecycleBundles: [] };
   }
-  const bundles = await Promise.all(
+  const beliefBundles = await Promise.all(
     hypotheses.map(async (hypothesis) => {
       const latest = await loadLatestBelief(hypothesis.id);
       return { hypothesis, latest };
     }),
   );
-  return bundles;
+  const lifecycleBundles = await Promise.all(
+    hypotheses.map(async (hypothesis) => {
+      const lifecycle = await loadHypothesisLifecycle(hypothesis.id);
+      return { hypothesis, lifecycle };
+    }),
+  );
+  return { beliefBundles, lifecycleBundles };
 }
 
 async function loadHypothesesForRun(
   runId: string,
 ): Promise<readonly HypothesisPublic[]> {
   try {
-    const { data } = await getServerApi().GET(
-      "/api/research/hypotheses",
-      {
-        params: { query: { run_id: runId, limit: 100 } },
-        cache: "no-store",
-      },
-    );
+    const { data } = await getServerApi().GET("/api/research/hypotheses", {
+      params: { query: { run_id: runId, limit: 100 } },
+      cache: "no-store",
+    });
     return data?.items ?? [];
   } catch (caught) {
     if (isApiError(caught) && caught.status === NOT_FOUND_STATUS) {
@@ -222,20 +206,6 @@ async function loadLatestBelief(
     }
     throw caught;
   }
-}
-
-async function loadHypothesisLifecycleBundles(
-  hypotheses: readonly HypothesisPublic[],
-): Promise<readonly HypothesisLifecycleBundle[]> {
-  if (hypotheses.length === 0) {
-    return [];
-  }
-  return Promise.all(
-    hypotheses.map(async (hypothesis) => {
-      const lifecycle = await loadHypothesisLifecycle(hypothesis.id);
-      return { hypothesis, lifecycle };
-    }),
-  );
 }
 
 async function loadHypothesisLifecycle(
@@ -275,7 +245,6 @@ async function loadCostEstimate(
   }
 }
 
-
 async function loadHumanReviewSummary(): Promise<HumanReviewSummary> {
   try {
     const { data } = await getServerApi().GET("/api/human-reviews/summary", {
@@ -306,24 +275,22 @@ export default async function RunDetailPage(
   if (detail === null) {
     notFound();
   }
-  const macroBrief =
-    detail.strategy === "funnel_research" ? await getMacroBrief(id) : null;
+  const isFunnel = detail.strategy === "funnel_research";
+  const macroBrief = isFunnel ? await getMacroBrief(id) : null;
+  const portfolioBrief = isFunnel ? await getPortfolioBrief(id) : null;
   const initialCost = await loadInitialCostBundle(id);
   const costEstimate = await loadCostEstimate(detail.strategy);
-  const counterfactuals = await loadCounterfactualSummary(id);
   const reviewSummary = await loadHumanReviewSummary();
-  const beliefBundles = await loadHypothesisBeliefBundles(id);
-  const lifecycleBundles = await loadHypothesisLifecycleBundles(
-    beliefBundles.map((bundle) => bundle.hypothesis),
-  );
+  const { beliefBundles, lifecycleBundles } =
+    await loadHypothesisBeliefBundles(id);
   return (
     <RunDetail
       detail={detail}
       macroBrief={macroBrief}
+      portfolioBrief={portfolioBrief}
       initialCostState={initialCost.state}
       initialSeenLogIds={initialCost.seenLogIds}
       costEstimate={costEstimate}
-      counterfactualGates={counterfactuals?.gates ?? []}
       humanReviewSummary={reviewSummary}
       defaultWeekStart={defaultWeekStart()}
       beliefBundles={beliefBundles}
