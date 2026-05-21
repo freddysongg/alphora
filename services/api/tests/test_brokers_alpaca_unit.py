@@ -216,3 +216,13 @@ async def test_place_order_limit_buy_includes_limit_price() -> None:
     assert resp.broker_order_id == "ord-2"
     submitted_arg = trading.submit_order.call_args.args[0]
     assert submitted_arg.limit_price == 500.0
+
+
+@pytest.mark.asyncio
+async def test_cancel_order_calls_alpaca_cancel() -> None:
+    trading = MagicMock()
+    trading.cancel_order_by_id = MagicMock(return_value=None)
+    adapter = AlpacaAdapter(trading_client=trading, data_client=MagicMock(), mode="paper")
+
+    await adapter.cancel_order("ord-99")
+    trading.cancel_order_by_id.assert_called_once_with("ord-99")

@@ -199,7 +199,7 @@ class AlpacaAdapter:
         )
 
     async def cancel_order(self, broker_order_id: str) -> None:
-        raise NotImplementedError
+        await asyncio.to_thread(self._trading.cancel_order_by_id, broker_order_id)
 
     async def list_orders(self, status: OrderStatusFilter = "all") -> list[Order]:
         raise NotImplementedError
