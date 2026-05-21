@@ -10,7 +10,7 @@ Behavior (single-timeframe; entries gated, exits unfiltered):
   - Carry-by-default: if already in a position, return inner signal
     without any filters (so a stale ADX or off-hours bar can't trap us).
   - Gate A (entries only): RTH (US Regular Trading Hours; the JS impl
-    uses 13:30–20:00 UTC, which is EDT 9:30–16:00 ET; this port
+    uses 13:30-20:00 UTC, which is EDT 9:30-16:00 ET; this port
     matches the JS convention for golden-output parity).
   - Gate B (entries only): ADX(14) >= 25 once at least 30 bars are
     available. Below 30 bars, no ADX gate (warmup pass-through).
@@ -74,7 +74,7 @@ def _position_sign(current_position: int) -> int:
 
 def _is_rth_utc(ts: pd.Timestamp) -> bool:
     """Match the JS `isRTH` in `filteredMacdRsiStrategy`: compare the
-    bar's UTC minute-of-day to the EDT window 13:30–20:00 UTC. Note:
+    bar's UTC minute-of-day to the EDT window 13:30-20:00 UTC. Note:
     this hardcodes EDT and is incorrect during EST (UTC-5). The source
     bot has the same limitation; fix is deferred (Phase 3+).
     """

@@ -8,14 +8,14 @@ avoid duplicating the literal.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Protocol, TypeAlias
+from typing import Protocol
 
 import pandas as pd  # type: ignore[import-untyped]
 
 from app.brokers.base import Timeframe
 
-Bars: TypeAlias = pd.DataFrame
-StrategyParams: TypeAlias = dict[str, float | int | bool | str]
+type Bars = pd.DataFrame
+type StrategyParams = dict[str, float | int | bool | str]
 
 
 @dataclass(frozen=True)

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import math
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pandas as pd  # type: ignore[import-untyped]
 
@@ -259,10 +261,6 @@ def test_evaluate_adx_skipped_when_bars_below_threshold() -> None:
     # 28 < 30 bars + 26 MACD warmup → likely "warmup" phase.
     # Either way, the ADX gate should NOT be the reason for any flat.
     assert result.meta.get("gate") != "lowAdx"
-
-
-import json
-from pathlib import Path
 
 
 _FIXTURES_DIR = Path(__file__).parent / "fixtures"
