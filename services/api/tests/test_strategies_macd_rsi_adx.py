@@ -259,3 +259,77 @@ def test_evaluate_adx_skipped_when_bars_below_threshold() -> None:
     # 28 < 30 bars + 26 MACD warmup → likely "warmup" phase.
     # Either way, the ADX gate should NOT be the reason for any flat.
     assert result.meta.get("gate") != "lowAdx"
+
+
+import json
+from pathlib import Path
+
+
+_FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+
+def _load_input_bars() -> pd.DataFrame:
+    raw = json.loads((_FIXTURES_DIR / "macd_rsi_adx_input_bars.json").read_text())
+    timestamps = [datetime.fromtimestamp(int(b["t"]) / 1000.0, tz=UTC) for b in raw]
+    return pd.DataFrame(
+        {
+            "open": [float(b["o"]) for b in raw],
+            "high": [float(b["h"]) for b in raw],
+            "low": [float(b["l"]) for b in raw],
+            "close": [float(b["c"]) for b in raw],
+            "volume": [float(b["v"]) for b in raw],
+        },
+        index=pd.DatetimeIndex(timestamps, tz="UTC"),
+    )
+
+
+def _load_golden() -> list[dict[str, object]]:
+    raw: list[dict[str, object]] = json.loads(
+        (_FIXTURES_DIR / "macd_rsi_adx_golden.json").read_text()
+    )
+    return raw
+
+
+def test_macd_rsi_adx_matches_source_bot_bar_for_bar() -> None:
+    """Phase 1 acceptance: Python evaluate() produces the same `target`
+    per bar as the Node `filtered` strategy on the committed input series.
+
+    Iteration model: start flat (current_position=0). After each bar,
+    set current_position = previous_target. This matches the no-friction
+    simulator the Node fixture-generator uses.
+    """
+    strat = MacdRsiAdxStrategy()
+    bars = _load_input_bars()
+    golden = _load_golden()
+    assert len(bars) == len(golden), "fixture length mismatch — regenerate both files"
+
+    current_position = 0
+    mismatches: list[str] = []
+    for i in range(len(bars)):
+        primary = bars.iloc[: i + 1]
+        result = strat.evaluate(
+            primary_bars=primary,
+            secondary_bars={},
+            current_position=current_position,
+            params={},
+        )
+        expected_target = int(golden[i]["target"])  # type: ignore[call-overload]
+        expected_pos_in = int(golden[i]["current_pos_in"])  # type: ignore[call-overload]
+        if current_position != expected_pos_in:
+            mismatches.append(
+                f"bar {i}: current_position_in mismatch (py={current_position}, "
+                f"node={expected_pos_in})"
+            )
+        if result.target != expected_target:
+            mismatches.append(
+                f"bar {i}: target mismatch (py={result.target}, node={expected_target}, "
+                f"meta={result.meta})"
+            )
+        current_position = result.target
+
+    if mismatches:
+        msg = "\n  ".join(mismatches[:10])
+        total = len(mismatches)
+        raise AssertionError(
+            f"golden-output regression: {total} mismatch(es). First 10:\n  {msg}"
+        )
