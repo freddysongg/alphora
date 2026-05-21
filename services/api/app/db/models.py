@@ -1,4 +1,9 @@
 from app.db.base import Base, TimestampMixin
+from app.db.models_backtest import (
+    BacktestEquityPoint,
+    BacktestRun,
+    BacktestTrade,
+)
 from app.db.models_company import CompanyThesis
 from app.db.models_data_health import ProviderCheck, ProviderCheckStatus
 from app.db.models_evals import (
@@ -69,6 +74,9 @@ __all__ = [
     "ApplicationSettings",
     "AuditAction",
     "AuditLog",
+    "BacktestEquityPoint",
+    "BacktestRun",
+    "BacktestTrade",
     "Base",
     "BeliefRecomputation",
     "BriefKind",
