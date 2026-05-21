@@ -4,6 +4,10 @@ import { updateTag } from "next/cache";
 
 import { getServerApi, isApiError } from "@/lib/api";
 import type { components } from "@/lib/api";
+import type {
+  SubmitOrderActionState,
+  SubmitOrderFieldErrors,
+} from "./action-state";
 
 type OrderSide = components["schemas"]["OrderSideEnum"];
 type OrderType = components["schemas"]["OrderTypeEnum"];
@@ -18,26 +22,6 @@ const ALLOWED_SIDES: ReadonlySet<OrderSide> = new Set<OrderSide>([
 const ALLOWED_ORDER_TYPES: ReadonlySet<OrderType> = new Set<OrderType>([
   "market",
 ]);
-
-export interface SubmitOrderFieldErrors {
-  ticker?: readonly string[];
-  quantity?: readonly string[];
-  side?: readonly string[];
-  order_type?: readonly string[];
-  portfolio_id?: readonly string[];
-}
-
-export interface SubmitOrderActionState {
-  status: "idle" | "ok" | "error";
-  message: string | null;
-  fields: SubmitOrderFieldErrors;
-}
-
-export const initialSubmitOrderState: SubmitOrderActionState = {
-  status: "idle",
-  message: null,
-  fields: {},
-};
 
 function readField(formData: FormData, key: string): string {
   const raw = formData.get(key);

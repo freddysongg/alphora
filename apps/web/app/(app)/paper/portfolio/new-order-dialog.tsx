@@ -24,8 +24,11 @@ import {
   SelectValue,
 } from "@/components/ui";
 import type { components } from "@/lib/api";
-import { initialSubmitOrderState, submitPaperOrder } from "./actions";
-import type { SubmitOrderActionState } from "./actions";
+import {
+  initialSubmitOrderState,
+  type SubmitOrderActionState,
+} from "./action-state";
+import { submitPaperOrder } from "./actions";
 
 type OrderSide = components["schemas"]["OrderSideEnum"];
 type OrderType = components["schemas"]["OrderTypeEnum"];

@@ -5,6 +5,7 @@ import { updateTag } from "next/cache";
 
 import { getServerApi, isApiError } from "@/lib/api";
 import type { components } from "@/lib/api";
+import type { NewRunActionState, NewRunFieldErrors } from "./action-state";
 
 type LlmProvider = components["schemas"]["LlmProviderEnum"];
 
@@ -31,23 +32,6 @@ export interface CreateMacroBriefRunFailure {
 export type CreateMacroBriefRunResult =
   | CreateMacroBriefRunSuccess
   | CreateMacroBriefRunFailure;
-
-export interface NewRunFieldErrors {
-  ticker?: readonly string[];
-  trade_date?: readonly string[];
-}
-
-export interface NewRunActionState {
-  status: "idle" | "error";
-  message: string | null;
-  fields: NewRunFieldErrors;
-}
-
-export const initialNewRunState: NewRunActionState = {
-  status: "idle",
-  message: null,
-  fields: {},
-};
 
 interface BuiltFieldErrors {
   fields: NewRunFieldErrors;
