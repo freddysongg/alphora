@@ -21,7 +21,7 @@ export interface EvidenceDisclosure {
 }
 
 const triggerClass =
-  "inline-flex items-center gap-1 font-mono text-[11px] tracking-[0.04em] text-accent-text hover:underline focus-visible:outline-none focus-visible:underline transition-colors duration-150";
+  "inline-flex items-center gap-1 font-mono text-[11px] tracking-[0.04em] text-highlight-text hover:underline focus-visible:outline-none focus-visible:underline transition-colors duration-150";
 
 export function useEvidenceDisclosure(
   evidenceIds: readonly string[],
@@ -86,7 +86,7 @@ export function useEvidenceDisclosure(
             href={
               `/research/evidence/by-evidence/${evidenceId}${runQuery}` as Route
             }
-            className="text-accent-text hover:underline"
+            className="text-highlight-text hover:underline"
             data-testid={linkTestId}
           >
             {evidenceId}

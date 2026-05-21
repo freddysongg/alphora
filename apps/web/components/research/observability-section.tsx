@@ -10,6 +10,10 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
 } from "@/components/ui";
 import type { StatusPillStatus } from "@/components/ui";
 import { cn } from "@/lib/cn";
@@ -66,7 +70,25 @@ interface DimensionMeta {
   status: StatusPillStatus;
   summary: string;
   hasData: boolean;
+  description: string;
 }
+
+const DIMENSION_DESCRIPTIONS: Record<DimensionKey, string> = {
+  "llm-calls":
+    "Every model call made during this run — prompt, response, tokens, latency, cost. Click into a call to debug exactly what the model said.",
+  cost:
+    "Dollars spent, broken down by stage (ingest, digest, synthesize, etc.) and by source-client cache hit rate. Tells you where the money went.",
+  evidence:
+    "Per-source counts: which providers (Polygon, Polymarket, FRED, …) returned how many documents, how many chunks were extracted, and how many got cited in the final brief.",
+  graph:
+    "Entities (companies, sectors, events) and relations (e.g. supplies, regulated_by) the model extracted from this run's evidence. The worldview it built before deciding.",
+  counterfactuals:
+    "Perturbations of the inputs — 'what if Apple beat earnings by 10% instead' — to test how robust the conclusions are. Quantifies confidence.",
+  leakage:
+    "Look-ahead bias detection. Holdout tests check whether the run relied on evidence dated AFTER the trade date, which would invalidate the thesis.",
+  claims:
+    "Atomic claims the brief made, each linked back to the source chunk it came from. Score each claim and the reviewer leaves a trail for next time.",
+};
 
 function statusFromCount(
   count: number,
@@ -146,6 +168,7 @@ function deriveDimensions(args: {
       status: statusFromCount(llmCalls.length, runStatus),
       summary: summarize(llmCalls.length, "calls", runStatus),
       hasData: llmCalls.length > 0,
+      description: DIMENSION_DESCRIPTIONS["llm-calls"],
     },
     {
       key: "cost",
@@ -154,6 +177,7 @@ function deriveDimensions(args: {
       summary:
         totalCost !== null ? formatUsd(totalCost) : summarize(0, "", runStatus),
       hasData: costLedger !== null && costLedger.stages.length > 0,
+      description: DIMENSION_DESCRIPTIONS.cost,
     },
     {
       key: "evidence",
@@ -161,6 +185,7 @@ function deriveDimensions(args: {
       status: statusFromCount(evidenceCount, runStatus),
       summary: summarize(evidenceCount, "evidence", runStatus),
       hasData: evidenceFlow !== null && evidenceFlow.sources.length > 0,
+      description: DIMENSION_DESCRIPTIONS.evidence,
     },
     {
       key: "graph",
@@ -168,6 +193,7 @@ function deriveDimensions(args: {
       status: statusFromCount(graphNodes, runStatus),
       summary: summarize(graphNodes, "nodes", runStatus),
       hasData: runGraph !== null && runGraph.nodes.length > 0,
+      description: DIMENSION_DESCRIPTIONS.graph,
     },
     {
       key: "counterfactuals",
@@ -176,6 +202,7 @@ function deriveDimensions(args: {
       summary: summarize(cfCount, "perturbations", runStatus),
       hasData:
         counterfactuals !== null && counterfactuals.perturbations.length > 0,
+      description: DIMENSION_DESCRIPTIONS.counterfactuals,
     },
     {
       key: "leakage",
@@ -183,6 +210,7 @@ function deriveDimensions(args: {
       status: statusFromCount(leakage.length, runStatus),
       summary: summarize(leakage.length, "holdouts", runStatus),
       hasData: leakage.length > 0,
+      description: DIMENSION_DESCRIPTIONS.leakage,
     },
     {
       key: "claims",
@@ -190,6 +218,7 @@ function deriveDimensions(args: {
       status: statusFromCount(claims.length, runStatus),
       summary: summarize(claims.length, "cited claims", runStatus),
       hasData: claims.length > 0,
+      description: DIMENSION_DESCRIPTIONS.claims,
     },
   ];
 }
@@ -242,20 +271,32 @@ export function ObservabilitySection(
         value={activeKey}
         onValueChange={(value) => setActiveKey(value as DimensionKey)}
       >
-        <TabsList className="px-4 flex-wrap gap-x-1 gap-y-0 border-b">
-          {dimensions.map((entry) => (
-            <TabsTrigger
-              key={entry.key}
-              value={entry.key}
-              className="data-[state=active]:text-accent-text"
-            >
-              <span className="inline-flex items-center gap-2">
-                <StatusIndicator status={entry.status} />
-                <span>{entry.label}</span>
-              </span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <TooltipProvider delayDuration={250}>
+          <TabsList className="px-4 flex-wrap gap-x-1 gap-y-0 border-b">
+            {dimensions.map((entry) => (
+              <Tooltip key={entry.key}>
+                <TooltipTrigger asChild>
+                  <TabsTrigger
+                    value={entry.key}
+                    className="data-[state=active]:text-accent-text"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <StatusIndicator status={entry.status} />
+                      <span>{entry.label}</span>
+                    </span>
+                  </TabsTrigger>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="bottom"
+                  align="start"
+                  className="max-w-[320px] whitespace-normal text-[12px] font-sans leading-snug text-fg-muted normal-case tracking-normal px-3 py-2"
+                >
+                  {entry.description}
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </TabsList>
+        </TooltipProvider>
 
         <div className="p-4 max-h-[640px] overflow-y-auto">
           <TabsContent value="llm-calls" className="pt-0">

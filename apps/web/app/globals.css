@@ -15,6 +15,11 @@
   --color-accent-press: #4a2e8a;
   --color-accent-text: #d8b4fe;
 
+  --color-highlight: #ffb938;
+  --color-highlight-soft: #ffd27a;
+  --color-highlight-press: #c68214;
+  --color-highlight-text: #ffc857;
+
   --color-warn: #e879f9;
   --color-danger: #ff6b7a;
   --color-success: #b98cff;

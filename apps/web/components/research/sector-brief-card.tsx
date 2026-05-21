@@ -57,7 +57,7 @@ export function SectorBriefCard(props: SectorBriefCardProps): ReactElement {
         href={
           `/research/runs/${runId}/sectors/${brief.sector_entity_id}` as Route
         }
-        className="text-fg hover:text-accent-text hover:underline transition-colors duration-150"
+        className="text-fg hover:text-highlight-text hover:underline transition-colors duration-150"
         data-testid="sector-brief-detail-link"
       >
         {brief.sector_name}
@@ -329,7 +329,7 @@ function SectorCompanyRow(props: SectorCompanyRowProps): ReactElement {
         href={
           `/research/runs/${runId}/companies/${company.company_entity_id}` as Route
         }
-        className="text-fg hover:text-accent-text hover:underline transition-colors duration-150"
+        className="text-fg hover:text-highlight-text hover:underline transition-colors duration-150"
         data-testid="sector-company-link"
       >
         {company.name}
@@ -382,7 +382,7 @@ function SectorCitedClaimRow(props: SectorCitedClaimRowProps): ReactElement {
         type="button"
         onClick={handleToggle}
         aria-expanded={isOpen}
-        className="flex w-full items-start justify-between gap-3 text-left transition-colors duration-150 hover:text-accent-text"
+        className="flex w-full items-start justify-between gap-3 text-left transition-colors duration-150 hover:text-highlight-text"
       >
         <span className="text-sm text-fg leading-relaxed">
           {claim.claim_text}
@@ -410,7 +410,7 @@ function SectorCitedClaimRow(props: SectorCitedClaimRowProps): ReactElement {
             </span>{" "}
             <Link
               href={`/research/evidence/${claim.chunk_id}` as Route}
-              className="text-accent-text hover:underline"
+              className="text-highlight-text hover:underline"
               data-testid="sector-cited-claim-chunk-link"
             >
               {claim.chunk_id}

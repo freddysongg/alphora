@@ -262,7 +262,7 @@ function RawUrlValue(props: RawUrlValueProps): ReactElement {
       href={url}
       target="_blank"
       rel="noreferrer noopener"
-      className="font-mono text-accent-text hover:underline break-all"
+      className="font-mono text-highlight-text hover:underline break-all"
       data-testid={testId}
     >
       {url}

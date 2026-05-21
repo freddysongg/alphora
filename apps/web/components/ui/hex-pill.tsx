@@ -17,7 +17,7 @@ export interface HexPillProps
 }
 
 const baseClasses =
-  "inline-flex items-center rounded-[5px] bg-[#1f1933] px-[7px] py-[2px] font-mono text-[11px] text-[#b3a8d8] transition-colors duration-150 hover:bg-[#2a2245] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent-text cursor-pointer";
+  "inline-flex items-center rounded-[5px] bg-[#1f1933] px-[7px] py-[2px] font-mono text-[11px] text-[#b3a8d8] transition-colors duration-150 hover:bg-[#2a2245] hover:text-highlight-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-highlight-text cursor-pointer";
 const copiedClasses = "text-success";
 const COPIED_FEEDBACK_MS = 1200;
 
