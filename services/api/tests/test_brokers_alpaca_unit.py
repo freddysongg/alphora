@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -68,3 +69,26 @@ async def test_get_account_translates_alpaca_response() -> None:
     assert account.equity == Decimal("200.00")
     assert account.buying_power == Decimal("500.00")
     assert account.pattern_day_trader is False
+
+
+@pytest.mark.asyncio
+async def test_get_quote_translates_alpaca_latest_quote() -> None:
+    ts = datetime(2026, 5, 20, 14, 30, tzinfo=UTC)
+    fake_quote = SimpleNamespace(
+        bid_price="500.10",
+        ask_price="500.12",
+        timestamp=ts,
+    )
+    fake_trade = SimpleNamespace(price="500.11", timestamp=ts)
+    data = MagicMock()
+    data.get_stock_latest_quote = MagicMock(return_value={"SPY": fake_quote})
+    data.get_stock_latest_trade = MagicMock(return_value={"SPY": fake_trade})
+    adapter = AlpacaAdapter(trading_client=MagicMock(), data_client=data, mode="paper")
+
+    quote = await adapter.get_quote("SPY")
+
+    assert quote.ticker == "SPY"
+    assert quote.bid == Decimal("500.10")
+    assert quote.ask == Decimal("500.12")
+    assert quote.last == Decimal("500.11")
+    assert quote.as_of == ts

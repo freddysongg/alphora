@@ -5,6 +5,8 @@ from collections.abc import AsyncIterator
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
+from alpaca.data.requests import StockLatestQuoteRequest, StockLatestTradeRequest
+
 from app.brokers.base import (
     Account,
     Bar,
@@ -22,6 +24,8 @@ from app.config import get_settings
 
 if TYPE_CHECKING:
     from alpaca.data.historical.stock import StockHistoricalDataClient
+    from alpaca.data.models import Quote as AlpacaQuote
+    from alpaca.data.models import Trade as AlpacaTrade
     from alpaca.trading.client import TradingClient
     from alpaca.trading.models import TradeAccount
 
@@ -73,7 +77,21 @@ class AlpacaAdapter:
         )
 
     async def get_quote(self, ticker: str) -> Quote:
-        raise NotImplementedError
+        quote_req = StockLatestQuoteRequest(symbol_or_symbols=ticker)
+        trade_req = StockLatestTradeRequest(symbol_or_symbols=ticker)
+        quote_map, trade_map = await asyncio.gather(
+            asyncio.to_thread(self._data.get_stock_latest_quote, quote_req),
+            asyncio.to_thread(self._data.get_stock_latest_trade, trade_req),
+        )
+        raw_quote = cast("AlpacaQuote", quote_map[ticker])
+        raw_trade = cast("AlpacaTrade", trade_map[ticker])
+        return Quote(
+            ticker=ticker,
+            bid=Decimal(str(raw_quote.bid_price)),
+            ask=Decimal(str(raw_quote.ask_price)),
+            last=Decimal(str(raw_trade.price)),
+            as_of=raw_quote.timestamp,
+        )
 
     async def get_positions(self) -> list[Position]:
         raise NotImplementedError
