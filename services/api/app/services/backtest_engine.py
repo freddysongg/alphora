@@ -24,6 +24,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
+import pandas as pd  # type: ignore[import-untyped]
+
+from app.strategies.base import Strategy, StrategyParams
+
 
 @dataclass(frozen=True)
 class SlippageModel:
@@ -82,4 +86,75 @@ class Trade:
     exit_reason: TradeExitReason
 
 
-__all__ = ["CommissionModel", "SlippageModel", "Trade", "TradeExitReason"]
+@dataclass(frozen=True)
+class BacktestResult:
+    """Engine output (spec §6.3).
+
+    `equity_per_bar` is cumulative realized + open-trade-mark P&L in USD
+    after each bar, aligned 1:1 with the input `bars` index. The
+    persistence step samples this into a daily series for the
+    `backtest_equity` table.
+    """
+
+    bar_count: int
+    trades: list[Trade]
+    equity_per_bar: list[float]
+    max_drawdown_usd: float
+    net_pnl_usd: float
+    win_count: int
+    loss_count: int
+    profit_factor: float | None
+
+
+def simulate(
+    *,
+    bars: pd.DataFrame,
+    strategy: Strategy,
+    params: StrategyParams,
+    slippage: SlippageModel | None = None,
+    commission: CommissionModel | None = None,
+    position_size_shares: int = 1,
+) -> BacktestResult:
+    """Bar-by-bar event-driven simulator (spec §6.3).
+
+    For each bar `i`:
+      1. Call `strategy.evaluate(bars_view, {}, current_position_shares, params)`
+         where `bars_view = bars.iloc[: i + 1]`.
+      2. If the strategy's `target` (in {-1, 0, +1}) differs from the
+         current bias, defer the fill to bar `i+1`'s open ± slippage. If
+         `i` is the last bar, no entry (no peeking). The next bar's open
+         becomes a real exit/entry on iteration `i+1`.
+      3. At the end of the series, force-close any open position at the
+         last bar's close ± slippage (mirrors source bot's tail-handling).
+
+    Returns a `BacktestResult` with the trade log, per-bar equity, and
+    summary stats. The engine is pure — no DB, no broker, no logging side
+    effects.
+    """
+    if slippage is None:
+        slippage = SlippageModel()
+    if commission is None:
+        commission = CommissionModel()
+    bar_count = len(bars)
+    if bar_count == 0:
+        return BacktestResult(
+            bar_count=0,
+            trades=[],
+            equity_per_bar=[],
+            max_drawdown_usd=0.0,
+            net_pnl_usd=0.0,
+            win_count=0,
+            loss_count=0,
+            profit_factor=None,
+        )
+    raise NotImplementedError("simulate body is added in Task 7")
+
+
+__all__ = [
+    "BacktestResult",
+    "CommissionModel",
+    "SlippageModel",
+    "Trade",
+    "TradeExitReason",
+    "simulate",
+]

@@ -80,3 +80,44 @@ def test_trade_is_frozen() -> None:
 
     with __import__("pytest").raises(dataclasses.FrozenInstanceError):
         t.shares = 99  # type: ignore[misc]
+
+
+import pandas as pd  # type: ignore[import-untyped]  # noqa: E402
+
+from app.services.backtest_engine import BacktestResult, simulate  # noqa: E402
+from app.strategies.macd_rsi_adx import MacdRsiAdxStrategy  # noqa: E402
+
+
+def _empty_bars() -> pd.DataFrame:
+    return pd.DataFrame(
+        {"open": [], "high": [], "low": [], "close": [], "volume": []},
+        index=pd.DatetimeIndex([], tz="UTC"),
+    )
+
+
+def test_backtest_result_default_shape() -> None:
+    r = BacktestResult(
+        bar_count=0,
+        trades=[],
+        equity_per_bar=[],
+        max_drawdown_usd=0.0,
+        net_pnl_usd=0.0,
+        win_count=0,
+        loss_count=0,
+        profit_factor=None,
+    )
+    assert r.bar_count == 0
+    assert r.trades == []
+    assert r.profit_factor is None
+
+
+def test_simulate_empty_bars_returns_empty_result() -> None:
+    result = simulate(
+        bars=_empty_bars(),
+        strategy=MacdRsiAdxStrategy(),
+        params={},
+    )
+    assert result.bar_count == 0
+    assert result.trades == []
+    assert result.equity_per_bar == []
+    assert result.net_pnl_usd == 0.0
