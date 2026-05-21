@@ -10,7 +10,7 @@ from __future__ import annotations
 import pandas as pd  # type: ignore[import-untyped]
 import pandas_ta as ta
 
-__all__ = ["ema", "macd"]
+__all__ = ["ema", "macd", "rsi"]
 
 
 def ema(close: pd.Series, *, period: int) -> pd.Series:
@@ -49,3 +49,18 @@ def macd(
     histogram: pd.Series = df[f"MACDh_{fast}_{slow}_{signal}"]
     signal_line: pd.Series = df[f"MACDs_{fast}_{slow}_{signal}"]
     return macd_line, signal_line, histogram
+
+
+def rsi(close: pd.Series, *, period: int = 14) -> pd.Series:
+    """Wilder's RSI on `close`.
+
+    Returns a Series aligned to `close`; positions before index `period`
+    are NaN. Default period 14 matches the source bot.
+    """
+    result = ta.rsi(close, length=period)
+    if result is None:
+        raise ValueError(
+            f"rsi returned None for period={period}, len(close)={len(close)}; "
+            "input series is shorter than the warmup window"
+        )
+    return result

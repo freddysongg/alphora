@@ -66,3 +66,29 @@ def test_macd_histogram_equals_macd_minus_signal_post_warmup() -> None:
     macd_line, signal_line, hist = macd(closes, fast=12, slow=26, signal=9)
     last = -1
     assert abs(hist.iloc[last] - (macd_line.iloc[last] - signal_line.iloc[last])) < 1e-9
+
+
+from app.indicators import rsi  # noqa: E402
+
+
+def test_rsi_returns_aligned_series_with_period_warmup() -> None:
+    closes = _close_series([100.0 + i for i in range(30)])
+    out = rsi(closes, period=14)
+    assert isinstance(out, pd.Series)
+    assert len(out) == 30
+    assert math.isnan(out.iloc[0])
+    assert not math.isnan(out.iloc[1])
+
+
+def test_rsi_monotonic_uptrend_is_high() -> None:
+    closes = _close_series([100.0 + i for i in range(30)])
+    out = rsi(closes, period=14)
+    assert out.iloc[-1] >= 99.0
+
+
+def test_rsi_values_stay_within_bounds() -> None:
+    closes = _close_series([100.0 + (i % 5) for i in range(40)])
+    out = rsi(closes, period=14)
+    valid = out.dropna()
+    assert (valid >= 0).all()
+    assert (valid <= 100).all()
