@@ -286,3 +286,63 @@ async def test_fetch_finnhub_price_target_happy_path(
     assert target.number_of_analysts == 38
     assert target.last_updated.year == 2026
     assert len(content_hash) == 64
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_fetch_finnhub_insider_transactions_happy_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("FINNHUB_API_KEY", "test-key")
+    get_settings.cache_clear()
+    from app.services.source_clients.finnhub import fetch_finnhub_insider_transactions
+
+    route = respx.get("https://finnhub.io/api/v1/stock/insider-transactions").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "symbol": "AAPL",
+                "data": [
+                    {
+                        "name": "Tim Cook",
+                        "share": 1000,
+                        "change": -500,
+                        "filingDate": "2026-05-15",
+                        "transactionDate": "2026-05-13",
+                        "transactionCode": "S",
+                        "transactionPrice": 195.5,
+                    },
+                    {
+                        "name": "Luca Maestri",
+                        "share": 200,
+                        "change": 200,
+                        "filingDate": "2026-05-10",
+                        "transactionDate": "2026-05-08",
+                        "transactionCode": "P",
+                        "transactionPrice": 192.0,
+                    },
+                ],
+            },
+        )
+    )
+    from datetime import date as _date
+
+    async with httpx.AsyncClient() as client:
+        result, content_hash = await fetch_finnhub_insider_transactions(
+            client=client,
+            symbol="AAPL",
+            from_date=_date(2026, 2, 18),
+            to_date=_date(2026, 5, 18),
+        )
+
+    assert route.called
+    sent = route.calls.last.request
+    assert sent.url.params["symbol"] == "AAPL"
+    assert sent.url.params["from"] == "2026-02-18"
+    assert sent.url.params["to"] == "2026-05-18"
+    assert result.symbol == "AAPL"
+    assert len(result.data) == 2
+    assert result.data[0].name == "Tim Cook"
+    assert result.data[0].transaction_code == "S"
+    assert result.data[0].change == -500
+    assert len(content_hash) == 64

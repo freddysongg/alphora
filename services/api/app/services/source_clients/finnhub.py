@@ -99,6 +99,25 @@ class FinnhubPriceTarget(BaseModel):
         return raw
 
 
+class FinnhubInsiderTransaction(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="ignore", populate_by_name=True)
+
+    name: str
+    share: int
+    change: int
+    filing_date: date = Field(alias="filingDate")
+    transaction_date: date = Field(alias="transactionDate")
+    transaction_code: str = Field(alias="transactionCode")
+    transaction_price: float | None = Field(default=None, alias="transactionPrice")
+
+
+class FinnhubInsiderTransactionsResponse(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    symbol: str
+    data: list[FinnhubInsiderTransaction]
+
+
 def _remap_news_row(row: object) -> FinnhubNewsItem:
     """Finnhub returns `datetime` as epoch seconds at the top level. Map it to
     `published_at` so the public model uses an explicit, non-shadowing name.
@@ -209,14 +228,42 @@ async def fetch_finnhub_price_target(
     return target, response.content_hash
 
 
+async def fetch_finnhub_insider_transactions(
+    *,
+    client: httpx.AsyncClient,
+    symbol: str,
+    from_date: date,
+    to_date: date,
+) -> tuple[FinnhubInsiderTransactionsResponse, str]:
+    response = await request(
+        client,
+        HttpRequestConfig(
+            method="GET",
+            url=f"{_FINNHUB_BASE}/stock/insider-transactions",
+            headers=_auth_headers(),
+            params={
+                "symbol": symbol,
+                "from": from_date.isoformat(),
+                "to": to_date.isoformat(),
+            },
+        ),
+        rate_limiter=_rate_limiter(),
+    )
+    parsed = FinnhubInsiderTransactionsResponse.model_validate_json(response.body_bytes)
+    return parsed, response.content_hash
+
+
 __all__ = [
     "FinnhubEarningsCalendar",
     "FinnhubEarningsRow",
+    "FinnhubInsiderTransaction",
+    "FinnhubInsiderTransactionsResponse",
     "FinnhubNewsItem",
     "FinnhubPriceTarget",
     "FinnhubRecommendation",
     "fetch_finnhub_company_news",
     "fetch_finnhub_earnings_calendar",
+    "fetch_finnhub_insider_transactions",
     "fetch_finnhub_price_target",
     "fetch_finnhub_recommendation",
 ]
