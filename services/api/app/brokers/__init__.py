@@ -17,13 +17,20 @@ from app.brokers.base import (
     TimeInForce,
     TradabilityCheck,
 )
+from app.brokers.errors import (
+    BrokerError,
+    OrderRejectedError,
+    TradabilityError,
+)
 
 __all__ = [
     "Account",
     "Bar",
     "BrokerAdapter",
+    "BrokerError",
     "BrokerMode",
     "Order",
+    "OrderRejectedError",
     "OrderRequest",
     "OrderResponse",
     "OrderSide",
@@ -36,4 +43,5 @@ __all__ = [
     "TimeInForce",
     "Timeframe",
     "TradabilityCheck",
+    "TradabilityError",
 ]

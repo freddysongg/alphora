@@ -79,3 +79,15 @@ def test_unused_imports_compile() -> None:
     assert "long" in get_args(PositionSide)
     assert "filled" in get_args(OrderStatus)
     assert "day" in get_args(TimeInForce)
+
+
+def test_broker_error_hierarchy() -> None:
+    from app.brokers.errors import BrokerError, OrderRejectedError, TradabilityError
+
+    rejected = OrderRejectedError("buying power exceeded", broker_order_id="abc")
+    assert isinstance(rejected, BrokerError)
+    assert rejected.broker_order_id == "abc"
+
+    halted = TradabilityError("SPY halted", ticker="SPY")
+    assert isinstance(halted, BrokerError)
+    assert halted.ticker == "SPY"
