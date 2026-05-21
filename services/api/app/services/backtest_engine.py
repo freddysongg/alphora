@@ -20,12 +20,19 @@ are runner-only concerns (Phase 4+). Backtest is pure signal evaluation.
 """
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 import pandas as pd  # type: ignore[import-untyped]
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.models_backtest import (
+    BacktestEquityPoint,
+    BacktestRun,
+    BacktestTrade,
+)
 from app.strategies.base import Strategy, StrategyParams
 
 
@@ -291,11 +298,108 @@ def simulate(
     )
 
 
+async def persist_backtest_result(
+    session: AsyncSession,
+    *,
+    result: BacktestResult,
+    bars: pd.DataFrame,
+    strategy_key: str,
+    ticker: str,
+    timeframe: str,
+    params: StrategyParams,
+    slippage: SlippageModel,
+    commission: CommissionModel,
+    position_size_shares: int,
+) -> uuid.UUID:
+    """Persist a `BacktestResult` to the three Phase 2 tables.
+
+    Equity is grouped by UTC day (one row per day, recording end-of-day
+    equity and the running drawdown at that point). Returns the new
+    `backtests.id`.
+    """
+    if result.bar_count == 0:
+        raise ValueError("cannot persist a backtest result with zero bars")
+    run_id = uuid.uuid4()
+    from_ts_obj = bars.index[0]
+    to_ts_obj = bars.index[-1]
+    from_ts = from_ts_obj.to_pydatetime() if hasattr(from_ts_obj, "to_pydatetime") else from_ts_obj
+    to_ts = to_ts_obj.to_pydatetime() if hasattr(to_ts_obj, "to_pydatetime") else to_ts_obj
+    run = BacktestRun(
+        id=run_id,
+        strategy_key=strategy_key,
+        ticker=ticker,
+        timeframe=timeframe,
+        from_ts=from_ts,
+        to_ts=to_ts,
+        params=dict(params),
+        slippage_per_share_cents=slippage.per_share_cents,
+        commission_per_trade_usd=commission.per_trade_usd,
+        position_size_shares=position_size_shares,
+        bar_count=result.bar_count,
+        trade_count=len(result.trades),
+        net_pnl_usd=result.net_pnl_usd,
+        win_count=result.win_count,
+        loss_count=result.loss_count,
+        max_drawdown_usd=result.max_drawdown_usd,
+        profit_factor=(
+            None
+            if result.profit_factor is None or result.profit_factor == float("inf")
+            else result.profit_factor
+        ),
+    )
+    session.add(run)
+    # Flush so the FK target row exists before children are inserted —
+    # SQLAlchemy's unit of work can't always topologically order
+    # parent-before-child when the child references the parent by
+    # foreign-key value rather than via a `relationship()` link.
+    await session.flush()
+    for t in result.trades:
+        session.add(
+            BacktestTrade(
+                backtest_id=run_id,
+                side=t.side,
+                entry_bar_index=t.entry_bar_index,
+                exit_bar_index=t.exit_bar_index,
+                entry_ts=t.entry_ts,
+                exit_ts=t.exit_ts,
+                entry_price=t.entry_price,
+                exit_price=t.exit_price,
+                shares=t.shares,
+                pnl_usd=t.pnl_usd,
+                bars_held=t.bars_held,
+                exit_reason=t.exit_reason,
+            )
+        )
+
+    daily_last_equity: dict[date, float] = {}
+    for ts, eq in zip(bars.index, result.equity_per_bar, strict=True):
+        day_key: date = ts.date() if hasattr(ts, "date") else ts
+        daily_last_equity[day_key] = eq
+    peak = 0.0
+    for day in sorted(daily_last_equity.keys()):
+        eq = daily_last_equity[day]
+        if eq > peak:
+            peak = eq
+        dd = peak - eq
+        session.add(
+            BacktestEquityPoint(
+                backtest_id=run_id,
+                day=day,
+                equity_usd=eq,
+                drawdown_usd=dd,
+            )
+        )
+
+    await session.commit()
+    return run_id
+
+
 __all__ = [
     "BacktestResult",
     "CommissionModel",
     "SlippageModel",
     "Trade",
     "TradeExitReason",
+    "persist_backtest_result",
     "simulate",
 ]
