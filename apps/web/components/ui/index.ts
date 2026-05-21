@@ -87,3 +87,6 @@ export type { ActivityStripProps } from "./activity-strip";
 
 export { HoldButton } from "./hold-button";
 export type { HoldButtonProps } from "./hold-button";
+
+export { Skeleton } from "./skeleton";
+export type { SkeletonProps } from "./skeleton";
