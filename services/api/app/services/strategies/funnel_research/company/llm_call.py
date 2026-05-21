@@ -22,7 +22,10 @@ from app.services.llm.client import (
     BudgetPausedError,
     LlmCompletionResult,
 )
-from app.services.strategies.funnel_research._errors import FunnelResearchError
+from app.services.strategies.funnel_research._errors import (
+    FunnelResearchBudgetHaltError,
+    FunnelResearchError,
+)
 from app.services.strategies.funnel_research.company.prompts import (
     build_company_messages,
 )
@@ -67,12 +70,12 @@ async def call_company_synthesis(
         )
     except BudgetPausedError as exc:
         await orchestrator_pause(run_id=run_id, reason=str(exc))
-        raise FunnelResearchError(
+        raise FunnelResearchBudgetHaltError(
             f"company synthesis paused by budget guard: {company_idea.company_name}"
         ) from exc
     except BudgetKilledError as exc:
         await orchestrator_fail(run_id=run_id, reason=str(exc))
-        raise FunnelResearchError(
+        raise FunnelResearchBudgetHaltError(
             f"company synthesis killed by budget guard: {company_idea.company_name}"
         ) from exc
 

@@ -32,6 +32,7 @@ from app.services.belief_update import (
     run_belief_update_pass,
 )
 from app.services.entity_bootstrap.gics_sectors import load_top_level_sector_names
+from app.services.extraction import ExtractionBudgetHaltError
 from app.services.hypothesis import (
     Embedder,
     OpenAiDuplicateConfirmer,
@@ -41,7 +42,10 @@ from app.services.run_events import emit_run_event, emit_stage_event
 from app.services.run_orchestrator import RunOrchestrator, resolve_stage_position
 from app.services.strategies.funnel_research._bootstrap import run as bootstrap_run
 from app.services.strategies.funnel_research._digest import build_digest, render_markdown
-from app.services.strategies.funnel_research._errors import FunnelResearchError
+from app.services.strategies.funnel_research._errors import (
+    FunnelResearchBudgetHaltError,
+    FunnelResearchError,
+)
 from app.services.strategies.funnel_research._hypotheses import persist_hypotheses
 from app.services.strategies.funnel_research._ingest import (
     SourceFetcher,
@@ -460,17 +464,20 @@ async def _run_funnel(
         )
         await session.commit()
 
-    fanout_outcome = await run_sector_fanout(
-        session_factory=session_factory,
-        run_id=run_id,
-        macro_brief=macro_brief,
-        digest_markdown=digest_markdown,
-        sector_constituents=sector_constituents,
-        llm_client=llm_client,
-        orchestrator=orchestrator,
-        http_client=http_client,
-        sector_fetcher=sector_fetcher,
-    )
+    try:
+        fanout_outcome = await run_sector_fanout(
+            session_factory=session_factory,
+            run_id=run_id,
+            macro_brief=macro_brief,
+            digest_markdown=digest_markdown,
+            sector_constituents=sector_constituents,
+            llm_client=llm_client,
+            orchestrator=orchestrator,
+            http_client=http_client,
+            sector_fetcher=sector_fetcher,
+        )
+    except (ExtractionBudgetHaltError, FunnelResearchBudgetHaltError):
+        return
 
     if _all_sectors_failed(fanout_outcome):
         await orchestrator.fail(
@@ -499,17 +506,20 @@ async def _run_funnel(
             session=session, sector_briefs=sector_briefs
         )
 
-    company_outcome = await run_company_fanout(
-        session_factory=session_factory,
-        run_id=run_id,
-        sector_briefs=sector_briefs,
-        digest_markdown=digest_markdown,
-        company_resolutions=company_resolutions,
-        llm_client=llm_client,
-        orchestrator=orchestrator,
-        http_client=http_client,
-        company_fetcher=company_fetcher,
-    )
+    try:
+        company_outcome = await run_company_fanout(
+            session_factory=session_factory,
+            run_id=run_id,
+            sector_briefs=sector_briefs,
+            digest_markdown=digest_markdown,
+            company_resolutions=company_resolutions,
+            llm_client=llm_client,
+            orchestrator=orchestrator,
+            http_client=http_client,
+            company_fetcher=company_fetcher,
+        )
+    except (ExtractionBudgetHaltError, FunnelResearchBudgetHaltError):
+        return
 
     if _all_companies_failed(company_outcome):
         await orchestrator.fail(

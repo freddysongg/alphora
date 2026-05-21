@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import json
 import uuid
@@ -14,19 +15,25 @@ from app.db.models_graph import Entity, EntityType, Evidence
 from app.db.models_runs import ResearchRun, RunEvent, RunStatus, Strategy
 from app.db.models_sector import SectorBrief as SectorBriefRow
 from app.db.session import session_factory
+from app.schemas.extraction import EvidenceChunkRef
 from app.schemas.macro_brief import (
     MacroBrief,
     SectorCall,
     SectorCallDirection,
     VerifierStatus,
 )
+from app.services.extraction import ExtractionBudgetHaltError
 from app.services.llm.client import LlmCompletionResult
 from app.services.source_clients.polygon import (
     PolygonAggregateBar,
     PolygonAggregatesResponse,
 )
 from app.services.source_clients.tiingo_news import TiingoNewsItem
+from app.services.strategies.funnel_research._errors import (
+    FunnelResearchBudgetHaltError,
+)
 from app.services.strategies.funnel_research.sector.evidence import (
+    SectorEvidenceResult,
     SectorSourceFetcher,
 )
 from app.services.strategies.funnel_research.sector.runner import run_sector_fanout
@@ -495,3 +502,231 @@ async def test_run_sector_fanout_ingests_polygon_evidence_when_unpersisted(
             )
         ).scalars().all()
     assert len(polygon_rows) == 1
+
+
+async def _seed_two_sector_entities() -> tuple[uuid.UUID, uuid.UUID, uuid.UUID]:
+    async with session_factory() as session:
+        run_id = await _seed_run(session)
+        energy_id = uuid.uuid4()
+        materials_id = uuid.uuid4()
+        session.add_all(
+            [
+                Entity(
+                    id=energy_id,
+                    type=EntityType.sector.value,
+                    canonical_name="Energy",
+                    aliases=[],
+                    external_ids={},
+                    attributes={},
+                ),
+                Entity(
+                    id=materials_id,
+                    type=EntityType.sector.value,
+                    canonical_name="Materials",
+                    aliases=[],
+                    external_ids={},
+                    attributes={},
+                ),
+            ]
+        )
+        await session.commit()
+    return run_id, energy_id, materials_id
+
+
+def _two_sector_macro(
+    energy_id: uuid.UUID, materials_id: uuid.UUID
+) -> MacroBrief:
+    return _macro_brief(
+        sector_calls=[
+            SectorCall(
+                sector_entity_id=energy_id,
+                sector_name="Energy",
+                direction=SectorCallDirection.overweight,
+                conviction=0.9,
+                evidence_ids=[],
+            ),
+            SectorCall(
+                sector_entity_id=materials_id,
+                sector_name="Materials",
+                direction=SectorCallDirection.overweight,
+                conviction=0.8,
+                evidence_ids=[],
+            ),
+        ]
+    )
+
+
+def _two_sector_constituents() -> dict[str, SectorConstituents]:
+    return {
+        "Energy": SectorConstituents(
+            proxy_ticker="XLE", representative_tickers=("XOM",)
+        ),
+        "Materials": SectorConstituents(
+            proxy_ticker="XLB", representative_tickers=("LIN",)
+        ),
+    }
+
+
+def _synthetic_chunk_refs() -> list[EvidenceChunkRef]:
+    return [
+        EvidenceChunkRef(
+            chunk_id=uuid.uuid4(),
+            evidence_id=uuid.uuid4(),
+            chunk_index=0,
+            text="seed chunk",
+            attributes={},
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_run_sector_fanout_propagates_extraction_budget_halt_and_cancels_siblings(
+    initialized_schema: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When extraction trips the budget guard, the worker re-raises, the
+    fan-out cancels remaining tasks, and the halt error propagates so
+    `_run_funnel` can return without spending more budget."""
+    run_id, energy_id, materials_id = await _seed_two_sector_entities()
+    macro = _two_sector_macro(energy_id, materials_id)
+    constituents = _two_sector_constituents()
+    orchestrator = AsyncMock()
+
+    async def _evidence_stub(**_: Any) -> SectorEvidenceResult:
+        return SectorEvidenceResult(evidence=[], chunks=_synthetic_chunk_refs())
+
+    monkeypatch.setattr(
+        "app.services.strategies.funnel_research.sector.runner.fetch_sector_evidence",
+        _evidence_stub,
+    )
+
+    call_count = 0
+    sibling_completed = asyncio.Event()
+    sibling_cancelled = asyncio.Event()
+
+    async def _extract_stub(**_: Any) -> Any:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            await asyncio.sleep(0)
+            raise ExtractionBudgetHaltError("extraction paused by budget guard")
+        try:
+            await asyncio.sleep(5.0)
+        except asyncio.CancelledError:
+            sibling_cancelled.set()
+            raise
+        sibling_completed.set()
+        raise AssertionError("sibling should have been cancelled")
+
+    monkeypatch.setattr(
+        "app.services.strategies.funnel_research.sector.runner.extract_sector_chunks",
+        _extract_stub,
+    )
+
+    async with httpx.AsyncClient() as http_client:
+        with pytest.raises(ExtractionBudgetHaltError):
+            await run_sector_fanout(
+                session_factory=session_factory,
+                run_id=run_id,
+                macro_brief=macro,
+                digest_markdown="",
+                sector_constituents=constituents,
+                llm_client=_AssertionLlm(),
+                orchestrator=orchestrator,
+                http_client=http_client,
+                sector_fetcher=_populated_sector_fetcher(),
+            )
+
+    assert not sibling_completed.is_set()
+    assert sibling_cancelled.is_set()
+    assert call_count == 2
+
+    async with session_factory() as session:
+        sector_fail_events = [
+            event
+            for event in (
+                await session.execute(
+                    select(RunEvent).where(RunEvent.run_id == run_id)
+                )
+            )
+            .scalars()
+            .all()
+            if isinstance(event.data, dict)
+            and event.data.get("event") == "sector_failed"
+        ]
+    assert sector_fail_events == []
+
+
+@pytest.mark.asyncio
+async def test_run_sector_fanout_propagates_synthesis_budget_halt(
+    initialized_schema: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A `FunnelResearchBudgetHaltError` raised inside the synthesis/judge
+    branch must propagate out of the fan-out without being recorded as a
+    per-sector failure."""
+    run_id, energy_id, _ = await _seed_two_sector_entities()
+    macro = _macro_brief(
+        sector_calls=[
+            SectorCall(
+                sector_entity_id=energy_id,
+                sector_name="Energy",
+                direction=SectorCallDirection.overweight,
+                conviction=0.9,
+                evidence_ids=[],
+            )
+        ]
+    )
+    constituents = {
+        "Energy": SectorConstituents(
+            proxy_ticker="XLE", representative_tickers=("XOM",)
+        )
+    }
+    orchestrator = AsyncMock()
+
+    async def _evidence_stub(**_: Any) -> SectorEvidenceResult:
+        return SectorEvidenceResult(evidence=[], chunks=_synthetic_chunk_refs())
+
+    monkeypatch.setattr(
+        "app.services.strategies.funnel_research.sector.runner.fetch_sector_evidence",
+        _evidence_stub,
+    )
+
+    async def _extract_stub(**_: Any) -> Any:
+        raise FunnelResearchBudgetHaltError(
+            "sector synthesis paused by budget guard: Energy"
+        )
+
+    monkeypatch.setattr(
+        "app.services.strategies.funnel_research.sector.runner.extract_sector_chunks",
+        _extract_stub,
+    )
+
+    async with httpx.AsyncClient() as http_client:
+        with pytest.raises(FunnelResearchBudgetHaltError):
+            await run_sector_fanout(
+                session_factory=session_factory,
+                run_id=run_id,
+                macro_brief=macro,
+                digest_markdown="",
+                sector_constituents=constituents,
+                llm_client=_AssertionLlm(),
+                orchestrator=orchestrator,
+                http_client=http_client,
+                sector_fetcher=_populated_sector_fetcher(),
+            )
+
+    async with session_factory() as session:
+        sector_fail_events = [
+            event
+            for event in (
+                await session.execute(
+                    select(RunEvent).where(RunEvent.run_id == run_id)
+                )
+            )
+            .scalars()
+            .all()
+            if isinstance(event.data, dict)
+            and event.data.get("event") == "sector_failed"
+        ]
+    assert sector_fail_events == []

@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import json
 import uuid
@@ -14,6 +15,7 @@ from app.db.models_company import CompanyThesis as CompanyThesisRow
 from app.db.models_graph import Entity, EntityType, Evidence
 from app.db.models_runs import ResearchRun, RunEvent, RunStatus, Strategy
 from app.db.session import session_factory
+from app.schemas.extraction import EvidenceChunkRef
 from app.schemas.macro_brief import SectorCallDirection, VerifierStatus
 from app.schemas.sector_brief import (
     JudgePublic,
@@ -22,6 +24,7 @@ from app.schemas.sector_brief import (
     SectorBriefPublic,
     SectorCompanyIdea,
 )
+from app.services.extraction import ExtractionBudgetHaltError
 from app.services.llm.client import LlmCompletionResult
 from app.services.source_clients.finnhub import (
     FinnhubCompanyProfile,
@@ -35,7 +38,11 @@ from app.services.source_clients.polygon import (
 )
 from app.services.source_clients.sec_edgar import SecSubmissionsResponse
 from app.services.source_clients.tiingo_news import TiingoNewsItem
+from app.services.strategies.funnel_research._errors import (
+    FunnelResearchBudgetHaltError,
+)
 from app.services.strategies.funnel_research.company.evidence import (
+    CompanyEvidenceResult,
     CompanySourceFetcher,
 )
 from app.services.strategies.funnel_research.company.runner import (
@@ -694,3 +701,255 @@ async def test_run_company_fanout_ingests_polygon_evidence_when_unpersisted(
             )
         ).scalars().all()
     assert len(polygon_rows) == 1
+
+
+async def _seed_two_company_entities() -> tuple[
+    uuid.UUID, uuid.UUID, uuid.UUID, uuid.UUID
+]:
+    async with session_factory() as session:
+        run_id = await _seed_run(session)
+        sector_entity_id = uuid.uuid4()
+        apple_id = uuid.uuid4()
+        msft_id = uuid.uuid4()
+        session.add_all(
+            [
+                Entity(
+                    id=sector_entity_id,
+                    type=EntityType.sector.value,
+                    canonical_name="Information Technology",
+                    aliases=[],
+                    external_ids={},
+                    attributes={},
+                ),
+                Entity(
+                    id=apple_id,
+                    type=EntityType.company.value,
+                    canonical_name="Apple Inc.",
+                    aliases=[],
+                    external_ids={},
+                    attributes={},
+                    ticker_normalized="AAPL",
+                ),
+                Entity(
+                    id=msft_id,
+                    type=EntityType.company.value,
+                    canonical_name="Microsoft Corp.",
+                    aliases=[],
+                    external_ids={},
+                    attributes={},
+                    ticker_normalized="MSFT",
+                ),
+            ]
+        )
+        await session.commit()
+    return run_id, sector_entity_id, apple_id, msft_id
+
+
+def _two_company_sector_briefs(
+    sector_entity_id: uuid.UUID,
+) -> list[SectorBriefPublic]:
+    return [
+        _sector_brief_public(
+            sector_entity_id=sector_entity_id,
+            sector_name="Information Technology",
+            companies=[
+                SectorCompanyIdea(
+                    name="Apple Inc.",
+                    ticker="AAPL",
+                    direction=SectorCallDirection.overweight,
+                    conviction=0.9,
+                    evidence_ids=[],
+                ),
+                SectorCompanyIdea(
+                    name="Microsoft Corp.",
+                    ticker="MSFT",
+                    direction=SectorCallDirection.overweight,
+                    conviction=0.85,
+                    evidence_ids=[],
+                ),
+            ],
+        )
+    ]
+
+
+def _two_company_resolutions(
+    apple_id: uuid.UUID, msft_id: uuid.UUID
+) -> dict[str, CompanyResolution]:
+    return {
+        "ticker:AAPL": CompanyResolution(
+            company_entity_id=apple_id, cik="0000320193"
+        ),
+        "ticker:MSFT": CompanyResolution(
+            company_entity_id=msft_id, cik="0000789019"
+        ),
+    }
+
+
+def _synthetic_company_chunk_refs() -> list[EvidenceChunkRef]:
+    return [
+        EvidenceChunkRef(
+            chunk_id=uuid.uuid4(),
+            evidence_id=uuid.uuid4(),
+            chunk_index=0,
+            text="seed chunk",
+            attributes={},
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_run_company_fanout_propagates_extraction_budget_halt_and_cancels_siblings(
+    initialized_schema: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When extraction trips the budget guard, the worker re-raises, the
+    fan-out cancels remaining tasks, and the halt error propagates so
+    `_run_funnel` can return without spending more budget."""
+    run_id, sector_entity_id, apple_id, msft_id = await _seed_two_company_entities()
+    sector_briefs = _two_company_sector_briefs(sector_entity_id)
+    resolutions = _two_company_resolutions(apple_id, msft_id)
+    orchestrator = AsyncMock()
+
+    async def _evidence_stub(**_: Any) -> CompanyEvidenceResult:
+        return CompanyEvidenceResult(
+            evidence=[], chunks=_synthetic_company_chunk_refs()
+        )
+
+    monkeypatch.setattr(
+        "app.services.strategies.funnel_research.company.runner.fetch_company_evidence",
+        _evidence_stub,
+    )
+
+    call_count = 0
+    sibling_completed = asyncio.Event()
+    sibling_cancelled = asyncio.Event()
+
+    async def _extract_stub(**_: Any) -> Any:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            await asyncio.sleep(0)
+            raise ExtractionBudgetHaltError("extraction paused by budget guard")
+        try:
+            await asyncio.sleep(5.0)
+        except asyncio.CancelledError:
+            sibling_cancelled.set()
+            raise
+        sibling_completed.set()
+        raise AssertionError("sibling should have been cancelled")
+
+    monkeypatch.setattr(
+        "app.services.strategies.funnel_research.company.runner.extract_company_chunks",
+        _extract_stub,
+    )
+
+    async with httpx.AsyncClient() as http_client:
+        with pytest.raises(ExtractionBudgetHaltError):
+            await run_company_fanout(
+                session_factory=session_factory,
+                run_id=run_id,
+                sector_briefs=sector_briefs,
+                digest_markdown="",
+                company_resolutions=resolutions,
+                llm_client=_AssertionLlm(),
+                orchestrator=orchestrator,
+                http_client=http_client,
+            )
+
+    assert not sibling_completed.is_set()
+    assert sibling_cancelled.is_set()
+    assert call_count == 2
+
+    async with session_factory() as session:
+        company_fail_events = [
+            event
+            for event in (
+                await session.execute(
+                    select(RunEvent).where(RunEvent.run_id == run_id)
+                )
+            )
+            .scalars()
+            .all()
+            if isinstance(event.data, dict)
+            and event.data.get("event") == "company_failed"
+        ]
+    assert company_fail_events == []
+
+
+@pytest.mark.asyncio
+async def test_run_company_fanout_propagates_synthesis_budget_halt(
+    initialized_schema: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A `FunnelResearchBudgetHaltError` raised inside synthesis/judge must
+    propagate without being recorded as a per-company failure."""
+    run_id, sector_entity_id, apple_id, _ = await _seed_two_company_entities()
+    sector_briefs = [
+        _sector_brief_public(
+            sector_entity_id=sector_entity_id,
+            sector_name="Information Technology",
+            companies=[
+                SectorCompanyIdea(
+                    name="Apple Inc.",
+                    ticker="AAPL",
+                    direction=SectorCallDirection.overweight,
+                    conviction=0.9,
+                    evidence_ids=[],
+                ),
+            ],
+        )
+    ]
+    resolutions = {
+        "ticker:AAPL": CompanyResolution(
+            company_entity_id=apple_id, cik="0000320193"
+        )
+    }
+    orchestrator = AsyncMock()
+
+    async def _evidence_stub(**_: Any) -> CompanyEvidenceResult:
+        return CompanyEvidenceResult(
+            evidence=[], chunks=_synthetic_company_chunk_refs()
+        )
+
+    monkeypatch.setattr(
+        "app.services.strategies.funnel_research.company.runner.fetch_company_evidence",
+        _evidence_stub,
+    )
+
+    async def _extract_stub(**_: Any) -> Any:
+        raise FunnelResearchBudgetHaltError(
+            "company synthesis paused by budget guard: Apple Inc."
+        )
+
+    monkeypatch.setattr(
+        "app.services.strategies.funnel_research.company.runner.extract_company_chunks",
+        _extract_stub,
+    )
+
+    async with httpx.AsyncClient() as http_client:
+        with pytest.raises(FunnelResearchBudgetHaltError):
+            await run_company_fanout(
+                session_factory=session_factory,
+                run_id=run_id,
+                sector_briefs=sector_briefs,
+                digest_markdown="",
+                company_resolutions=resolutions,
+                llm_client=_AssertionLlm(),
+                orchestrator=orchestrator,
+                http_client=http_client,
+            )
+
+    async with session_factory() as session:
+        company_fail_events = [
+            event
+            for event in (
+                await session.execute(
+                    select(RunEvent).where(RunEvent.run_id == run_id)
+                )
+            )
+            .scalars()
+            .all()
+            if isinstance(event.data, dict)
+            and event.data.get("event") == "company_failed"
+        ]
+    assert company_fail_events == []

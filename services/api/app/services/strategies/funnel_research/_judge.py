@@ -32,7 +32,10 @@ from app.services.llm.client import (
     LlmMessage,
 )
 from app.services.run_events import emit_run_event
-from app.services.strategies.funnel_research._errors import FunnelResearchError
+from app.services.strategies.funnel_research._errors import (
+    FunnelResearchBudgetHaltError,
+    FunnelResearchError,
+)
 from app.services.strategies.funnel_research.config import SYNTHESIS_MODEL
 
 BriefKind = Literal["macro", "sector", "company", "portfolio"]
@@ -132,8 +135,9 @@ async def run_judge(
     verdict surfaces in the UI but does not block.
 
     Budget pause/kill is NOT advisory: it is routed through the orchestrator
-    (pause/fail) and re-raised as `FunnelResearchError` so the caller's
-    halt-on-paused logic engages.
+    (pause/fail) and re-raised as `FunnelResearchBudgetHaltError` so the
+    sector/company fan-out can cancel sibling workers and propagate to
+    `_run_funnel`.
     """
     brief_json = brief.model_dump_json()
     messages = _build_messages(
@@ -151,12 +155,12 @@ async def run_judge(
         )
     except BudgetPausedError as exc:
         await orchestrator_pause(run_id=run_id, reason=str(exc))
-        raise FunnelResearchError(
+        raise FunnelResearchBudgetHaltError(
             f"judge paused by budget guard: {brief_kind}"
         ) from exc
     except BudgetKilledError as exc:
         await orchestrator_fail(run_id=run_id, reason=str(exc))
-        raise FunnelResearchError(
+        raise FunnelResearchBudgetHaltError(
             f"judge killed by budget guard: {brief_kind}"
         ) from exc
     except Exception as exc:

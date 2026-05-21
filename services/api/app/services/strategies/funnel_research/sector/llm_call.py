@@ -21,7 +21,10 @@ from app.services.llm.client import (
     BudgetPausedError,
     LlmCompletionResult,
 )
-from app.services.strategies.funnel_research._errors import FunnelResearchError
+from app.services.strategies.funnel_research._errors import (
+    FunnelResearchBudgetHaltError,
+    FunnelResearchError,
+)
 from app.services.strategies.funnel_research.config import PROMPT_VERSION, SYNTHESIS_MODEL
 from app.services.strategies.funnel_research.sector.prompts import (
     build_sector_messages,
@@ -63,12 +66,12 @@ async def call_sector_synthesis(
         )
     except BudgetPausedError as exc:
         await orchestrator_pause(run_id=run_id, reason=str(exc))
-        raise FunnelResearchError(
+        raise FunnelResearchBudgetHaltError(
             f"sector synthesis paused by budget guard: {sector_call.sector_name}"
         ) from exc
     except BudgetKilledError as exc:
         await orchestrator_fail(run_id=run_id, reason=str(exc))
-        raise FunnelResearchError(
+        raise FunnelResearchBudgetHaltError(
             f"sector synthesis killed by budget guard: {sector_call.sector_name}"
         ) from exc
 

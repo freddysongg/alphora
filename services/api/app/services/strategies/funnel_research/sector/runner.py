@@ -29,7 +29,10 @@ from app.services.extraction import ExtractionBudgetHaltError
 from app.services.llm.client import LlmClient
 from app.services.run_events import emit_run_event
 from app.services.run_orchestrator import RunOrchestrator
-from app.services.strategies.funnel_research._errors import FunnelResearchError
+from app.services.strategies.funnel_research._errors import (
+    FunnelResearchBudgetHaltError,
+    FunnelResearchError,
+)
 from app.services.strategies.funnel_research._judge import run_judge
 from app.services.strategies.funnel_research.sector.evidence import (
     SectorSourceFetcher,
@@ -123,13 +126,17 @@ async def run_sector_fanout(
         )
         for call in selected
     ]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    halt_exc = await _await_with_halt_cancellation(tasks)
+    if halt_exc is not None:
+        raise halt_exc
 
     persisted = 0
     skipped = 0
     failed = 0
-    for entry in results:
-        if isinstance(entry, BaseException):
+    for task in tasks:
+        try:
+            entry = task.result()
+        except BaseException:
             failed += 1
             continue
         if entry is _SectorOutcome.persisted:
@@ -145,6 +152,32 @@ async def run_sector_fanout(
         skipped_count=skipped,
         failed_count=failed,
     )
+
+
+async def _await_with_halt_cancellation(
+    tasks: list[asyncio.Task[_SectorOutcome]],
+) -> ExtractionBudgetHaltError | FunnelResearchBudgetHaltError | None:
+    """Wait for all tasks, but if any raises a budget halt cancel the rest
+    so we stop spending budget after the guard has already fired."""
+    pending: set[asyncio.Task[_SectorOutcome]] = set(tasks)
+    halt_exc: ExtractionBudgetHaltError | FunnelResearchBudgetHaltError | None = None
+    while pending:
+        done, pending = await asyncio.wait(
+            pending, return_when=asyncio.FIRST_COMPLETED
+        )
+        for task in done:
+            exc = task.exception()
+            if isinstance(
+                exc, ExtractionBudgetHaltError | FunnelResearchBudgetHaltError
+            ):
+                halt_exc = exc
+                for other in pending:
+                    other.cancel()
+        if halt_exc is not None:
+            break
+    if pending:
+        await asyncio.gather(*pending, return_exceptions=True)
+    return halt_exc
 
 
 async def _run_one_sector(
@@ -297,7 +330,10 @@ async def _run_one_sector(
                 )
                 await session.commit()
                 return _SectorOutcome.persisted
-            except (FunnelResearchError, ExtractionBudgetHaltError) as exc:
+            except (ExtractionBudgetHaltError, FunnelResearchBudgetHaltError):
+                await session.rollback()
+                raise
+            except FunnelResearchError as exc:
                 _emit_fail(
                     session,
                     run_id=run_id,
