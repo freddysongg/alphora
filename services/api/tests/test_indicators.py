@@ -76,8 +76,8 @@ def test_rsi_returns_aligned_series_with_period_warmup() -> None:
     out = rsi(closes, period=14)
     assert isinstance(out, pd.Series)
     assert len(out) == 30
-    assert math.isnan(out.iloc[0])
-    assert not math.isnan(out.iloc[1])
+    assert all(math.isnan(v) for v in out.iloc[:14])
+    assert not math.isnan(out.iloc[14])
 
 
 def test_rsi_monotonic_uptrend_is_high() -> None:

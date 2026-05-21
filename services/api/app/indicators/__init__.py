@@ -63,4 +63,11 @@ def rsi(close: pd.Series, *, period: int = 14) -> pd.Series:
             f"rsi returned None for period={period}, len(close)={len(close)}; "
             "input series is shorter than the warmup window"
         )
-    return result
+    # pandas-ta 0.4.x emits a value starting at index 1, but the source
+    # bot's `rsi` in lib/indicators.js leaves indices 0..period-1
+    # undefined and writes the first value at index `period`. Mask the
+    # warmup region to match — required for the Task 14 golden-output
+    # regression to pass on the early bars.
+    masked = result.copy()
+    masked.iloc[:period] = float("nan")
+    return masked
