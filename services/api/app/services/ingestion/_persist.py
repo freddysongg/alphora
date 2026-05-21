@@ -1,7 +1,7 @@
 import uuid
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -129,6 +129,77 @@ def _backfill_source_id(
     evidence.source_id = resolved_source_id
 
 
+async def insert_or_replace_evidence(
+    *,
+    session: AsyncSession,
+    source: str,
+    document_id: str,
+    raw_url: str | None,
+    content_hash: str,
+    structured: dict[str, Any] | None,
+) -> tuple[Evidence, bool]:
+    """Insert evidence, return existing on hash match, or upgrade-in-place on
+    hash divergence for the same `(source, document_id)`.
+
+    Use this for live-snapshot sources (polymarket events, news lists) where
+    the upstream payload changes between fetches but the logical document
+    identity stays constant. On hash divergence we delete the old chunks,
+    update `content_hash`/`structured`/`raw_url`, and return
+    `was_inserted=True` so the caller re-chunks against the new payload.
+
+    For archival sources where a payload change is a real conflict (filings,
+    historical observations), use `insert_or_get_evidence` instead.
+    """
+    source_id = await _resolve_source_id(session, source)
+    new_evidence = Evidence(
+        source=source,
+        source_id=source_id,
+        document_id=document_id,
+        raw_url=raw_url,
+        content_hash=content_hash,
+        structured=structured,
+    )
+    try:
+        async with session.begin_nested():
+            session.add(new_evidence)
+            await session.flush()
+    except IntegrityError:
+        by_doc = await session.execute(
+            select(Evidence)
+            .where(Evidence.source == source)
+            .where(Evidence.document_id == document_id)
+        )
+        existing_doc = by_doc.scalar_one_or_none()
+        if existing_doc is not None:
+            if existing_doc.content_hash == content_hash:
+                _backfill_source_id(existing_doc, source_id)
+                return existing_doc, False
+            await session.execute(
+                delete(EvidenceChunk).where(
+                    EvidenceChunk.evidence_id == existing_doc.id
+                )
+            )
+            existing_doc.content_hash = content_hash
+            existing_doc.structured = structured
+            existing_doc.raw_url = raw_url
+            _backfill_source_id(existing_doc, source_id)
+            await session.flush()
+            return existing_doc, True
+        by_hash = await session.execute(
+            select(Evidence).where(Evidence.content_hash == content_hash)
+        )
+        existing_hash = by_hash.scalar_one_or_none()
+        if existing_hash is not None:
+            _backfill_source_id(existing_hash, source_id)
+            return existing_hash, False
+        raise IngestionError(
+            f"IntegrityError without matching evidence row for "
+            f"content_hash={content_hash!r} or "
+            f"(source, document_id)=({source!r}, {document_id!r})"
+        ) from None
+    return new_evidence, True
+
+
 async def insert_chunks(
     *,
     session: AsyncSession,
@@ -159,4 +230,5 @@ __all__ = [
     "IngestionError",
     "insert_chunks",
     "insert_or_get_evidence",
+    "insert_or_replace_evidence",
 ]

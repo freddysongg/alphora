@@ -6,7 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models_graph import EvidenceChunk
 from app.schemas.extraction import IngestedEvidence
 from app.services.ingestion._chunkers import chunk_finnhub_news
-from app.services.ingestion._persist import insert_chunks, insert_or_get_evidence
+from app.services.ingestion._persist import (
+    insert_chunks,
+    insert_or_replace_evidence,
+)
 from app.services.source_clients.finnhub import FinnhubNewsItem
 
 _SOURCE = "finnhub_news"
@@ -35,7 +38,7 @@ async def ingest_finnhub_news(
     document_id = _document_id(items)
 
     async with session.begin():
-        evidence, was_inserted = await insert_or_get_evidence(
+        evidence, was_inserted = await insert_or_replace_evidence(
             session=session,
             source=_SOURCE,
             document_id=document_id,

@@ -47,8 +47,7 @@ async function loadGroupedRuns(): Promise<FetchResult> {
   try {
     const { data } = await getServerApi().GET("/api/research-runs", {
       params: { query: { group: "status" } },
-      cache: "force-cache",
-      next: { tags: ["research-runs"] },
+      cache: "no-store",
     });
     if (data === undefined || Array.isArray(data)) {
       return { groups: emptyGroups, errorDetail: null };
