@@ -226,3 +226,42 @@ async def test_cancel_order_calls_alpaca_cancel() -> None:
 
     await adapter.cancel_order("ord-99")
     trading.cancel_order_by_id.assert_called_once_with("ord-99")
+
+
+@pytest.mark.asyncio
+async def test_list_orders_translates_alpaca_orders() -> None:
+    submitted = datetime(2026, 5, 20, 14, 30, tzinfo=UTC)
+    filled = datetime(2026, 5, 20, 14, 30, 1, tzinfo=UTC)
+    fake_orders = [
+        SimpleNamespace(
+            id="ord-1",
+            client_order_id="cli-1",
+            symbol="SPY",
+            side="buy",
+            qty="1",
+            filled_qty="1",
+            order_type="market",
+            type="market",
+            time_in_force="day",
+            status="filled",
+            limit_price=None,
+            stop_price=None,
+            filled_avg_price="500.10",
+            submitted_at=submitted,
+            filled_at=filled,
+            canceled_at=None,
+        ),
+    ]
+    trading = MagicMock()
+    trading.get_orders = MagicMock(return_value=fake_orders)
+    adapter = AlpacaAdapter(trading_client=trading, data_client=MagicMock(), mode="paper")
+
+    orders = await adapter.list_orders(status="all")
+
+    assert len(orders) == 1
+    o = orders[0]
+    assert o.broker_order_id == "ord-1"
+    assert o.ticker == "SPY"
+    assert o.status == "filled"
+    assert o.filled_quantity == Decimal("1")
+    assert o.avg_fill_price == Decimal("500.10")

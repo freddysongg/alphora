@@ -7,8 +7,10 @@ from typing import TYPE_CHECKING, cast
 
 from alpaca.data.requests import StockLatestQuoteRequest, StockLatestTradeRequest
 from alpaca.trading.enums import OrderSide as AlpacaOrderSide
+from alpaca.trading.enums import QueryOrderStatus
 from alpaca.trading.enums import TimeInForce as AlpacaTimeInForce
 from alpaca.trading.requests import (
+    GetOrdersRequest,
     LimitOrderRequest,
     MarketOrderRequest,
     StopLimitOrderRequest,
@@ -95,6 +97,39 @@ _STATUS_MAP: dict[str, OrderStatus] = {
 
 def _translate_status(raw: str) -> OrderStatus:
     return _STATUS_MAP.get(raw.lower(), "rejected")
+
+
+_FILTER_BY_OURS: dict[OrderStatusFilter, QueryOrderStatus] = {
+    "open": QueryOrderStatus.OPEN,
+    "closed": QueryOrderStatus.CLOSED,
+    "all": QueryOrderStatus.ALL,
+}
+
+
+def _translate_order(raw: object) -> Order:
+    def _dec(value: object) -> Decimal | None:
+        if value is None:
+            return None
+        return Decimal(str(value))
+
+    type_attr = getattr(raw, "order_type", None) or getattr(raw, "type", None)
+    return Order(
+        broker_order_id=str(getattr(raw, "id")),  # noqa: B009
+        client_order_id=str(getattr(raw, "client_order_id")) if getattr(raw, "client_order_id", None) else None,  # noqa: B009
+        ticker=str(getattr(raw, "symbol")),  # noqa: B009
+        side=str(getattr(raw, "side")).lower(),  # type: ignore[arg-type]  # noqa: B009
+        quantity=Decimal(str(getattr(raw, "qty"))),  # noqa: B009
+        filled_quantity=Decimal(str(getattr(raw, "filled_qty", "0"))),
+        order_type=str(type_attr).lower(),  # type: ignore[arg-type]
+        time_in_force=str(getattr(raw, "time_in_force")).lower(),  # type: ignore[arg-type]  # noqa: B009
+        status=_translate_status(str(getattr(raw, "status"))),  # noqa: B009
+        limit_price=_dec(getattr(raw, "limit_price", None)),
+        stop_price=_dec(getattr(raw, "stop_price", None)),
+        avg_fill_price=_dec(getattr(raw, "filled_avg_price", None)),
+        submitted_at=getattr(raw, "submitted_at"),  # noqa: B009
+        filled_at=getattr(raw, "filled_at", None),
+        canceled_at=getattr(raw, "canceled_at", None),
+    )
 
 
 class AlpacaAdapter:
@@ -202,7 +237,9 @@ class AlpacaAdapter:
         await asyncio.to_thread(self._trading.cancel_order_by_id, broker_order_id)
 
     async def list_orders(self, status: OrderStatusFilter = "all") -> list[Order]:
-        raise NotImplementedError
+        req = GetOrdersRequest(status=_FILTER_BY_OURS[status])
+        raw_orders = await asyncio.to_thread(self._trading.get_orders, req)
+        return [_translate_order(raw) for raw in raw_orders]
 
     # ---- Streaming methods — deferred to Phase 4 ----
 
