@@ -6,6 +6,14 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
 from alpaca.data.requests import StockLatestQuoteRequest, StockLatestTradeRequest
+from alpaca.trading.enums import OrderSide as AlpacaOrderSide
+from alpaca.trading.enums import TimeInForce as AlpacaTimeInForce
+from alpaca.trading.requests import (
+    LimitOrderRequest,
+    MarketOrderRequest,
+    StopLimitOrderRequest,
+    StopOrderRequest,
+)
 
 from app.brokers.base import (
     Account,
@@ -14,6 +22,7 @@ from app.brokers.base import (
     Order,
     OrderRequest,
     OrderResponse,
+    OrderStatus,
     OrderStatusFilter,
     Position,
     Quote,
@@ -28,8 +37,64 @@ if TYPE_CHECKING:
     from alpaca.data.models import Trade as AlpacaTrade
     from alpaca.trading.client import TradingClient
     from alpaca.trading.models import Asset as AlpacaAsset
+    from alpaca.trading.models import Order as AlpacaOrder
     from alpaca.trading.models import Position as AlpacaPosition
     from alpaca.trading.models import TradeAccount
+
+
+_ALPACA_SIDE_BY_OURS: dict[str, AlpacaOrderSide] = {
+    "buy": AlpacaOrderSide.BUY,
+    "sell": AlpacaOrderSide.SELL,
+}
+
+_ALPACA_TIF_BY_OURS: dict[str, AlpacaTimeInForce] = {
+    "day": AlpacaTimeInForce.DAY,
+    "gtc": AlpacaTimeInForce.GTC,
+    "ioc": AlpacaTimeInForce.IOC,
+    "fok": AlpacaTimeInForce.FOK,
+}
+
+
+def _build_alpaca_order_request(order: OrderRequest):  # type: ignore[no-untyped-def]
+    side = _ALPACA_SIDE_BY_OURS[order.side]
+    tif = _ALPACA_TIF_BY_OURS[order.time_in_force]
+    common = dict(
+        symbol=order.ticker,
+        qty=float(order.quantity),
+        side=side,
+        time_in_force=tif,
+        client_order_id=order.client_order_id,
+    )
+    if order.order_type == "market":
+        return MarketOrderRequest(**common)
+    if order.order_type == "limit":
+        return LimitOrderRequest(**common, limit_price=float(order.limit_price))  # type: ignore[arg-type]
+    if order.order_type == "stop":
+        return StopOrderRequest(**common, stop_price=float(order.stop_price))  # type: ignore[arg-type]
+    if order.order_type == "stop_limit":
+        return StopLimitOrderRequest(
+            **common,
+            limit_price=float(order.limit_price),  # type: ignore[arg-type]
+            stop_price=float(order.stop_price),  # type: ignore[arg-type]
+        )
+    raise ValueError(f"unknown order_type: {order.order_type}")
+
+
+_STATUS_MAP: dict[str, OrderStatus] = {
+    "new": "new",
+    "accepted": "new",
+    "pending_new": "pending_new",
+    "partially_filled": "partially_filled",
+    "filled": "filled",
+    "canceled": "canceled",
+    "cancelled": "canceled",
+    "rejected": "rejected",
+    "expired": "expired",
+}
+
+
+def _translate_status(raw: str) -> OrderStatus:
+    return _STATUS_MAP.get(raw.lower(), "rejected")
 
 
 class AlpacaAdapter:
@@ -124,7 +189,14 @@ class AlpacaAdapter:
         )
 
     async def place_order(self, order: OrderRequest) -> OrderResponse:
-        raise NotImplementedError
+        alpaca_req = _build_alpaca_order_request(order)
+        raw = cast("AlpacaOrder", await asyncio.to_thread(self._trading.submit_order, alpaca_req))
+        return OrderResponse(
+            broker_order_id=str(raw.id),
+            client_order_id=str(raw.client_order_id) if raw.client_order_id else None,
+            status=_translate_status(str(raw.status)),
+            submitted_at=raw.submitted_at,
+        )
 
     async def cancel_order(self, broker_order_id: str) -> None:
         raise NotImplementedError

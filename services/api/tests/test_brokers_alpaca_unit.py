@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.brokers.alpaca import AlpacaAdapter
+from app.brokers.base import OrderRequest
 
 
 def test_adapter_stores_mode_and_clients() -> None:
@@ -161,3 +162,57 @@ async def test_is_tradable_flags_inactive_asset_with_reason() -> None:
     check = await adapter.is_tradable("XYZ")
     assert check.is_tradable is False
     assert check.reason == "asset status: inactive"
+
+
+@pytest.mark.asyncio
+async def test_place_order_market_buy_returns_broker_order_id() -> None:
+    submitted = datetime(2026, 5, 20, 14, 30, tzinfo=UTC)
+    fake_response = SimpleNamespace(
+        id="ord-1",
+        client_order_id="cli-1",
+        status="new",
+        submitted_at=submitted,
+    )
+    trading = MagicMock()
+    trading.submit_order = MagicMock(return_value=fake_response)
+    adapter = AlpacaAdapter(trading_client=trading, data_client=MagicMock(), mode="paper")
+
+    req = OrderRequest(
+        ticker="SPY",
+        side="buy",
+        quantity=Decimal("1"),
+        order_type="market",
+        time_in_force="day",
+    )
+    resp = await adapter.place_order(req)
+
+    assert resp.broker_order_id == "ord-1"
+    assert resp.client_order_id == "cli-1"
+    assert resp.status == "new"
+    assert trading.submit_order.called
+
+
+@pytest.mark.asyncio
+async def test_place_order_limit_buy_includes_limit_price() -> None:
+    fake_response = SimpleNamespace(
+        id="ord-2",
+        client_order_id=None,
+        status="new",
+        submitted_at=datetime(2026, 5, 20, 14, 30, tzinfo=UTC),
+    )
+    trading = MagicMock()
+    trading.submit_order = MagicMock(return_value=fake_response)
+    adapter = AlpacaAdapter(trading_client=trading, data_client=MagicMock(), mode="paper")
+
+    req = OrderRequest(
+        ticker="SPY",
+        side="buy",
+        quantity=Decimal("1"),
+        order_type="limit",
+        time_in_force="day",
+        limit_price=Decimal("500.00"),
+    )
+    resp = await adapter.place_order(req)
+    assert resp.broker_order_id == "ord-2"
+    submitted_arg = trading.submit_order.call_args.args[0]
+    assert submitted_arg.limit_price == 500.0
