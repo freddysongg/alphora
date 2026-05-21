@@ -345,7 +345,7 @@ export function RunDetail(props: RunDetailProps): ReactElement {
   return (
     <RunSseProvider runId={detail.id} isTerminal={isLogStreamTerminal}>
       <RunTerminalRefresher />
-      <div className="max-w-[1100px] mx-auto">
+      <div className="max-w-[1400px] mx-auto">
         <header className="sticky top-0 z-10 bg-canvas border-b border-line">
           <div className="flex items-center gap-4 px-6 py-4">
             <span className="text-2xl font-mono tabular-nums text-fg">
