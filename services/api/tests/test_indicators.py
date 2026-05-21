@@ -68,6 +68,47 @@ def test_macd_histogram_equals_macd_minus_signal_post_warmup() -> None:
     assert abs(hist.iloc[last] - (macd_line.iloc[last] - signal_line.iloc[last])) < 1e-9
 
 
+from app.indicators import adx  # noqa: E402
+
+
+def _ohlcv_frame(closes: list[float], *, range_amp: float = 0.5) -> pd.DataFrame:
+    idx = pd.date_range("2026-06-15 13:30:00+00:00", periods=len(closes), freq="1min")
+    return pd.DataFrame(
+        {
+            "open": closes,
+            "high": [c + range_amp for c in closes],
+            "low": [c - range_amp for c in closes],
+            "close": closes,
+            "volume": [1000.0] * len(closes),
+        },
+        index=idx,
+    )
+
+
+def test_adx_returns_aligned_series_warmup_nan() -> None:
+    bars = _ohlcv_frame([100.0 + 0.1 * i for i in range(60)])
+    out = adx(bars, period=14)
+    assert isinstance(out, pd.Series)
+    assert len(out) == 60
+    # ADX needs 2*period bars to start producing values
+    assert math.isnan(out.iloc[27])
+    assert not math.isnan(out.iloc[-1])
+
+
+def test_adx_strong_uptrend_is_above_25() -> None:
+    bars = _ohlcv_frame([100.0 + 1.0 * i for i in range(60)])
+    out = adx(bars, period=14)
+    assert out.iloc[-1] >= 25.0
+
+
+def test_adx_flat_series_is_below_25() -> None:
+    bars = _ohlcv_frame([100.0] * 60)
+    out = adx(bars, period=14)
+    valid = out.dropna()
+    if len(valid) > 0:
+        assert valid.iloc[-1] < 25.0
+
+
 from app.indicators import rsi  # noqa: E402
 
 

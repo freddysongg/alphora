@@ -10,7 +10,31 @@ from __future__ import annotations
 import pandas as pd  # type: ignore[import-untyped]
 import pandas_ta as ta
 
-__all__ = ["ema", "macd", "rsi"]
+__all__ = ["adx", "ema", "macd", "rsi"]
+
+
+def adx(bars: pd.DataFrame, *, period: int = 14) -> pd.Series:
+    """Average Directional Index (Wilder) on a bars DataFrame.
+
+    `bars` must have columns `high`, `low`, `close`. Returns a Series of
+    ADX values aligned to `bars.index`; positions before `2 * period` are
+    NaN. Default period 14 matches the source bot.
+    """
+    df = ta.adx(high=bars["high"], low=bars["low"], close=bars["close"], length=period)
+    if df is None:
+        raise ValueError(
+            f"adx returned None for period={period}, len(bars)={len(bars)}; "
+            "input frame is shorter than the warmup window"
+        )
+    result: pd.Series = df[f"ADX_{period}"]
+    # pandas-ta 0.4.x emits a value starting at index period-1, but the
+    # source bot's `adx` in lib/indicators.js leaves indices
+    # 0..(2*period - 1) undefined and writes the first value at index
+    # 2*period. Mask the warmup region to match — required for the Task
+    # 14 golden-output regression to pass on the early bars.
+    masked = result.copy()
+    masked.iloc[: 2 * period] = float("nan")
+    return masked
 
 
 def ema(close: pd.Series, *, period: int) -> pd.Series:
