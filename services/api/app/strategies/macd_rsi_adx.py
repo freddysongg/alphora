@@ -23,6 +23,8 @@ from __future__ import annotations
 import math
 from typing import Literal
 
+import pandas as pd  # type: ignore[import-untyped]
+
 from app.indicators import macd, rsi
 from app.strategies.base import (
     Bars,
@@ -36,6 +38,9 @@ _DEFAULT_SLOW = 26
 _DEFAULT_SIGNAL = 9
 _DEFAULT_RSI_PERIOD = 14
 _DEFAULT_RSI_MID = 50.0
+
+_RTH_OPEN_UTC_MIN = 13 * 60 + 30  # 13:30 UTC == 9:30 ET during EDT
+_RTH_CLOSE_UTC_MIN = 20 * 60      # 20:00 UTC == 16:00 ET during EDT
 
 Cross = Literal["BULL", "BEAR", "none"]
 
@@ -62,6 +67,17 @@ def _position_sign(current_position: int) -> int:
     if current_position < 0:
         return -1
     return 0
+
+
+def _is_rth_utc(ts: pd.Timestamp) -> bool:
+    """Match the JS `isRTH` in `filteredMacdRsiStrategy`: compare the
+    bar's UTC minute-of-day to the EDT window 13:30–20:00 UTC. Note:
+    this hardcodes EDT and is incorrect during EST (UTC-5). The source
+    bot has the same limitation; fix is deferred (Phase 3+).
+    """
+    utc = ts.tz_convert("UTC") if ts.tz is not None else ts.tz_localize("UTC")
+    minute_of_day: int = int(utc.hour) * 60 + int(utc.minute)
+    return _RTH_OPEN_UTC_MIN <= minute_of_day < _RTH_CLOSE_UTC_MIN
 
 
 class MacdRsiAdxStrategy:
@@ -100,8 +116,6 @@ class MacdRsiAdxStrategy:
         last_rsi = float(rsi_series.iloc[-1])
         cross = _detect_crossover(last_macd, last_signal, prev_macd, prev_signal)
 
-        # Inner signal: BULL cross + RSI > midline → long; BEAR cross +
-        # RSI < midline → short; otherwise carry (no exit on cross alone).
         target = carry
         if math.isnan(last_rsi):
             target = carry
@@ -116,4 +130,15 @@ class MacdRsiAdxStrategy:
             "rsi": last_rsi,
             "cross": cross,
         }
+
+        # While in a position, exits are unfiltered: return inner signal.
+        if current_position != 0:
+            return StrategyResult(target=target, meta=meta)
+
+        # Gate A: RTH (entries only).
+        last_ts = primary_bars.index[-1]
+        if isinstance(last_ts, pd.Timestamp) and not _is_rth_utc(last_ts):
+            meta["gate"] = "offhours"
+            return StrategyResult(target=0, meta=meta)
+
         return StrategyResult(target=target, meta=meta)

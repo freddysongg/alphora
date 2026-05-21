@@ -137,3 +137,55 @@ def test_evaluate_records_rsi_value() -> None:
     )
     rsi_value = float(result.meta["rsi"])
     assert rsi_value > 50.0
+
+
+def _bars_at_utc(n: int, *, start_utc: datetime, start: float = 100.0, step: float = 0.5) -> pd.DataFrame:
+    idx = [start_utc + timedelta(minutes=i) for i in range(n)]
+    closes = [start + step * i for i in range(n)]
+    return pd.DataFrame(
+        {
+            "open": closes,
+            "high": [c + 0.25 for c in closes],
+            "low": [c - 0.25 for c in closes],
+            "close": closes,
+            "volume": [1000.0] * n,
+        },
+        index=pd.DatetimeIndex(idx, tz="UTC"),
+    )
+
+
+def test_evaluate_rth_gate_blocks_new_entries_offhours() -> None:
+    """At 12:00 UTC (08:00 ET — before RTH open at 09:30 ET) any new
+    entry must be flat regardless of MACD/RSI."""
+    strat = MacdRsiAdxStrategy()
+    # 40 ramping bars ending at 12:39 UTC — fully outside RTH.
+    bars = _bars_at_utc(40, start_utc=datetime(2026, 6, 15, 12, 0, tzinfo=UTC))
+    result = strat.evaluate(
+        primary_bars=bars, secondary_bars={}, current_position=0, params={}
+    )
+    assert result.target == 0
+    assert result.meta.get("gate") == "offhours"
+
+
+def test_evaluate_rth_gate_passes_during_rth_window() -> None:
+    """At 14:00 UTC (10:00 ET — well inside RTH) the gate must NOT block."""
+    strat = MacdRsiAdxStrategy()
+    bars = _bars_at_utc(40, start_utc=datetime(2026, 6, 15, 14, 0, tzinfo=UTC))
+    result = strat.evaluate(
+        primary_bars=bars, secondary_bars={}, current_position=0, params={}
+    )
+    # The RTH gate must not have flagged off-hours.
+    assert result.meta.get("gate") != "offhours"
+
+
+def test_evaluate_rth_gate_skipped_when_already_in_position() -> None:
+    """While long, an off-hours bar must NOT force flat — exits are
+    unfiltered. Carry the inner-signal result."""
+    strat = MacdRsiAdxStrategy()
+    bars = _bars_at_utc(40, start_utc=datetime(2026, 6, 15, 12, 0, tzinfo=UTC))
+    result = strat.evaluate(
+        primary_bars=bars, secondary_bars={}, current_position=10, params={}
+    )
+    # Carry the long bias; gate should NOT trigger.
+    assert result.target == 1
+    assert result.meta.get("gate") != "offhours"
