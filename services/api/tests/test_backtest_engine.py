@@ -341,3 +341,41 @@ def test_simulate_profit_factor_is_inf_when_no_losses() -> None:
     assert result.win_count == 1
     assert result.loss_count == 0
     assert result.profit_factor == float("inf")
+
+
+def test_simulate_force_closes_open_long_at_last_close() -> None:
+    class _LongFromBar1ToEnd(MacdRsiAdxStrategy):
+        def evaluate(self, primary_bars, secondary_bars, current_position, params):  # type: ignore[override]
+            from app.strategies.base import StrategyResult
+
+            if len(primary_bars) == 2:
+                return StrategyResult(target=1, meta={})
+            return StrategyResult(target=1, meta={})
+
+    bars = _ramp_bars_for_engine(10)
+    result = simulate(bars=bars, strategy=_LongFromBar1ToEnd(), params={})
+    # Exactly one trade, closed on the final bar.
+    assert len(result.trades) == 1
+    final = result.trades[0]
+    assert final.exit_bar_index == len(bars) - 1
+    assert final.exit_reason == "final-bar"
+    expected_exit = bars["close"].iloc[-1] - 0.02  # selling out the long
+    assert abs(final.exit_price - expected_exit) < 1e-9
+
+
+def test_simulate_force_closes_open_short_at_last_close() -> None:
+    class _ShortFromBar1ToEnd(MacdRsiAdxStrategy):
+        def evaluate(self, primary_bars, secondary_bars, current_position, params):  # type: ignore[override]
+            from app.strategies.base import StrategyResult
+
+            if len(primary_bars) == 2:
+                return StrategyResult(target=-1, meta={})
+            return StrategyResult(target=-1, meta={})
+
+    bars = _ramp_bars_for_engine(10, start=200.0, step=-0.5)
+    result = simulate(bars=bars, strategy=_ShortFromBar1ToEnd(), params={})
+    assert len(result.trades) == 1
+    final = result.trades[0]
+    assert final.exit_reason == "final-bar"
+    expected_exit = bars["close"].iloc[-1] + 0.02  # buying back the short
+    assert abs(final.exit_price - expected_exit) < 1e-9

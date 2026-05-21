@@ -249,12 +249,16 @@ def simulate(
             open_mark = (float(closes[i]) - ot.entry_price) * ot.side * ot.shares
         equity_per_bar.append(realized_pnl + open_mark)
 
-    # 5. Final-bar force-close (added in Task 10) — record any unclosed
-    # position as a placeholder trade (exit fields == entry fields,
-    # exit_reason="signal"). Task 10 will replace this with a proper
-    # close at the last bar's close ± slippage.
+    # 5. Final-bar force-close: any still-open position closes at the last
+    # bar's close ± slippage (matches source bot's tail logic). After this
+    # the equity_per_bar's last entry equals realized_pnl (no more open
+    # mark) but we recompute the final entry to avoid double-counting:
+    # the position's open-mark was already added to equity_per_bar[-1].
     if open_positions:
-        trades.append(open_positions.pop())
+        last_index = bar_count - 1
+        forced = _close_trade(bar_index=last_index, reason="final-bar")
+        trades.append(forced)
+        equity_per_bar[-1] = realized_pnl
 
     # 6. Summary stats.
     wins = [t for t in trades if t.pnl_usd > 0]
