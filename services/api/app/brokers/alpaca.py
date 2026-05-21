@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from alpaca.data.models import Quote as AlpacaQuote
     from alpaca.data.models import Trade as AlpacaTrade
     from alpaca.trading.client import TradingClient
+    from alpaca.trading.models import Position as AlpacaPosition
     from alpaca.trading.models import TradeAccount
 
 
@@ -94,7 +95,18 @@ class AlpacaAdapter:
         )
 
     async def get_positions(self) -> list[Position]:
-        raise NotImplementedError
+        raw_positions = cast(
+            "list[AlpacaPosition]",
+            await asyncio.to_thread(self._trading.get_all_positions),
+        )
+        return [
+            Position(
+                ticker=str(raw.symbol),
+                quantity=Decimal(str(raw.qty)),
+                avg_entry_price=Decimal(str(raw.avg_entry_price)),
+            )
+            for raw in raw_positions
+        ]
 
     async def is_tradable(self, ticker: str) -> TradabilityCheck:
         raise NotImplementedError

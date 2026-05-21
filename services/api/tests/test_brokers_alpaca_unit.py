@@ -92,3 +92,32 @@ async def test_get_quote_translates_alpaca_latest_quote() -> None:
     assert quote.ask == Decimal("500.12")
     assert quote.last == Decimal("500.11")
     assert quote.as_of == ts
+
+
+@pytest.mark.asyncio
+async def test_get_positions_translates_alpaca_positions() -> None:
+    fake_positions = [
+        SimpleNamespace(symbol="SPY", qty="2", avg_entry_price="500.00"),
+        SimpleNamespace(symbol="QQQ", qty="-1", avg_entry_price="400.00"),
+    ]
+    trading = MagicMock()
+    trading.get_all_positions = MagicMock(return_value=fake_positions)
+    adapter = AlpacaAdapter(trading_client=trading, data_client=MagicMock(), mode="paper")
+
+    positions = await adapter.get_positions()
+
+    assert len(positions) == 2
+    assert positions[0].ticker == "SPY"
+    assert positions[0].quantity == Decimal("2")
+    assert positions[0].side == "long"
+    assert positions[1].side == "short"
+
+
+@pytest.mark.asyncio
+async def test_get_positions_empty_when_no_positions() -> None:
+    trading = MagicMock()
+    trading.get_all_positions = MagicMock(return_value=[])
+    adapter = AlpacaAdapter(trading_client=trading, data_client=MagicMock(), mode="paper")
+
+    positions = await adapter.get_positions()
+    assert positions == []
