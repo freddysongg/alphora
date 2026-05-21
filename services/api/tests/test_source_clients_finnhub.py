@@ -367,3 +367,44 @@ async def test_fetch_finnhub_peers_happy_path(
     assert route.called
     assert peers == ["MSFT", "GOOGL", "AMZN", "META"]
     assert len(content_hash) == 64
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_fetch_finnhub_profile_happy_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("FINNHUB_API_KEY", "test-key")
+    get_settings.cache_clear()
+    from app.services.source_clients.finnhub import fetch_finnhub_profile
+
+    route = respx.get("https://finnhub.io/api/v1/stock/profile2").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "country": "US",
+                "currency": "USD",
+                "exchange": "NASDAQ NMS - GLOBAL MARKET",
+                "finnhubIndustry": "Technology",
+                "ipo": "1980-12-12",
+                "logo": "https://example.com/aapl.png",
+                "marketCapitalization": 3000000.0,
+                "name": "Apple Inc",
+                "phone": "14089961010",
+                "shareOutstanding": 15600.0,
+                "ticker": "AAPL",
+                "weburl": "https://www.apple.com/",
+            },
+        )
+    )
+
+    async with httpx.AsyncClient() as client:
+        profile, content_hash = await fetch_finnhub_profile(client=client, symbol="AAPL")
+
+    assert route.called
+    assert profile.ticker == "AAPL"
+    assert profile.country == "US"
+    assert profile.finnhub_industry == "Technology"
+    assert profile.ipo.year == 1980
+    assert profile.market_capitalization == 3000000.0
+    assert len(content_hash) == 64

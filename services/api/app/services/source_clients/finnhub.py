@@ -118,6 +118,23 @@ class FinnhubInsiderTransactionsResponse(BaseModel):
     data: list[FinnhubInsiderTransaction]
 
 
+class FinnhubCompanyProfile(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="ignore", populate_by_name=True)
+
+    country: str | None = None
+    currency: str | None = None
+    exchange: str | None = None
+    finnhub_industry: str | None = Field(default=None, alias="finnhubIndustry")
+    ipo: date | None = None
+    logo: str | None = None
+    market_capitalization: float | None = Field(default=None, alias="marketCapitalization")
+    name: str | None = None
+    phone: str | None = None
+    share_outstanding: float | None = Field(default=None, alias="shareOutstanding")
+    ticker: str | None = None
+    weburl: str | None = None
+
+
 def _remap_news_row(row: object) -> FinnhubNewsItem:
     """Finnhub returns `datetime` as epoch seconds at the top level. Map it to
     `published_at` so the public model uses an explicit, non-shadowing name.
@@ -272,7 +289,27 @@ async def fetch_finnhub_peers(
     return [str(t) for t in payload], response.content_hash
 
 
+async def fetch_finnhub_profile(
+    *,
+    client: httpx.AsyncClient,
+    symbol: str,
+) -> tuple[FinnhubCompanyProfile, str]:
+    response = await request(
+        client,
+        HttpRequestConfig(
+            method="GET",
+            url=f"{_FINNHUB_BASE}/stock/profile2",
+            headers=_auth_headers(),
+            params={"symbol": symbol},
+        ),
+        rate_limiter=_rate_limiter(),
+    )
+    profile = FinnhubCompanyProfile.model_validate_json(response.body_bytes)
+    return profile, response.content_hash
+
+
 __all__ = [
+    "FinnhubCompanyProfile",
     "FinnhubEarningsCalendar",
     "FinnhubEarningsRow",
     "FinnhubInsiderTransaction",
@@ -285,5 +322,6 @@ __all__ = [
     "fetch_finnhub_insider_transactions",
     "fetch_finnhub_peers",
     "fetch_finnhub_price_target",
+    "fetch_finnhub_profile",
     "fetch_finnhub_recommendation",
 ]
