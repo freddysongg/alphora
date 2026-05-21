@@ -33,13 +33,16 @@ export function Breadcrumb(): ReactElement {
     >
       {segments.map((segment, index) => {
         const isLast = index === segments.length - 1;
+        const shouldRenderText = isLast || !segment.isLinkable;
         return (
           <Fragment key={segment.href}>
             {index > 0 ? <span className={separatorClasses}>/</span> : null}
             {segment.isHexId ? (
               <HexPill value={segment.label} />
-            ) : isLast ? (
-              <span className={lastSegmentClasses}>{segment.label}</span>
+            ) : shouldRenderText ? (
+              <span className={isLast ? lastSegmentClasses : segmentClasses}>
+                {segment.label}
+              </span>
             ) : (
               <Link href={segment.href as Route} className={cn(segmentClasses)}>
                 {segment.label}

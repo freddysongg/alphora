@@ -40,6 +40,30 @@ type ResearchRunDetail = components["schemas"]["ResearchRunDetail"];
 type RunStatus = components["schemas"]["RunStatusEnum"];
 type MacroBriefPublic = components["schemas"]["MacroBriefPublic"];
 type PortfolioBriefPublic = components["schemas"]["PortfolioBriefPublic"];
+type SectorBriefPublic = components["schemas"]["SectorBriefPublic"];
+type SectorCompanyIdea = components["schemas"]["SectorCompanyIdea"];
+
+interface CompanyEntry {
+  sectorEntityId: string;
+  sectorName: string;
+  company: SectorCompanyIdea;
+}
+
+function flattenCompanies(
+  sectors: readonly SectorBriefPublic[],
+): readonly CompanyEntry[] {
+  const entries: CompanyEntry[] = [];
+  for (const sector of sectors) {
+    for (const company of sector.brief.companies) {
+      entries.push({
+        sectorEntityId: sector.brief.sector_entity_id,
+        sectorName: sector.brief.sector_name,
+        company,
+      });
+    }
+  }
+  return entries;
+}
 type HumanReviewSummary = components["schemas"]["HumanReviewSummary"];
 type RunCostEstimate = components["schemas"]["RunCostEstimate"];
 type LlmCallLogPublic = components["schemas"]["LlmCallLogPublic"];
@@ -155,68 +179,6 @@ function deriveHypothesesStage(
     status: "succeeded",
     summary: `${activeCount} active · ${validatedCount} validated · ${falsifiedCount} falsified`,
     href: `/research/runs/${runId}/hypotheses` as Route,
-  };
-}
-
-function deriveSectorsStage(
-  detail: ResearchRunDetail,
-  macroBrief: MacroBriefPublic | null,
-): StageEntry {
-  const runId = detail.id;
-  const sectorBriefs = macroBrief?.sector_briefs ?? [];
-  if (sectorBriefs.length === 0) {
-    return {
-      key: "sectors",
-      label: "SECTORS",
-      count: null,
-      status: stageStatusForMissing(detail.status),
-      summary: missingSummary(detail.status, "Awaiting fan-out"),
-      href: null,
-    };
-  }
-  const sectorNames = sectorBriefs
-    .map((sb) => sb.brief.sector_name)
-    .slice(0, 3)
-    .join(", ");
-  const overflow =
-    sectorBriefs.length > 3 ? ` + ${sectorBriefs.length - 3} more` : "";
-  return {
-    key: "sectors",
-    label: "SECTORS",
-    count: `(${sectorBriefs.length})`,
-    status: "succeeded",
-    summary: `${sectorNames}${overflow}`,
-    href: `/research/runs/${runId}/sectors` as Route,
-  };
-}
-
-function deriveCompaniesStage(
-  detail: ResearchRunDetail,
-  macroBrief: MacroBriefPublic | null,
-): StageEntry {
-  const runId = detail.id;
-  const sectorBriefs = macroBrief?.sector_briefs ?? [];
-  const totalCompanies = sectorBriefs.reduce(
-    (sum, sb) => sum + sb.brief.companies.length,
-    0,
-  );
-  if (totalCompanies === 0) {
-    return {
-      key: "companies",
-      label: "COMPANIES",
-      count: null,
-      status: stageStatusForMissing(detail.status),
-      summary: missingSummary(detail.status, "Awaiting sector briefs"),
-      href: null,
-    };
-  }
-  return {
-    key: "companies",
-    label: "COMPANIES",
-    count: `(${totalCompanies})`,
-    status: "succeeded",
-    summary: `Across ${sectorBriefs.length} sectors`,
-    href: `/research/runs/${runId}/companies` as Route,
   };
 }
 
@@ -344,8 +306,6 @@ export function RunDetail(props: RunDetailProps): ReactElement {
     () => [
       deriveMacroStage(detail, macroBrief),
       deriveHypothesesStage(detail, beliefBundles, lifecycleBundles),
-      deriveSectorsStage(detail, macroBrief),
-      deriveCompaniesStage(detail, macroBrief),
       derivePortfolioStage(detail, portfolioBrief),
       deriveHumanReviewStage(detail, humanReviewSummary),
     ],
@@ -357,6 +317,14 @@ export function RunDetail(props: RunDetailProps): ReactElement {
       lifecycleBundles,
       humanReviewSummary,
     ],
+  );
+  const sectorBriefs = useMemo(
+    () => macroBrief?.sector_briefs ?? [],
+    [macroBrief],
+  );
+  const companyEntries = useMemo(
+    () => flattenCompanies(sectorBriefs),
+    [sectorBriefs],
   );
 
   const handleOptimisticCancel = useCallback((): void => {
@@ -421,6 +389,17 @@ export function RunDetail(props: RunDetailProps): ReactElement {
               />
             ))}
           </ul>
+
+          {sectorBriefs.length > 0 ? (
+            <SectorsSection runId={detail.id} sectorBriefs={sectorBriefs} />
+          ) : null}
+
+          {companyEntries.length > 0 ? (
+            <CompaniesSection
+              runId={detail.id}
+              companyEntries={companyEntries}
+            />
+          ) : null}
 
           <LiveCostStrip
             initialState={initialCostState}
@@ -548,6 +527,154 @@ function StageRow(props: StageRowProps): ReactElement {
     <li>
       <Link
         href={entry.href}
+        className={cn(
+          "group block px-3 -mx-3 rounded-md transition-colors duration-150",
+          "hover:bg-surface-2",
+        )}
+      >
+        {inner}
+      </Link>
+    </li>
+  );
+}
+
+interface SectorsSectionProps {
+  runId: string;
+  sectorBriefs: readonly SectorBriefPublic[];
+}
+
+function SectorsSection(props: SectorsSectionProps): ReactElement {
+  const { runId, sectorBriefs } = props;
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-baseline gap-2">
+        <CapsLabel className="text-fg">SECTORS</CapsLabel>
+        <span className="font-mono text-xs text-fg-subtle">
+          ({sectorBriefs.length})
+        </span>
+      </div>
+      <ul className="flex flex-col">
+        {sectorBriefs.map((sector) => (
+          <SectorRow
+            key={sector.brief.sector_entity_id}
+            runId={runId}
+            sector={sector}
+          />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+interface SectorRowProps {
+  runId: string;
+  sector: SectorBriefPublic;
+}
+
+function SectorRow(props: SectorRowProps): ReactElement {
+  const { runId, sector } = props;
+  const href =
+    `/research/runs/${runId}/sectors/${sector.brief.sector_entity_id}` as Route;
+  const themeCount = sector.brief.themes.length;
+  const companyCount = sector.brief.companies.length;
+  const summary = `${themeCount} themes · ${companyCount} companies · ${sector.brief.direction.toUpperCase()}`;
+  return (
+    <li>
+      <Link
+        href={href}
+        className={cn(
+          "group block px-3 -mx-3 rounded-md transition-colors duration-150",
+          "hover:bg-surface-2",
+        )}
+      >
+        <div className="flex items-center gap-4 py-3 border-t border-line/60">
+          <div className="w-56 shrink-0">
+            <CapsLabel className="text-fg">
+              {sector.brief.sector_name}
+            </CapsLabel>
+          </div>
+          <span className="text-sm text-fg-muted truncate min-w-0 flex-1">
+            {summary}
+          </span>
+          <CaretRight
+            size={14}
+            weight="regular"
+            className="text-fg-subtle group-hover:text-fg shrink-0"
+          />
+        </div>
+      </Link>
+    </li>
+  );
+}
+
+interface CompaniesSectionProps {
+  runId: string;
+  companyEntries: readonly CompanyEntry[];
+}
+
+function CompaniesSection(props: CompaniesSectionProps): ReactElement {
+  const { runId, companyEntries } = props;
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-baseline gap-2">
+        <CapsLabel className="text-fg">COMPANIES</CapsLabel>
+        <span className="font-mono text-xs text-fg-subtle">
+          ({companyEntries.length})
+        </span>
+      </div>
+      <ul className="flex flex-col">
+        {companyEntries.map((entry) => (
+          <CompanyRow
+            key={`${entry.sectorEntityId}-${entry.company.name}`}
+            runId={runId}
+            entry={entry}
+          />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+interface CompanyRowProps {
+  runId: string;
+  entry: CompanyEntry;
+}
+
+function CompanyRow(props: CompanyRowProps): ReactElement {
+  const { runId, entry } = props;
+  const companyEntityId = entry.company.company_entity_id;
+  const hasDeepDive = companyEntityId !== null && companyEntityId !== undefined;
+  const href = hasDeepDive
+    ? (`/research/runs/${runId}/companies/${companyEntityId}` as Route)
+    : null;
+  const label = entry.company.ticker
+    ? `${entry.company.ticker} · ${entry.company.name}`
+    : entry.company.name;
+  const summary = `${entry.sectorName} · ${entry.company.direction.toUpperCase()} · conviction ${entry.company.conviction.toFixed(2)}`;
+  const inner = (
+    <div className="flex items-center gap-4 py-3 border-t border-line/60">
+      <div className="w-72 shrink-0">
+        <CapsLabel className="text-fg">{label}</CapsLabel>
+      </div>
+      <span className="text-sm text-fg-muted truncate min-w-0 flex-1">
+        {summary}
+      </span>
+      {href !== null ? (
+        <CaretRight
+          size={14}
+          weight="regular"
+          className="text-fg-subtle group-hover:text-fg shrink-0"
+        />
+      ) : null}
+    </div>
+  );
+  if (href === null) {
+    return <li>{inner}</li>;
+  }
+  return (
+    <li>
+      <Link
+        href={href}
         className={cn(
           "group block px-3 -mx-3 rounded-md transition-colors duration-150",
           "hover:bg-surface-2",
