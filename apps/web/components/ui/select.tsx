@@ -16,10 +16,12 @@ export const Select = SelectPrimitive.Root;
 export const SelectGroup = SelectPrimitive.Group;
 export const SelectValue = SelectPrimitive.Value;
 
-type SelectTriggerProps = ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>;
+type SelectTriggerProps = ComponentPropsWithoutRef<
+  typeof SelectPrimitive.Trigger
+>;
 
 const triggerClasses =
-  "inline-flex h-9 w-full items-center justify-between gap-2 rounded-md bg-surface border border-line px-3 text-sm text-fg placeholder:text-fg-subtle hover:bg-surface-2 focus:border-line-strong focus:bg-surface-2 focus:outline-none transition-[background-color,border-color] duration-150 disabled:opacity-50 disabled:cursor-not-allowed data-[state=open]:border-line-strong data-[state=open]:bg-surface-2";
+  "inline-flex h-9 w-full items-center justify-between gap-2 rounded-md bg-[#14121f] border border-[#2a2440] px-3 text-sm text-fg placeholder:text-fg-subtle hover:bg-[#1a1525] hover:border-[#3a2f50] focus:border-[#7a4dff] focus:outline-none transition-[background-color,border-color] duration-150 disabled:opacity-50 disabled:cursor-not-allowed data-[state=open]:border-[#7a4dff] data-[state=open]:bg-[#1a1525]";
 
 function SelectTriggerImpl(
   props: SelectTriggerProps,
@@ -46,10 +48,12 @@ export const SelectTrigger = forwardRef<
 >(SelectTriggerImpl);
 SelectTrigger.displayName = "SelectTrigger";
 
-type SelectContentProps = ComponentPropsWithoutRef<typeof SelectPrimitive.Content>;
+type SelectContentProps = ComponentPropsWithoutRef<
+  typeof SelectPrimitive.Content
+>;
 
 const contentClasses =
-  "z-50 min-w-[10rem] overflow-hidden rounded-md bg-surface border border-line shadow-[var(--shadow-popover)] origin-[var(--radix-select-content-transform-origin)] data-[state=open]:opacity-100 data-[state=open]:scale-100 data-[state=closed]:opacity-0 data-[state=closed]:scale-[0.97] transition-[opacity,transform] duration-[200ms] ease-[var(--ease-out)]";
+  "z-50 min-w-[10rem] overflow-hidden rounded-md bg-[#14121f] border border-[#2a2440] shadow-[var(--shadow-popover)] origin-[var(--radix-select-content-transform-origin)] data-[state=open]:opacity-100 data-[state=open]:scale-100 data-[state=closed]:opacity-0 data-[state=closed]:scale-[0.97] transition-[opacity,transform] duration-[200ms] ease-[var(--ease-out)]";
 
 function SelectContentImpl(
   props: SelectContentProps,
@@ -85,7 +89,7 @@ SelectContent.displayName = "SelectContent";
 type SelectItemProps = ComponentPropsWithoutRef<typeof SelectPrimitive.Item>;
 
 const itemClasses =
-  "relative flex h-8 cursor-pointer select-none items-center rounded-sm pl-4 pr-8 text-sm text-fg-muted outline-none hover:bg-surface-2 hover:text-fg focus:bg-surface-2 focus:text-fg data-[state=checked]:text-accent-text data-[state=checked]:before:absolute data-[state=checked]:before:left-0 data-[state=checked]:before:top-1 data-[state=checked]:before:bottom-1 data-[state=checked]:before:w-[2px] data-[state=checked]:before:bg-accent data-[state=checked]:before:rounded-sm data-[disabled]:opacity-50 data-[disabled]:pointer-events-none";
+  "relative flex h-8 cursor-pointer select-none items-center rounded-[6px] pl-4 pr-8 text-sm text-fg-muted outline-none hover:bg-[#1a1525] hover:text-fg focus:bg-[#1a1525] focus:text-fg data-[state=checked]:text-accent-text data-[state=checked]:before:absolute data-[state=checked]:before:left-0 data-[state=checked]:before:top-1 data-[state=checked]:before:bottom-1 data-[state=checked]:before:w-[2px] data-[state=checked]:before:bg-accent data-[state=checked]:before:rounded-sm data-[disabled]:opacity-50 data-[disabled]:pointer-events-none";
 
 function SelectItemImpl(
   props: SelectItemProps,
@@ -141,7 +145,9 @@ export const SelectLabel = forwardRef<
 >(SelectLabelImpl);
 SelectLabel.displayName = "SelectLabel";
 
-type SelectSeparatorProps = ComponentPropsWithoutRef<typeof SelectPrimitive.Separator>;
+type SelectSeparatorProps = ComponentPropsWithoutRef<
+  typeof SelectPrimitive.Separator
+>;
 
 function SelectSeparatorImpl(
   props: SelectSeparatorProps,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState } from "react";
-import type { ChangeEvent, ReactElement } from "react";
+import type { ReactElement } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useFormStatus } from "react-dom";
@@ -17,6 +17,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Slider,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -239,9 +240,9 @@ export function Screener(props: ScreenerProps): ReactElement {
 
   const handleSliderChange =
     (key: FactorKey) =>
-    (event: ChangeEvent<HTMLInputElement>): void => {
-      const next = Number(event.target.value) / 100;
-      setFactorWeights((prev) => ({ ...prev, [key]: next }));
+    (next: readonly number[]): void => {
+      const head = next[0] ?? 0;
+      setFactorWeights((prev) => ({ ...prev, [key]: head / 100 }));
     };
 
   return (
@@ -313,15 +314,13 @@ export function Screener(props: ScreenerProps): ReactElement {
                         {value.toFixed(2)}
                       </span>
                     </div>
-                    <input
-                      type="range"
+                    <Slider
                       min={0}
                       max={100}
-                      value={Math.round(value * 100)}
-                      onChange={handleSliderChange(factor.key)}
+                      step={1}
+                      value={[Math.round(value * 100)]}
+                      onValueChange={handleSliderChange(factor.key)}
                       aria-label={factor.label}
-                      className="w-full h-1.5 rounded-md bg-surface border border-line appearance-none cursor-pointer"
-                      style={{ accentColor: "var(--color-accent)" }}
                     />
                   </div>
                 );

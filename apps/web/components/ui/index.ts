@@ -9,6 +9,10 @@ export type {
 export { Input } from "./input";
 export type { InputProps } from "./input";
 
+export { Slider } from "./slider";
+
+export { Checkbox } from "./checkbox";
+
 export {
   Select,
   SelectGroup,
