@@ -253,6 +253,25 @@ async def fetch_finnhub_insider_transactions(
     return parsed, response.content_hash
 
 
+async def fetch_finnhub_peers(
+    *,
+    client: httpx.AsyncClient,
+    symbol: str,
+) -> tuple[list[str], str]:
+    response = await request(
+        client,
+        HttpRequestConfig(
+            method="GET",
+            url=f"{_FINNHUB_BASE}/stock/peers",
+            headers=_auth_headers(),
+            params={"symbol": symbol},
+        ),
+        rate_limiter=_rate_limiter(),
+    )
+    payload = json.loads(response.body_bytes)
+    return [str(t) for t in payload], response.content_hash
+
+
 __all__ = [
     "FinnhubEarningsCalendar",
     "FinnhubEarningsRow",
@@ -264,6 +283,7 @@ __all__ = [
     "fetch_finnhub_company_news",
     "fetch_finnhub_earnings_calendar",
     "fetch_finnhub_insider_transactions",
+    "fetch_finnhub_peers",
     "fetch_finnhub_price_target",
     "fetch_finnhub_recommendation",
 ]

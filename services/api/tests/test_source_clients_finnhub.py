@@ -346,3 +346,24 @@ async def test_fetch_finnhub_insider_transactions_happy_path(
     assert result.data[0].transaction_code == "S"
     assert result.data[0].change == -500
     assert len(content_hash) == 64
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_fetch_finnhub_peers_happy_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("FINNHUB_API_KEY", "test-key")
+    get_settings.cache_clear()
+    from app.services.source_clients.finnhub import fetch_finnhub_peers
+
+    route = respx.get("https://finnhub.io/api/v1/stock/peers").mock(
+        return_value=httpx.Response(200, json=["MSFT", "GOOGL", "AMZN", "META"])
+    )
+
+    async with httpx.AsyncClient() as client:
+        peers, content_hash = await fetch_finnhub_peers(client=client, symbol="AAPL")
+
+    assert route.called
+    assert peers == ["MSFT", "GOOGL", "AMZN", "META"]
+    assert len(content_hash) == 64
