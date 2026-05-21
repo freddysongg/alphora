@@ -13,6 +13,7 @@ from app.brokers.base import (
     Position,
     PositionSide,
     Quote,
+    Timeframe,
     TimeInForce,
     TradabilityCheck,
 )
@@ -33,5 +34,6 @@ __all__ = [
     "PositionSide",
     "Quote",
     "TimeInForce",
+    "Timeframe",
     "TradabilityCheck",
 ]
