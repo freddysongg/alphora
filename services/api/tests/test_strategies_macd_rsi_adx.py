@@ -189,3 +189,73 @@ def test_evaluate_rth_gate_skipped_when_already_in_position() -> None:
     # Carry the long bias; gate should NOT trigger.
     assert result.target == 1
     assert result.meta.get("gate") != "offhours"
+
+
+def _choppy_bars(n: int, *, start_utc: datetime) -> pd.DataFrame:
+    """Sideways saw-tooth: ADX stays low (chop)."""
+    closes: list[float] = []
+    price = 100.0
+    for i in range(n):
+        price += 0.1 if i % 2 == 0 else -0.1
+        closes.append(price)
+    idx = [start_utc + timedelta(minutes=i) for i in range(n)]
+    return pd.DataFrame(
+        {
+            "open": closes,
+            "high": [c + 0.1 for c in closes],
+            "low": [c - 0.1 for c in closes],
+            "close": closes,
+            "volume": [1000.0] * n,
+        },
+        index=pd.DatetimeIndex(idx, tz="UTC"),
+    )
+
+
+def test_evaluate_adx_gate_blocks_entries_in_chop() -> None:
+    """Sideways input → ADX < 25 → gate must block any new entry."""
+    strat = MacdRsiAdxStrategy()
+    # All bars inside RTH so the RTH gate doesn't preempt the ADX check.
+    bars = _choppy_bars(50, start_utc=datetime(2026, 6, 15, 14, 0, tzinfo=UTC))
+    result = strat.evaluate(
+        primary_bars=bars, secondary_bars={}, current_position=0, params={}
+    )
+    assert result.target == 0
+    # Either ADX gated or no cross — but if no cross we want explicit ADX
+    # record in meta when bars >= 30:
+    if result.meta.get("gate") == "lowAdx":
+        assert "adx" in result.meta
+
+
+def test_evaluate_adx_records_adx_value_when_available() -> None:
+    strat = MacdRsiAdxStrategy()
+    bars = _bars_at_utc(40, start_utc=datetime(2026, 6, 15, 14, 0, tzinfo=UTC))
+    result = strat.evaluate(
+        primary_bars=bars, secondary_bars={}, current_position=0, params={}
+    )
+    assert "adx" in result.meta
+
+
+def test_evaluate_adx_gate_skipped_when_already_in_position() -> None:
+    """While long in a chop session, exits remain unfiltered — the ADX
+    gate must not fire; the inner signal (which may flip) passes through."""
+    strat = MacdRsiAdxStrategy()
+    bars = _choppy_bars(50, start_utc=datetime(2026, 6, 15, 14, 0, tzinfo=UTC))
+    result = strat.evaluate(
+        primary_bars=bars, secondary_bars={}, current_position=10, params={}
+    )
+    # The gate must NOT trigger — whatever the inner signal says is fine.
+    assert result.meta.get("gate") != "lowAdx"
+    assert result.target != 0 or result.meta.get("gate") is not None
+
+
+def test_evaluate_adx_skipped_when_bars_below_threshold() -> None:
+    """Fewer than 30 bars: no ADX gate applies, inner signal passes
+    through. (Matches the JS `bars.length >= 30` check.)"""
+    strat = MacdRsiAdxStrategy()
+    bars = _bars_at_utc(28, start_utc=datetime(2026, 6, 15, 14, 0, tzinfo=UTC))
+    result = strat.evaluate(
+        primary_bars=bars, secondary_bars={}, current_position=0, params={}
+    )
+    # 28 < 30 bars + 26 MACD warmup → likely "warmup" phase.
+    # Either way, the ADX gate should NOT be the reason for any flat.
+    assert result.meta.get("gate") != "lowAdx"

@@ -25,7 +25,7 @@ from typing import Literal
 
 import pandas as pd  # type: ignore[import-untyped]
 
-from app.indicators import macd, rsi
+from app.indicators import adx, macd, rsi
 from app.strategies.base import (
     Bars,
     StrategyParams,
@@ -38,6 +38,9 @@ _DEFAULT_SLOW = 26
 _DEFAULT_SIGNAL = 9
 _DEFAULT_RSI_PERIOD = 14
 _DEFAULT_RSI_MID = 50.0
+_DEFAULT_ADX_PERIOD = 14
+_DEFAULT_ADX_MIN = 25.0
+_ADX_WARMUP_BARS = 30
 
 _RTH_OPEN_UTC_MIN = 13 * 60 + 30  # 13:30 UTC == 9:30 ET during EDT
 _RTH_CLOSE_UTC_MIN = 20 * 60      # 20:00 UTC == 16:00 ET during EDT
@@ -140,5 +143,18 @@ class MacdRsiAdxStrategy:
         if isinstance(last_ts, pd.Timestamp) and not _is_rth_utc(last_ts):
             meta["gate"] = "offhours"
             return StrategyResult(target=0, meta=meta)
+
+        # Gate B: ADX (entries only). The source bot only applies this
+        # gate once at least 30 bars are available; below that, no gate
+        # (inner signal passes through unchanged).
+        if len(primary_bars) >= _ADX_WARMUP_BARS:
+            adx_period = int(params.get("adx_period", _DEFAULT_ADX_PERIOD))
+            adx_min = float(params.get("adx_min", _DEFAULT_ADX_MIN))
+            adx_series = adx(primary_bars, period=adx_period)
+            last_adx = float(adx_series.iloc[-1])
+            meta["adx"] = last_adx
+            if math.isnan(last_adx) or last_adx < adx_min:
+                meta["gate"] = "lowAdx"
+                return StrategyResult(target=0, meta=meta)
 
         return StrategyResult(target=target, meta=meta)
