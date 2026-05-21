@@ -106,18 +106,43 @@ def rsi(close: pd.Series, *, period: int = 14) -> pd.Series:
 
     Returns a Series aligned to `close`; positions before index `period`
     are NaN. Default period 14 matches the source bot.
+
+    Implemented directly instead of via `ta.rsi`: pandas-ta 0.4.x uses
+    EWM smoothing seeded from the first diff, which diverges from the
+    source bot's SMA-seeded Wilder smoothing (lib/indicators.js:71-93).
+    The Task 14 golden-output regression requires bar-for-bar parity, so
+    we port the JS algorithm exactly: seed `avg_gain`/`avg_loss` with the
+    SMA of the first `period` diffs, then apply Wilder smoothing
+    `avg = (avg * (period - 1) + step) / period` from index `period + 1`.
     """
-    result = ta.rsi(close, length=period)
-    if result is None:
-        raise ValueError(
-            f"rsi returned None for period={period}, len(close)={len(close)}; "
-            "input series is shorter than the warmup window"
+    n = len(close)
+    out = pd.Series(float("nan"), index=close.index, dtype="float64")
+    if n <= period:
+        return out
+
+    values = close.to_numpy(dtype="float64", copy=False)
+    gain_sum = 0.0
+    loss_sum = 0.0
+    for i in range(1, period + 1):
+        diff = values[i] - values[i - 1]
+        if diff >= 0:
+            gain_sum += diff
+        else:
+            loss_sum -= diff
+    avg_gain = gain_sum / period
+    avg_loss = loss_sum / period
+    out.iloc[period] = (
+        100.0 if avg_loss == 0 else 100.0 - 100.0 / (1.0 + avg_gain / avg_loss)
+    )
+
+    for i in range(period + 1, n):
+        diff = values[i] - values[i - 1]
+        gain = diff if diff > 0 else 0.0
+        loss = -diff if diff < 0 else 0.0
+        avg_gain = (avg_gain * (period - 1) + gain) / period
+        avg_loss = (avg_loss * (period - 1) + loss) / period
+        out.iloc[i] = (
+            100.0 if avg_loss == 0 else 100.0 - 100.0 / (1.0 + avg_gain / avg_loss)
         )
-    # pandas-ta 0.4.x emits a value starting at index 1, but the source
-    # bot's `rsi` in lib/indicators.js leaves indices 0..period-1
-    # undefined and writes the first value at index `period`. Mask the
-    # warmup region to match — required for the Task 14 golden-output
-    # regression to pass on the early bars.
-    masked = result.copy()
-    masked.iloc[:period] = float("nan")
-    return masked
+
+    return out
