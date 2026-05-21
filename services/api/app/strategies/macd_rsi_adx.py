@@ -20,12 +20,46 @@ source bot on a fixed synthetic input series.
 """
 from __future__ import annotations
 
+import math
+from typing import Literal
+
+from app.indicators import macd
 from app.strategies.base import (
     Bars,
     StrategyParams,
     StrategyResult,
     Timeframe,
 )
+
+_DEFAULT_FAST = 12
+_DEFAULT_SLOW = 26
+_DEFAULT_SIGNAL = 9
+
+Cross = Literal["BULL", "BEAR", "none"]
+
+
+def _detect_crossover(macd_line: float, signal_line: float, prev_macd: float, prev_signal: float) -> Cross:
+    """Match JS `macdCrossover` in lib/indicators.js: detect a signal-line
+    crossover on the most-recently-closed bar. Returns 'BULL' (macd
+    crossed up above signal), 'BEAR' (crossed down), or 'none'.
+    """
+    if any(math.isnan(v) for v in (macd_line, signal_line, prev_macd, prev_signal)):
+        return "none"
+    prev_diff = prev_macd - prev_signal
+    curr_diff = macd_line - signal_line
+    if prev_diff <= 0 and curr_diff > 0:
+        return "BULL"
+    if prev_diff >= 0 and curr_diff < 0:
+        return "BEAR"
+    return "none"
+
+
+def _position_sign(current_position: int) -> int:
+    if current_position > 0:
+        return 1
+    if current_position < 0:
+        return -1
+    return 0
 
 
 class MacdRsiAdxStrategy:
@@ -42,4 +76,35 @@ class MacdRsiAdxStrategy:
         current_position: int,
         params: StrategyParams,
     ) -> StrategyResult:
-        raise NotImplementedError("evaluate is implemented in later Phase 1 tasks")
+        fast = int(params.get("fast", _DEFAULT_FAST))
+        slow = int(params.get("slow", _DEFAULT_SLOW))
+        signal_period = int(params.get("signal", _DEFAULT_SIGNAL))
+
+        carry = _position_sign(current_position)
+
+        # MACD needs at least `slow + signal_period` bars to produce a
+        # non-NaN signal line; without enough data, carry the position.
+        if len(primary_bars) < slow + signal_period:
+            return StrategyResult(target=carry, meta={"phase": "warmup"})
+
+        macd_line, signal_line, _ = macd(
+            primary_bars["close"], fast=fast, slow=slow, signal=signal_period
+        )
+        last_macd = float(macd_line.iloc[-1])
+        last_signal = float(signal_line.iloc[-1])
+        prev_macd = float(macd_line.iloc[-2])
+        prev_signal = float(signal_line.iloc[-2])
+        cross = _detect_crossover(last_macd, last_signal, prev_macd, prev_signal)
+
+        target = carry
+        if cross == "BULL":
+            target = 1
+        elif cross == "BEAR":
+            target = -1
+
+        meta: dict[str, float | str] = {
+            "macd": last_macd,
+            "signal": last_signal,
+            "cross": cross,
+        }
+        return StrategyResult(target=target, meta=meta)
