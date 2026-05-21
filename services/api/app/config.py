@@ -6,6 +6,7 @@ from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Environment = Literal["development", "test", "production"]
+BrokerMode = Literal["paper", "live"]
 
 _DEFAULT_SEC_EDGAR_USER_AGENT = "Alphora Research Desk admin@alphora.local"
 
@@ -42,6 +43,10 @@ class Settings(BaseSettings):
     congress_api_key: SecretStr | None = None
     openfigi_api_key: SecretStr | None = None
     finnhub_api_key: SecretStr | None = None
+    alpaca_api_key: SecretStr | None = None
+    alpaca_api_secret: SecretStr | None = None
+    alpaca_mode: BrokerMode = "paper"
+    human_approval_token: SecretStr = SecretStr("")
 
     cme_fedwatch_base_url: str | None = None
     capitol_trades_base_url: str | None = None

@@ -98,3 +98,26 @@ def test_settings_polygon_api_key_reads_secret_str(
 
     assert settings.polygon_api_key is not None
     assert settings.polygon_api_key.get_secret_value() == "poly-secret"
+
+
+def test_settings_loads_alpaca_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ALPACA_API_KEY", "PK_TEST")
+    monkeypatch.setenv("ALPACA_API_SECRET", "SK_TEST")
+    monkeypatch.setenv("ALPACA_MODE", "paper")
+    monkeypatch.setenv("HUMAN_APPROVAL_TOKEN", "tok_dev_1")
+    from app.config import Settings
+
+    settings = Settings()
+    assert settings.alpaca_api_key is not None
+    assert settings.alpaca_api_key.get_secret_value() == "PK_TEST"
+    assert settings.alpaca_api_secret.get_secret_value() == "SK_TEST"
+    assert settings.alpaca_mode == "paper"
+    assert settings.human_approval_token.get_secret_value() == "tok_dev_1"
+
+
+def test_settings_alpaca_mode_rejects_unknown_value(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ALPACA_MODE", "shadow")
+    from app.config import Settings
+
+    with pytest.raises(ValueError):
+        Settings()
