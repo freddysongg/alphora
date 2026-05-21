@@ -27,10 +27,28 @@ from app.config import get_settings
 from app.db.models_graph import EvidenceChunk
 from app.db.models_runs import RunEventLevel
 from app.schemas.extraction import EvidenceChunkRef, IngestedEvidence
+from app.services.ingestion.finnhub_insider_transactions import (
+    ingest_finnhub_insider_transactions,
+)
+from app.services.ingestion.finnhub_peers import ingest_finnhub_peers
+from app.services.ingestion.finnhub_price_target import ingest_finnhub_price_target
+from app.services.ingestion.finnhub_profile import ingest_finnhub_profile
+from app.services.ingestion.finnhub_recommendation import ingest_finnhub_recommendation
 from app.services.ingestion.polygon_aggregates import ingest_polygon_aggregates
 from app.services.ingestion.sec_filings import ingest_sec_submissions
 from app.services.ingestion.tiingo_news_items import ingest_tiingo_news_items
 from app.services.run_events import emit_run_event
+from app.services.source_clients.finnhub import (
+    FinnhubCompanyProfile,
+    FinnhubInsiderTransactionsResponse,
+    FinnhubPriceTarget,
+    FinnhubRecommendation,
+    fetch_finnhub_insider_transactions,
+    fetch_finnhub_peers,
+    fetch_finnhub_price_target,
+    fetch_finnhub_profile,
+    fetch_finnhub_recommendation,
+)
 from app.services.source_clients.polygon import (
     PolygonAggregatesResponse,
     fetch_polygon_aggregates,
@@ -52,6 +70,7 @@ from app.services.strategies.funnel_research.congress_trading import (
 )
 
 _AGGREGATE_LOOKBACK_DAYS = 30
+_INSIDER_LOOKBACK_DAYS = 90
 
 
 @dataclass(frozen=True)
@@ -72,6 +91,22 @@ CongressTradesCallable = Callable[
 SecSubmissionsCallable = Callable[
     [httpx.AsyncClient, str], Awaitable[tuple[SecSubmissionsResponse, str]]
 ]
+FinnhubRecommendationCallable = Callable[
+    [httpx.AsyncClient, str], Awaitable[tuple[list[FinnhubRecommendation], str]]
+]
+FinnhubPriceTargetCallable = Callable[
+    [httpx.AsyncClient, str], Awaitable[tuple[FinnhubPriceTarget, str]]
+]
+FinnhubInsiderCallable = Callable[
+    [httpx.AsyncClient, str, date, date],
+    Awaitable[tuple[FinnhubInsiderTransactionsResponse, str]],
+]
+FinnhubPeersCallable = Callable[
+    [httpx.AsyncClient, str], Awaitable[tuple[list[str], str]]
+]
+FinnhubProfileCallable = Callable[
+    [httpx.AsyncClient, str], Awaitable[tuple[FinnhubCompanyProfile, str]]
+]
 
 
 @dataclass(frozen=True)
@@ -80,6 +115,11 @@ class CompanySourceFetcher:
     tiingo_news: TiingoNewsCallable
     congress_trades: CongressTradesCallable
     sec_submissions: SecSubmissionsCallable
+    finnhub_recommendation: FinnhubRecommendationCallable
+    finnhub_price_target: FinnhubPriceTargetCallable
+    finnhub_insider: FinnhubInsiderCallable
+    finnhub_peers: FinnhubPeersCallable
+    finnhub_profile: FinnhubProfileCallable
 
 
 def default_company_fetcher() -> CompanySourceFetcher:
@@ -121,11 +161,46 @@ def default_company_fetcher() -> CompanySourceFetcher:
     ) -> tuple[SecSubmissionsResponse, str]:
         return await fetch_submissions(client=client, cik=cik)
 
+    async def fetch_recommendation(
+        client: httpx.AsyncClient, symbol: str
+    ) -> tuple[list[FinnhubRecommendation], str]:
+        return await fetch_finnhub_recommendation(client=client, symbol=symbol)
+
+    async def fetch_price_target(
+        client: httpx.AsyncClient, symbol: str
+    ) -> tuple[FinnhubPriceTarget, str]:
+        return await fetch_finnhub_price_target(client=client, symbol=symbol)
+
+    async def fetch_insider(
+        client: httpx.AsyncClient,
+        symbol: str,
+        from_date: date,
+        to_date: date,
+    ) -> tuple[FinnhubInsiderTransactionsResponse, str]:
+        return await fetch_finnhub_insider_transactions(
+            client=client, symbol=symbol, from_date=from_date, to_date=to_date
+        )
+
+    async def fetch_peers(
+        client: httpx.AsyncClient, symbol: str
+    ) -> tuple[list[str], str]:
+        return await fetch_finnhub_peers(client=client, symbol=symbol)
+
+    async def fetch_profile(
+        client: httpx.AsyncClient, symbol: str
+    ) -> tuple[FinnhubCompanyProfile, str]:
+        return await fetch_finnhub_profile(client=client, symbol=symbol)
+
     return CompanySourceFetcher(
         polygon_aggregates=fetch_aggs,
         tiingo_news=fetch_news,
         congress_trades=fetch_congress,
         sec_submissions=fetch_sec,
+        finnhub_recommendation=fetch_recommendation,
+        finnhub_price_target=fetch_price_target,
+        finnhub_insider=fetch_insider,
+        finnhub_peers=fetch_peers,
+        finnhub_profile=fetch_profile,
     )
 
 
@@ -194,6 +269,67 @@ async def fetch_company_evidence(
     )
     if sec is not None:
         ingested.append(sec)
+    await session.commit()
+
+    recommendation = await _fetch_finnhub_recommendation(
+        session=session,
+        run_id=run_id,
+        company_name=company_idea.company_name,
+        ticker=company_idea.ticker,
+        http_client=http_client,
+        fetcher=active_fetcher,
+    )
+    if recommendation is not None:
+        ingested.append(recommendation)
+    await session.commit()
+
+    price_target = await _fetch_finnhub_price_target(
+        session=session,
+        run_id=run_id,
+        company_name=company_idea.company_name,
+        ticker=company_idea.ticker,
+        http_client=http_client,
+        fetcher=active_fetcher,
+    )
+    if price_target is not None:
+        ingested.append(price_target)
+    await session.commit()
+
+    insider = await _fetch_finnhub_insider(
+        session=session,
+        run_id=run_id,
+        company_name=company_idea.company_name,
+        ticker=company_idea.ticker,
+        http_client=http_client,
+        fetcher=active_fetcher,
+        today=end,
+    )
+    if insider is not None:
+        ingested.append(insider)
+    await session.commit()
+
+    peers = await _fetch_finnhub_peers(
+        session=session,
+        run_id=run_id,
+        company_name=company_idea.company_name,
+        ticker=company_idea.ticker,
+        http_client=http_client,
+        fetcher=active_fetcher,
+    )
+    if peers is not None:
+        ingested.append(peers)
+    await session.commit()
+
+    profile = await _fetch_finnhub_profile(
+        session=session,
+        run_id=run_id,
+        company_name=company_idea.company_name,
+        ticker=company_idea.ticker,
+        http_client=http_client,
+        fetcher=active_fetcher,
+    )
+    if profile is not None:
+        ingested.append(profile)
     await session.commit()
 
     chunk_refs = await _load_chunk_refs(
@@ -433,6 +569,276 @@ async def _fetch_sec(
             run_id=run_id,
             company=company_name,
             source="sec_edgar",
+            reason=f"ingest failed: {exc}",
+        )
+        return None
+
+
+async def _fetch_finnhub_recommendation(
+    *,
+    session: AsyncSession,
+    run_id: uuid.UUID,
+    company_name: str,
+    ticker: str | None,
+    http_client: httpx.AsyncClient,
+    fetcher: CompanySourceFetcher,
+) -> IngestedEvidence | None:
+    if ticker is None:
+        _warn(
+            session,
+            run_id=run_id,
+            company=company_name,
+            source="finnhub_recommendation",
+            reason="no ticker available",
+        )
+        return None
+    try:
+        items, content_hash = await fetcher.finnhub_recommendation(http_client, ticker)
+    except Exception as exc:
+        _warn(
+            session,
+            run_id=run_id,
+            company=company_name,
+            source="finnhub_recommendation",
+            reason=str(exc),
+        )
+        return None
+    if not items:
+        _warn(
+            session,
+            run_id=run_id,
+            company=company_name,
+            source="finnhub_recommendation",
+            reason="no recommendation rows",
+        )
+        return None
+    try:
+        return await ingest_finnhub_recommendation(
+            session=session,
+            symbol=ticker,
+            items=items,
+            content_hash=content_hash,
+            raw_url=None,
+        )
+    except Exception as exc:
+        _warn(
+            session,
+            run_id=run_id,
+            company=company_name,
+            source="finnhub_recommendation",
+            reason=f"ingest failed: {exc}",
+        )
+        return None
+
+
+async def _fetch_finnhub_price_target(
+    *,
+    session: AsyncSession,
+    run_id: uuid.UUID,
+    company_name: str,
+    ticker: str | None,
+    http_client: httpx.AsyncClient,
+    fetcher: CompanySourceFetcher,
+) -> IngestedEvidence | None:
+    if ticker is None:
+        _warn(
+            session,
+            run_id=run_id,
+            company=company_name,
+            source="finnhub_price_target",
+            reason="no ticker available",
+        )
+        return None
+    try:
+        target, content_hash = await fetcher.finnhub_price_target(http_client, ticker)
+    except Exception as exc:
+        _warn(
+            session,
+            run_id=run_id,
+            company=company_name,
+            source="finnhub_price_target",
+            reason=str(exc),
+        )
+        return None
+    try:
+        return await ingest_finnhub_price_target(
+            session=session,
+            symbol=ticker,
+            target=target,
+            content_hash=content_hash,
+            raw_url=None,
+        )
+    except Exception as exc:
+        _warn(
+            session,
+            run_id=run_id,
+            company=company_name,
+            source="finnhub_price_target",
+            reason=f"ingest failed: {exc}",
+        )
+        return None
+
+
+async def _fetch_finnhub_insider(
+    *,
+    session: AsyncSession,
+    run_id: uuid.UUID,
+    company_name: str,
+    ticker: str | None,
+    http_client: httpx.AsyncClient,
+    fetcher: CompanySourceFetcher,
+    today: date,
+) -> IngestedEvidence | None:
+    if ticker is None:
+        _warn(
+            session,
+            run_id=run_id,
+            company=company_name,
+            source="finnhub_insider_transactions",
+            reason="no ticker available",
+        )
+        return None
+    from_date = today - timedelta(days=_INSIDER_LOOKBACK_DAYS)
+    try:
+        response, content_hash = await fetcher.finnhub_insider(
+            http_client, ticker, from_date, today
+        )
+    except Exception as exc:
+        _warn(
+            session,
+            run_id=run_id,
+            company=company_name,
+            source="finnhub_insider_transactions",
+            reason=str(exc),
+        )
+        return None
+    if not response.data:
+        _warn(
+            session,
+            run_id=run_id,
+            company=company_name,
+            source="finnhub_insider_transactions",
+            reason="no transactions returned",
+        )
+        return None
+    try:
+        return await ingest_finnhub_insider_transactions(
+            session=session,
+            response=response,
+            content_hash=content_hash,
+            raw_url=None,
+        )
+    except Exception as exc:
+        _warn(
+            session,
+            run_id=run_id,
+            company=company_name,
+            source="finnhub_insider_transactions",
+            reason=f"ingest failed: {exc}",
+        )
+        return None
+
+
+async def _fetch_finnhub_peers(
+    *,
+    session: AsyncSession,
+    run_id: uuid.UUID,
+    company_name: str,
+    ticker: str | None,
+    http_client: httpx.AsyncClient,
+    fetcher: CompanySourceFetcher,
+) -> IngestedEvidence | None:
+    if ticker is None:
+        _warn(
+            session,
+            run_id=run_id,
+            company=company_name,
+            source="finnhub_peers",
+            reason="no ticker available",
+        )
+        return None
+    try:
+        peers, content_hash = await fetcher.finnhub_peers(http_client, ticker)
+    except Exception as exc:
+        _warn(
+            session,
+            run_id=run_id,
+            company=company_name,
+            source="finnhub_peers",
+            reason=str(exc),
+        )
+        return None
+    if not peers:
+        _warn(
+            session,
+            run_id=run_id,
+            company=company_name,
+            source="finnhub_peers",
+            reason="no peers returned",
+        )
+        return None
+    try:
+        return await ingest_finnhub_peers(
+            session=session,
+            symbol=ticker,
+            peers=peers,
+            content_hash=content_hash,
+            raw_url=None,
+        )
+    except Exception as exc:
+        _warn(
+            session,
+            run_id=run_id,
+            company=company_name,
+            source="finnhub_peers",
+            reason=f"ingest failed: {exc}",
+        )
+        return None
+
+
+async def _fetch_finnhub_profile(
+    *,
+    session: AsyncSession,
+    run_id: uuid.UUID,
+    company_name: str,
+    ticker: str | None,
+    http_client: httpx.AsyncClient,
+    fetcher: CompanySourceFetcher,
+) -> IngestedEvidence | None:
+    if ticker is None:
+        _warn(
+            session,
+            run_id=run_id,
+            company=company_name,
+            source="finnhub_profile",
+            reason="no ticker available",
+        )
+        return None
+    try:
+        profile, content_hash = await fetcher.finnhub_profile(http_client, ticker)
+    except Exception as exc:
+        _warn(
+            session,
+            run_id=run_id,
+            company=company_name,
+            source="finnhub_profile",
+            reason=str(exc),
+        )
+        return None
+    try:
+        return await ingest_finnhub_profile(
+            session=session,
+            symbol=ticker,
+            profile=profile,
+            content_hash=content_hash,
+            raw_url=None,
+        )
+    except Exception as exc:
+        _warn(
+            session,
+            run_id=run_id,
+            company=company_name,
+            source="finnhub_profile",
             reason=f"ingest failed: {exc}",
         )
         return None

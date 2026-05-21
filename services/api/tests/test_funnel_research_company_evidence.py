@@ -18,6 +18,12 @@ from app.db.models_runs import (
     Strategy,
 )
 from app.schemas.macro_brief import SectorCallDirection
+from app.services.source_clients.finnhub import (
+    FinnhubCompanyProfile,
+    FinnhubInsiderTransactionsResponse,
+    FinnhubPriceTarget,
+    FinnhubRecommendation,
+)
 from app.services.source_clients.polygon import (
     PolygonAggregateBar,
     PolygonAggregatesResponse,
@@ -150,6 +156,11 @@ def _fake_fetcher(
     tiingo_ok: bool = True,
     congress_ok: bool = True,
     sec_ok: bool = True,
+    finnhub_recommendation_ok: bool = True,
+    finnhub_price_target_ok: bool = True,
+    finnhub_insider_ok: bool = True,
+    finnhub_peers_ok: bool = True,
+    finnhub_profile_ok: bool = True,
 ) -> CompanySourceFetcher:
     async def fetch_polygon(*_: Any) -> tuple[PolygonAggregatesResponse, str]:
         if not polygon_ok:
@@ -174,11 +185,57 @@ def _fake_fetcher(
         payload = _sec_payload()
         return payload, _hash(payload.model_dump(mode="json"))
 
+    async def fetch_recommendation(
+        *_: Any,
+    ) -> tuple[list[FinnhubRecommendation], str]:
+        if not finnhub_recommendation_ok:
+            raise RuntimeError("finnhub recommendation down")
+        return [], "a" * 64
+
+    async def fetch_price_target(*_: Any) -> tuple[FinnhubPriceTarget, str]:
+        if not finnhub_price_target_ok:
+            raise RuntimeError("finnhub price target down")
+        target = FinnhubPriceTarget(
+            symbol="AAPL",
+            lastUpdated=datetime(2026, 5, 18, tzinfo=UTC),
+            targetHigh=0.0,
+            targetLow=0.0,
+            targetMean=0.0,
+            targetMedian=0.0,
+            numberOfAnalysts=0,
+        )
+        return target, "b" * 64
+
+    async def fetch_insider(
+        *_: Any,
+    ) -> tuple[FinnhubInsiderTransactionsResponse, str]:
+        if not finnhub_insider_ok:
+            raise RuntimeError("finnhub insider down")
+        return (
+            FinnhubInsiderTransactionsResponse(symbol="AAPL", data=[]),
+            "d" * 64,
+        )
+
+    async def fetch_peers(*_: Any) -> tuple[list[str], str]:
+        if not finnhub_peers_ok:
+            raise RuntimeError("finnhub peers down")
+        return [], "e" * 64
+
+    async def fetch_profile(*_: Any) -> tuple[FinnhubCompanyProfile, str]:
+        if not finnhub_profile_ok:
+            raise RuntimeError("finnhub profile down")
+        return FinnhubCompanyProfile(ticker="AAPL"), "f" * 64
+
     return CompanySourceFetcher(
         polygon_aggregates=fetch_polygon,
         tiingo_news=fetch_tiingo,
         congress_trades=fetch_congress,
         sec_submissions=fetch_sec,
+        finnhub_recommendation=fetch_recommendation,
+        finnhub_price_target=fetch_price_target,
+        finnhub_insider=fetch_insider,
+        finnhub_peers=fetch_peers,
+        finnhub_profile=fetch_profile,
     )
 
 
@@ -202,10 +259,12 @@ async def test_fetch_company_evidence_ingests_all_sources(
         "tiingo_news",
         "ainvest_congress",
         "sec_edgar",
+        "finnhub_price_target",
+        "finnhub_profile",
     }
-    assert len(result.chunks) >= 4
+    assert len(result.chunks) >= 6
     evidence_rows = (await db_session.execute(select(Evidence))).scalars().all()
-    assert len(evidence_rows) == 4
+    assert len(evidence_rows) == 6
 
 
 @pytest.mark.asyncio
@@ -347,6 +406,11 @@ async def test_fetch_company_evidence_all_failures_yields_empty(
                 tiingo_ok=False,
                 congress_ok=False,
                 sec_ok=False,
+                finnhub_recommendation_ok=False,
+                finnhub_price_target_ok=False,
+                finnhub_insider_ok=False,
+                finnhub_peers_ok=False,
+                finnhub_profile_ok=False,
             ),
         )
 
@@ -357,4 +421,4 @@ async def test_fetch_company_evidence_all_failures_yields_empty(
             select(RunEvent).where(RunEvent.level == RunEventLevel.warn)
         )
     ).scalars().all()
-    assert len(warn_events) == 4
+    assert len(warn_events) == 9
