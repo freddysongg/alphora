@@ -2,7 +2,7 @@ import json
 from datetime import UTC, date, datetime
 
 import httpx
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.config import get_settings
 from app.services.source_clients._http import (
@@ -66,6 +66,18 @@ class FinnhubEarningsCalendar(BaseModel):
     model_config = ConfigDict(frozen=True, extra="ignore")
 
     earnings: list[FinnhubEarningsRow]
+
+
+class FinnhubRecommendation(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="ignore", populate_by_name=True)
+
+    symbol: str
+    period: date
+    buy: int
+    hold: int
+    sell: int
+    strong_buy: int = Field(alias="strongBuy")
+    strong_sell: int = Field(alias="strongSell")
 
 
 def _remap_news_row(row: object) -> FinnhubNewsItem:
@@ -138,10 +150,33 @@ async def fetch_finnhub_earnings_calendar(
     return parsed, response.content_hash
 
 
+async def fetch_finnhub_recommendation(
+    *,
+    client: httpx.AsyncClient,
+    symbol: str,
+) -> tuple[list[FinnhubRecommendation], str]:
+    response = await request(
+        client,
+        HttpRequestConfig(
+            method="GET",
+            url=f"{_FINNHUB_BASE}/stock/recommendation",
+            headers=_auth_headers(),
+            params={"symbol": symbol},
+        ),
+        rate_limiter=_rate_limiter(),
+    )
+
+    payload = json.loads(response.body_bytes)
+    items = [FinnhubRecommendation.model_validate(row) for row in payload]
+    return items, response.content_hash
+
+
 __all__ = [
     "FinnhubEarningsCalendar",
     "FinnhubEarningsRow",
     "FinnhubNewsItem",
+    "FinnhubRecommendation",
     "fetch_finnhub_company_news",
     "fetch_finnhub_earnings_calendar",
+    "fetch_finnhub_recommendation",
 ]

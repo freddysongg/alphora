@@ -201,3 +201,52 @@ def test_finnhub_module_exposes_lazy_rate_limiter() -> None:
     limiter = finnhub._rate_limiter()
     assert isinstance(limiter, LocalTokenBucket)
     assert finnhub._rate_limiter() is limiter
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_fetch_finnhub_recommendation_happy_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("FINNHUB_API_KEY", "test-key")
+    get_settings.cache_clear()
+    from app.services.source_clients.finnhub import fetch_finnhub_recommendation
+
+    route = respx.get("https://finnhub.io/api/v1/stock/recommendation").mock(
+        return_value=httpx.Response(
+            200,
+            json=[
+                {
+                    "symbol": "AAPL",
+                    "period": "2026-05-01",
+                    "buy": 25,
+                    "hold": 8,
+                    "sell": 2,
+                    "strongBuy": 15,
+                    "strongSell": 1,
+                },
+                {
+                    "symbol": "AAPL",
+                    "period": "2026-04-01",
+                    "buy": 22,
+                    "hold": 9,
+                    "sell": 3,
+                    "strongBuy": 14,
+                    "strongSell": 1,
+                },
+            ],
+        )
+    )
+
+    async with httpx.AsyncClient() as client:
+        items, content_hash = await fetch_finnhub_recommendation(client=client, symbol="AAPL")
+
+    assert route.called
+    sent = route.calls.last.request
+    assert sent.url.params["symbol"] == "AAPL"
+    assert sent.headers["x-finnhub-token"] == "test-key"
+    assert len(items) == 2
+    assert items[0].period.year == 2026
+    assert items[0].buy == 25
+    assert items[0].strong_buy == 15
+    assert len(content_hash) == 64
