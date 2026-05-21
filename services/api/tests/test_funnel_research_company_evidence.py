@@ -20,6 +20,7 @@ from app.db.models_runs import (
 from app.schemas.macro_brief import SectorCallDirection
 from app.services.source_clients.finnhub import (
     FinnhubCompanyProfile,
+    FinnhubInsiderTransaction,
     FinnhubInsiderTransactionsResponse,
     FinnhubPriceTarget,
     FinnhubRecommendation,
@@ -422,3 +423,210 @@ async def test_fetch_company_evidence_all_failures_yields_empty(
         )
     ).scalars().all()
     assert len(warn_events) == 9
+
+
+@pytest.mark.asyncio
+async def test_fetch_company_evidence_includes_all_finnhub_sources_on_happy_path(
+    db_session: AsyncSession,
+) -> None:
+    run_id = await _seed_run(db_session)
+
+    async def fetch_polygon(*_: Any) -> tuple[PolygonAggregatesResponse, str]:
+        payload = _polygon_payload()
+        return payload, _hash(payload.model_dump(mode="json"))
+
+    async def fetch_tiingo(*_: Any) -> tuple[list[TiingoNewsItem], str]:
+        items = _tiingo_news_items()
+        return items, _hash([i.model_dump(mode="json") for i in items])
+
+    async def fetch_congress(*_: Any) -> CongressTradesResult:
+        return _congress_trades_result()
+
+    async def fetch_sec(*_: Any) -> tuple[SecSubmissionsResponse, str]:
+        payload = _sec_payload()
+        return payload, _hash(payload.model_dump(mode="json"))
+
+    async def fetch_recommendation(
+        *_: Any,
+    ) -> tuple[list[FinnhubRecommendation], str]:
+        return (
+            [
+                FinnhubRecommendation(
+                    symbol="AAPL",
+                    period=date(2026, 5, 1),
+                    buy=25,
+                    hold=8,
+                    sell=2,
+                    strongBuy=15,
+                    strongSell=1,
+                ),
+            ],
+            "a" * 64,
+        )
+
+    async def fetch_price_target(*_: Any) -> tuple[FinnhubPriceTarget, str]:
+        target = FinnhubPriceTarget(
+            symbol="AAPL",
+            lastUpdated=datetime(2026, 5, 18, tzinfo=UTC),
+            targetHigh=250.0,
+            targetLow=175.0,
+            targetMean=215.0,
+            targetMedian=210.0,
+            numberOfAnalysts=38,
+        )
+        return target, "b" * 64
+
+    async def fetch_insider(
+        *_: Any,
+    ) -> tuple[FinnhubInsiderTransactionsResponse, str]:
+        response = FinnhubInsiderTransactionsResponse(
+            symbol="AAPL",
+            data=[
+                FinnhubInsiderTransaction(
+                    name="Tim Cook",
+                    share=1000,
+                    change=-500,
+                    filingDate=date(2026, 5, 15),
+                    transactionDate=date(2026, 5, 13),
+                    transactionCode="S",
+                    transactionPrice=195.0,
+                ),
+            ],
+        )
+        return response, "d" * 64
+
+    async def fetch_peers(*_: Any) -> tuple[list[str], str]:
+        return ["MSFT", "GOOGL"], "h" * 64
+
+    async def fetch_profile(*_: Any) -> tuple[FinnhubCompanyProfile, str]:
+        profile = FinnhubCompanyProfile(
+            country="US",
+            currency="USD",
+            exchange="NASDAQ",
+            finnhubIndustry="Technology",
+            ipo=date(1980, 12, 12),
+            marketCapitalization=3_000_000.0,
+            name="Apple Inc",
+            shareOutstanding=15_600.0,
+            ticker="AAPL",
+            weburl="https://www.apple.com/",
+        )
+        return profile, "f" * 64
+
+    fetcher = CompanySourceFetcher(
+        polygon_aggregates=fetch_polygon,
+        tiingo_news=fetch_tiingo,
+        congress_trades=fetch_congress,
+        sec_submissions=fetch_sec,
+        finnhub_recommendation=fetch_recommendation,
+        finnhub_price_target=fetch_price_target,
+        finnhub_insider=fetch_insider,
+        finnhub_peers=fetch_peers,
+        finnhub_profile=fetch_profile,
+    )
+
+    async with httpx.AsyncClient() as http_client:
+        result = await fetch_company_evidence(
+            session=db_session,
+            run_id=run_id,
+            company_idea=_company_idea(),
+            cik="0000320193",
+            http_client=http_client,
+            fetcher=fetcher,
+        )
+
+    sources = {entry.source for entry in result.evidence}
+    assert {
+        "finnhub_recommendation",
+        "finnhub_price_target",
+        "finnhub_insider_transactions",
+        "finnhub_peers",
+        "finnhub_profile",
+    }.issubset(sources)
+
+
+@pytest.mark.asyncio
+async def test_fetch_company_evidence_isolates_finnhub_source_failures(
+    db_session: AsyncSession,
+) -> None:
+    run_id = await _seed_run(db_session)
+
+    async def fetch_polygon(*_: Any) -> tuple[PolygonAggregatesResponse, str]:
+        payload = _polygon_payload()
+        return payload, _hash(payload.model_dump(mode="json"))
+
+    async def fetch_tiingo(*_: Any) -> tuple[list[TiingoNewsItem], str]:
+        items = _tiingo_news_items()
+        return items, _hash([i.model_dump(mode="json") for i in items])
+
+    async def fetch_congress(*_: Any) -> CongressTradesResult:
+        return _congress_trades_result()
+
+    async def fetch_sec(*_: Any) -> tuple[SecSubmissionsResponse, str]:
+        payload = _sec_payload()
+        return payload, _hash(payload.model_dump(mode="json"))
+
+    async def fetch_recommendation(
+        *_: Any,
+    ) -> tuple[list[FinnhubRecommendation], str]:
+        raise RuntimeError("simulated upstream failure")
+
+    async def fetch_price_target(*_: Any) -> tuple[FinnhubPriceTarget, str]:
+        raise RuntimeError("simulated upstream failure")
+
+    async def fetch_insider(
+        *_: Any,
+    ) -> tuple[FinnhubInsiderTransactionsResponse, str]:
+        raise RuntimeError("simulated upstream failure")
+
+    async def fetch_peers(*_: Any) -> tuple[list[str], str]:
+        return ["MSFT"], "e" * 64
+
+    async def fetch_profile(*_: Any) -> tuple[FinnhubCompanyProfile, str]:
+        profile = FinnhubCompanyProfile(ticker="AAPL", name="Apple Inc")
+        return profile, "f" * 64
+
+    fetcher = CompanySourceFetcher(
+        polygon_aggregates=fetch_polygon,
+        tiingo_news=fetch_tiingo,
+        congress_trades=fetch_congress,
+        sec_submissions=fetch_sec,
+        finnhub_recommendation=fetch_recommendation,
+        finnhub_price_target=fetch_price_target,
+        finnhub_insider=fetch_insider,
+        finnhub_peers=fetch_peers,
+        finnhub_profile=fetch_profile,
+    )
+
+    async with httpx.AsyncClient() as http_client:
+        result = await fetch_company_evidence(
+            session=db_session,
+            run_id=run_id,
+            company_idea=_company_idea(),
+            cik="0000320193",
+            http_client=http_client,
+            fetcher=fetcher,
+        )
+
+    sources = {entry.source for entry in result.evidence}
+    assert "finnhub_peers" in sources
+    assert "finnhub_profile" in sources
+    assert "finnhub_recommendation" not in sources
+    assert "finnhub_price_target" not in sources
+    assert "finnhub_insider_transactions" not in sources
+
+    warn_events = (
+        await db_session.execute(
+            select(RunEvent).where(RunEvent.level == RunEventLevel.warn)
+        )
+    ).scalars().all()
+    warn_sources = {
+        event.data.get("source")
+        for event in warn_events
+        if isinstance(event.data, dict)
+    }
+    assert {
+        "finnhub_recommendation",
+        "finnhub_price_target",
+        "finnhub_insider_transactions",
+    }.issubset(warn_sources)
