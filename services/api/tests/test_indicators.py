@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 
-import pandas as pd
+import pandas as pd  # type: ignore[import-untyped]
 import pytest
 
 from app.indicators import ema
