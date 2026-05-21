@@ -298,13 +298,12 @@ async def test_extract_from_chunk_raises_on_non_object_candidate_item(
         )
 
 
-async def test_extract_from_chunk_raises_on_candidate_with_invalid_fields(
+async def test_extract_from_chunk_drops_candidate_with_invalid_fields(
     populated_session: AsyncSession,
 ) -> None:
-    from app.services.extraction._llm_call import ExtractionError
     from app.services.extraction.core import extract_from_chunk
 
-    chunk = _chunk("Apple released a new phone today.")
+    chunk = _chunk("Apple released a new iPhone today.")
 
     async def fake_complete(**_: Any) -> LlmCompletionResult:
         return _completion(
@@ -316,21 +315,31 @@ async def test_extract_from_chunk_raises_on_candidate_with_invalid_fields(
                         "context_excerpt": "...",
                         "exact_quote": "Apple",
                         "extraction_confidence": 0.9,
-                    }
+                    },
+                    {
+                        "text_span": "iPhone",
+                        "suggested_type": "product",
+                        "context_excerpt": "...",
+                        "exact_quote": "iPhone",
+                        "extraction_confidence": 0.9,
+                    },
                 ],
                 "candidate_relations": [],
             }
         )
 
-    with pytest.raises(ExtractionError, match="candidate_entities"):
-        await extract_from_chunk(
-            session=populated_session,
-            run_id=uuid.uuid4(),
-            chunk=chunk,
-            llm_complete=fake_complete,
-            orchestrator_pause=_noop,
-            orchestrator_fail=_noop,
-        )
+    result = await extract_from_chunk(
+        session=populated_session,
+        run_id=uuid.uuid4(),
+        chunk=chunk,
+        llm_complete=fake_complete,
+        orchestrator_pause=_noop,
+        orchestrator_fail=_noop,
+    )
+
+    kept_spans = [entity.text_span for entity in result.candidate_entities]
+    assert "Apple" not in kept_spans
+    assert "iPhone" in kept_spans
 
 
 async def test_extract_from_chunk_routes_budget_paused_through_orchestrator(

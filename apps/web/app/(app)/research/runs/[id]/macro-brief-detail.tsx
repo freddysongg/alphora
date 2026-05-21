@@ -85,7 +85,7 @@ export function MacroBriefDetail(props: MacroBriefDetailProps): ReactElement {
         {brief.themes.length === 0 ? (
           <Empty />
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col gap-3">
             {brief.themes.map((theme) => (
               <ThemeRow key={theme.name} theme={theme} runId={runId} />
             ))}
@@ -143,7 +143,7 @@ export function MacroBriefDetail(props: MacroBriefDetailProps): ReactElement {
         {brief.watch_items.length === 0 ? (
           <Empty />
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col gap-3">
             {brief.watch_items.map((item) => (
               <WatchItemRow key={item.name} item={item} runId={runId} />
             ))}
@@ -171,7 +171,7 @@ export function MacroBriefDetail(props: MacroBriefDetailProps): ReactElement {
         {brief.proposed_hypotheses.length === 0 ? (
           <Empty />
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col gap-3">
             {brief.proposed_hypotheses.map((hypothesis, index) => (
               <HypothesisRow
                 key={`${hypothesis.claim_text}-${index}`}
@@ -279,14 +279,14 @@ function ThemeRow(props: ThemeRowProps): ReactElement {
   return (
     <li
       data-testid="macro-theme-row"
-      className="border-b border-line/60 pb-2 last:border-0 last:pb-0"
+      className="rounded-md border border-line/40 bg-surface-2/30 px-4 py-3"
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-3">
-          <span className="text-fg">{theme.name}</span>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-fg truncate">{theme.name}</span>
           {button}
         </div>
-        <span className="font-mono tabular-nums text-fg-muted text-sm">
+        <span className="font-mono tabular-nums text-fg-muted text-sm shrink-0">
           {theme.confidence.toFixed(2)}
         </span>
       </div>
@@ -311,12 +311,14 @@ function WatchItemRow(props: WatchItemRowProps): ReactElement {
   return (
     <li
       data-testid="macro-watch-item-row"
-      className="border-b border-line/60 pb-2 last:border-0 last:pb-0"
+      className="rounded-md border border-line/40 bg-surface-2/30 px-4 py-4"
     >
       <p className="text-fg font-medium">{item.name}</p>
-      <p className="mt-1 text-sm text-fg-muted leading-relaxed">{item.reason}</p>
+      <p className="mt-2 text-sm text-fg-muted leading-relaxed">
+        {item.reason}
+      </p>
       {hasEvidence ? (
-        <div className="mt-2">
+        <div className="mt-3">
           {button}
           {list}
         </div>
@@ -341,11 +343,11 @@ function HypothesisRow(props: HypothesisRowProps): ReactElement {
   return (
     <li
       data-testid="macro-hypothesis-row"
-      className="text-sm text-fg leading-relaxed border-b border-line/60 pb-2 last:border-0 last:pb-0"
+      className="rounded-md border border-line/40 bg-surface-2/30 px-4 py-4 text-sm text-fg leading-relaxed"
     >
       <p>{hypothesis.claim_text}</p>
       {hasEvidence ? (
-        <div className="mt-2">
+        <div className="mt-3">
           {button}
           {list}
         </div>

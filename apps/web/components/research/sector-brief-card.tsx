@@ -1,11 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type { Route } from "next";
 import Link from "next/link";
 
-import { Card, CardContent, CardHeader, CardTitle, CapsLabel } from "@/components/ui";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CapsLabel,
+} from "@/components/ui";
 import { useEvidenceDisclosure } from "@/components/research/evidence-disclosure";
 import type { components } from "@/lib/api";
 
@@ -61,86 +67,180 @@ export function SectorBriefCard(props: SectorBriefCardProps): ReactElement {
     );
 
   return (
-    <Card data-testid="sector-brief-card">
-      <CardHeader>
-        <CardTitle>{sectorTitle}</CardTitle>
+    <Card className="p-0" data-testid="sector-brief-card">
+      <CardHeader className="flex flex-row items-center justify-between gap-4 px-6 pt-6 pb-5">
+        <CardTitle className="text-base normal-case tracking-normal text-fg">
+          {sectorTitle}
+        </CardTitle>
         <CapsLabel className={directionTone}>{brief.direction}</CapsLabel>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex items-center gap-2">
-          <CapsLabel className="text-fg-subtle">CONVICTION</CapsLabel>
-          <div
-            role="progressbar"
-            aria-label="conviction"
-            aria-valuenow={convictionPct}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            className="h-1 flex-1 bg-surface-2 rounded-full overflow-hidden"
-          >
-            <div
-              className="h-full bg-accent"
-              style={{ width: `${convictionPct}%` }}
-            />
-          </div>
-          <span className="font-mono text-xs text-fg tabular-nums">
-            {convictionPct}%
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <CapsLabel className="text-fg-subtle">JUDGE</CapsLabel>
-          <span className="font-mono text-xs text-fg">{judge.status}</span>
-        </div>
+
+      <CardContent className="flex flex-col">
+        <Band>
+          <BandBody className="flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <CapsLabel className="text-fg-subtle w-24 shrink-0">
+                CONVICTION
+              </CapsLabel>
+              <div
+                role="progressbar"
+                aria-label="conviction"
+                aria-valuenow={convictionPct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                className="h-1 flex-1 bg-surface-2 rounded-full overflow-hidden"
+              >
+                <div
+                  className="h-full bg-accent"
+                  style={{ width: `${convictionPct}%` }}
+                />
+              </div>
+              <span className="font-mono text-xs text-fg tabular-nums w-10 text-right">
+                {convictionPct}%
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <CapsLabel className="text-fg-subtle w-24 shrink-0">
+                JUDGE
+              </CapsLabel>
+              <span className="font-mono text-xs text-fg">{judge.status}</span>
+            </div>
+          </BandBody>
+        </Band>
+
         {brief.themes.length > 0 ? (
-          <div className="space-y-2" data-testid="sector-themes">
-            <CapsLabel className="text-fg-subtle">THEMES</CapsLabel>
-            <ul className="flex flex-col gap-2">
-              {brief.themes.map((theme) => (
-                <SectorThemeRow key={theme.name} theme={theme} runId={runId} />
-              ))}
-            </ul>
-          </div>
+          <Band>
+            <BandHeader title="THEMES" count={brief.themes.length} />
+            <BandBody>
+              <ul
+                className="flex flex-col gap-3"
+                data-testid="sector-themes"
+              >
+                {brief.themes.map((theme) => (
+                  <SectorThemeRow
+                    key={theme.name}
+                    theme={theme}
+                    runId={runId}
+                  />
+                ))}
+              </ul>
+            </BandBody>
+          </Band>
         ) : null}
+
         {brief.companies.length > 0 ? (
-          <ul className="flex flex-col gap-2" aria-label="company ideas">
-            {brief.companies.map((company) => (
-              <SectorCompanyRow
-                key={`${company.name}:${company.ticker ?? "—"}`}
-                company={company}
-                runId={runId}
-              />
-            ))}
-          </ul>
+          <Band>
+            <BandHeader
+              title="COMPANIES"
+              count={brief.companies.length}
+            />
+            <BandBody>
+              <ul
+                className="flex flex-col gap-3"
+                aria-label="company ideas"
+              >
+                {brief.companies.map((company) => (
+                  <SectorCompanyRow
+                    key={`${company.name}:${company.ticker ?? "—"}`}
+                    company={company}
+                    runId={runId}
+                  />
+                ))}
+              </ul>
+            </BandBody>
+          </Band>
         ) : null}
+
         {brief.watch_items.length > 0 ? (
-          <div className="space-y-2" data-testid="sector-watch-items">
-            <CapsLabel className="text-fg-subtle">WATCH ITEMS</CapsLabel>
-            <ul className="flex flex-col gap-2">
-              {brief.watch_items.map((item) => (
-                <SectorWatchItemRow
-                  key={item.name}
-                  item={item}
-                  runId={runId}
-                />
-              ))}
-            </ul>
-          </div>
+          <Band>
+            <BandHeader
+              title="WATCH ITEMS"
+              count={brief.watch_items.length}
+            />
+            <BandBody>
+              <ul
+                className="flex flex-col gap-3"
+                data-testid="sector-watch-items"
+              >
+                {brief.watch_items.map((item) => (
+                  <SectorWatchItemRow
+                    key={item.name}
+                    item={item}
+                    runId={runId}
+                  />
+                ))}
+              </ul>
+            </BandBody>
+          </Band>
         ) : null}
+
         {brief.cited_claims.length > 0 ? (
-          <div className="space-y-2" data-testid="sector-cited-claims">
-            <CapsLabel className="text-fg-subtle">CITED CLAIMS</CapsLabel>
-            <ul className="flex flex-col gap-2">
-              {brief.cited_claims.map((claim) => (
-                <SectorCitedClaimRow
-                  key={`${claim.chunk_id}-${claim.exact_quote.slice(0, 32)}`}
-                  claim={claim}
-                  chunk={chunkById.get(claim.chunk_id) ?? null}
-                />
-              ))}
-            </ul>
-          </div>
+          <Band>
+            <BandHeader
+              title="CITED CLAIMS"
+              count={brief.cited_claims.length}
+            />
+            <BandBody>
+              <ul
+                className="flex flex-col gap-3"
+                data-testid="sector-cited-claims"
+              >
+                {brief.cited_claims.map((claim) => (
+                  <SectorCitedClaimRow
+                    key={`${claim.chunk_id}-${claim.exact_quote.slice(0, 32)}`}
+                    claim={claim}
+                    chunk={chunkById.get(claim.chunk_id) ?? null}
+                  />
+                ))}
+              </ul>
+            </BandBody>
+          </Band>
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+interface BandProps {
+  children: ReactNode;
+}
+
+function Band(props: BandProps): ReactElement {
+  return (
+    <section className="border-t border-line/60 first:border-t-0">
+      {props.children}
+    </section>
+  );
+}
+
+interface BandHeaderProps {
+  title: string;
+  count?: number;
+}
+
+function BandHeader(props: BandHeaderProps): ReactElement {
+  const { title, count } = props;
+  return (
+    <div className="flex items-baseline justify-between gap-3 px-6 pt-5 pb-3">
+      <CapsLabel className="text-fg-muted">{title}</CapsLabel>
+      {count !== undefined ? (
+        <span className="font-mono tabular-nums text-xs text-fg-subtle">
+          {count}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+interface BandBodyProps {
+  children: ReactNode;
+  className?: string;
+}
+
+function BandBody(props: BandBodyProps): ReactElement {
+  const { children, className } = props;
+  return (
+    <div className={`px-6 pb-6 ${className ?? ""}`.trim()}>{children}</div>
   );
 }
 
@@ -160,14 +260,14 @@ function SectorThemeRow(props: SectorThemeRowProps): ReactElement {
   return (
     <li
       data-testid="sector-theme-row"
-      className="border-b border-line/60 pb-2 last:border-0 last:pb-0"
+      className="rounded-md border border-line/40 bg-surface-2/30 px-4 py-3"
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-3">
-          <span className="text-fg text-sm">{theme.name}</span>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-fg text-sm truncate">{theme.name}</span>
           {button}
         </div>
-        <span className="font-mono tabular-nums text-fg-muted text-sm">
+        <span className="font-mono tabular-nums text-fg-muted text-sm shrink-0">
           {theme.confidence.toFixed(2)}
         </span>
       </div>
@@ -192,12 +292,14 @@ function SectorWatchItemRow(props: SectorWatchItemRowProps): ReactElement {
   return (
     <li
       data-testid="sector-watch-item-row"
-      className="border-b border-line/60 pb-2 last:border-0 last:pb-0"
+      className="rounded-md border border-line/40 bg-surface-2/30 px-4 py-4"
     >
       <p className="text-fg text-sm font-medium">{item.name}</p>
-      <p className="mt-1 text-sm text-fg-muted leading-relaxed">{item.reason}</p>
+      <p className="mt-2 text-sm text-fg-muted leading-relaxed">
+        {item.reason}
+      </p>
       {hasEvidence ? (
-        <div className="mt-2">
+        <div className="mt-3">
           {button}
           {list}
         </div>
@@ -220,7 +322,9 @@ function SectorCompanyRow(props: SectorCompanyRowProps): ReactElement {
   );
 
   const companyName =
-    runId !== undefined && company.company_entity_id !== null && company.company_entity_id !== undefined ? (
+    runId !== undefined &&
+    company.company_entity_id !== null &&
+    company.company_entity_id !== undefined ? (
       <Link
         href={
           `/research/runs/${runId}/companies/${company.company_entity_id}` as Route
@@ -237,14 +341,14 @@ function SectorCompanyRow(props: SectorCompanyRowProps): ReactElement {
   return (
     <li
       data-testid="sector-company-row"
-      className="font-mono text-xs border-b border-line/60 pb-2 last:border-0 last:pb-0"
+      className="rounded-md border border-line/40 bg-surface-2/30 px-4 py-3 font-mono text-xs"
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           {companyName}
           {button}
         </div>
-        <span className="text-fg-subtle">{company.ticker ?? "—"}</span>
+        <span className="text-fg-subtle shrink-0">{company.ticker ?? "—"}</span>
       </div>
       {list}
     </li>
@@ -271,7 +375,7 @@ function SectorCitedClaimRow(props: SectorCitedClaimRowProps): ReactElement {
 
   return (
     <li
-      className="rounded-md border border-line bg-surface-2/40 p-3"
+      className="rounded-md border border-line bg-surface-2/40 px-4 py-3"
       data-testid="sector-cited-claim-row"
     >
       <button
@@ -288,7 +392,7 @@ function SectorCitedClaimRow(props: SectorCitedClaimRowProps): ReactElement {
         </span>
       </button>
       {isOpen ? (
-        <div className="mt-3 flex flex-col gap-2">
+        <div className="mt-4 flex flex-col gap-3">
           <p className="rounded-md bg-canvas border border-line p-3 text-sm text-fg italic leading-relaxed">
             &ldquo;{claim.exact_quote}&rdquo;
           </p>

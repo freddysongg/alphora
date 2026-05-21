@@ -80,7 +80,7 @@ export function HypothesisLifecycleCard(
         <CardTitle>HYPOTHESIS LIFECYCLE</CardTitle>
       </CardHeader>
       <CardContent>
-        <ul className="flex flex-col gap-6">
+        <ul className="flex flex-col gap-4">
           {bundles.map((bundle) => (
             <LifecycleRow key={bundle.hypothesis.id} bundle={bundle} />
           ))}
@@ -106,18 +106,18 @@ function LifecycleRow(props: {
   const parent = lifecycle?.parent ?? null;
 
   return (
-    <li className="flex flex-col gap-3 border-t border-line/60 pt-4 first:border-t-0 first:pt-0">
-      <header className="flex items-center gap-3">
-        <CapsLabel className={`w-24 shrink-0 ${stateTone(hypothesis.state)}`}>
+    <li className="rounded-lg border border-line/50 bg-surface-2/30 p-5 flex flex-col gap-5">
+      <header className="flex items-start gap-4">
+        <CapsLabel className={`w-24 shrink-0 mt-0.5 ${stateTone(hypothesis.state)}`}>
           {hypothesis.state}
         </CapsLabel>
-        <p className="flex-1 min-w-0 text-sm text-fg">
+        <p className="flex-1 min-w-0 text-sm text-fg leading-relaxed">
           {hypothesis.claim_text}
         </p>
-        <HexPill value={hypothesis.id} />
+        <HexPill value={hypothesis.id} className="shrink-0" />
       </header>
 
-      <dl className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+      <dl className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
         <LifecycleField
           label="LAST ACTIVITY"
           value={formatTimestamp(hypothesis.last_activity_at)}
