@@ -23,6 +23,12 @@ from app.schemas.sector_brief import (
     SectorCompanyIdea,
 )
 from app.services.llm.client import LlmCompletionResult
+from app.services.source_clients.finnhub import (
+    FinnhubCompanyProfile,
+    FinnhubInsiderTransactionsResponse,
+    FinnhubPriceTarget,
+    FinnhubRecommendation,
+)
 from app.services.source_clients.polygon import (
     PolygonAggregateBar,
     PolygonAggregatesResponse,
@@ -114,11 +120,38 @@ def _empty_company_fetcher() -> CompanySourceFetcher:
             "0" * 64,
         )
 
+    async def fetch_recommendation(
+        *_: Any,
+    ) -> tuple[list[FinnhubRecommendation], str]:
+        return [], "a" * 64
+
+    async def fetch_price_target(*_: Any) -> tuple[FinnhubPriceTarget, str]:
+        raise RuntimeError("finnhub price target unavailable")
+
+    async def fetch_insider(
+        *_: Any,
+    ) -> tuple[FinnhubInsiderTransactionsResponse, str]:
+        return (
+            FinnhubInsiderTransactionsResponse(symbol="AAPL", data=[]),
+            "d" * 64,
+        )
+
+    async def fetch_peers(*_: Any) -> tuple[list[str], str]:
+        return [], "e" * 64
+
+    async def fetch_profile(*_: Any) -> tuple[FinnhubCompanyProfile, str]:
+        raise RuntimeError("finnhub profile unavailable")
+
     return CompanySourceFetcher(
         polygon_aggregates=fetch_polygon,
         tiingo_news=fetch_tiingo,
         congress_trades=fetch_congress,
         sec_submissions=fetch_sec,
+        finnhub_recommendation=fetch_recommendation,
+        finnhub_price_target=fetch_price_target,
+        finnhub_insider=fetch_insider,
+        finnhub_peers=fetch_peers,
+        finnhub_profile=fetch_profile,
     )
 
 
@@ -535,11 +568,47 @@ def _populated_company_fetcher() -> CompanySourceFetcher:
             "0" * 64,
         )
 
+    async def fetch_recommendation(
+        *_: Any,
+    ) -> tuple[list[FinnhubRecommendation], str]:
+        return [], "a" * 64
+
+    async def fetch_price_target(*_: Any) -> tuple[FinnhubPriceTarget, str]:
+        target = FinnhubPriceTarget(
+            symbol="AAPL",
+            lastUpdated=datetime(2026, 5, 18, tzinfo=UTC),
+            targetHigh=0.0,
+            targetLow=0.0,
+            targetMean=0.0,
+            targetMedian=0.0,
+            numberOfAnalysts=0,
+        )
+        return target, "b" * 64
+
+    async def fetch_insider(
+        *_: Any,
+    ) -> tuple[FinnhubInsiderTransactionsResponse, str]:
+        return (
+            FinnhubInsiderTransactionsResponse(symbol="AAPL", data=[]),
+            "d" * 64,
+        )
+
+    async def fetch_peers(*_: Any) -> tuple[list[str], str]:
+        return [], "e" * 64
+
+    async def fetch_profile(*_: Any) -> tuple[FinnhubCompanyProfile, str]:
+        return FinnhubCompanyProfile(ticker="AAPL"), "f" * 64
+
     return CompanySourceFetcher(
         polygon_aggregates=fetch_aggs,
         tiingo_news=fetch_news,
         congress_trades=fetch_congress,
         sec_submissions=fetch_sec,
+        finnhub_recommendation=fetch_recommendation,
+        finnhub_price_target=fetch_price_target,
+        finnhub_insider=fetch_insider,
+        finnhub_peers=fetch_peers,
+        finnhub_profile=fetch_profile,
     )
 
 
