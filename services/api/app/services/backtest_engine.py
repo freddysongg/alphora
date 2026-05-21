@@ -21,6 +21,8 @@ are runner-only concerns (Phase 4+). Backtest is pure signal evaluation.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Literal
 
 
 @dataclass(frozen=True)
@@ -56,4 +58,28 @@ class CommissionModel:
         return self.per_trade_usd
 
 
-__all__ = ["CommissionModel", "SlippageModel"]
+TradeExitReason = Literal["signal", "final-bar"]
+
+
+@dataclass(frozen=True)
+class Trade:
+    """One completed round-trip trade.
+
+    `side` is +1 (long) or -1 (short). `shares` is a positive count.
+    `pnl_usd` = (exit_price - entry_price) * side * shares  - 2 * commission.
+    """
+
+    side: int
+    entry_bar_index: int
+    exit_bar_index: int
+    entry_ts: datetime
+    exit_ts: datetime
+    entry_price: float
+    exit_price: float
+    shares: int
+    pnl_usd: float
+    bars_held: int
+    exit_reason: TradeExitReason
+
+
+__all__ = ["CommissionModel", "SlippageModel", "Trade", "TradeExitReason"]
