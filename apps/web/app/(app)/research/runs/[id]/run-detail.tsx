@@ -15,7 +15,10 @@ import {
 } from "@/components/ui";
 import type { StatusPillStatus } from "@/components/ui";
 import type { components } from "@/lib/api";
-import { RunSseProvider } from "@/components/research/run-sse-context";
+import {
+  RunSseProvider,
+  useRunSseEvent,
+} from "@/components/research/run-sse-context";
 import { HumanReviewForm } from "@/components/research/human-review-form";
 import { HumanReviewSummaryWidget } from "@/components/research/human-review-summary";
 import type { HypothesisBeliefBundle } from "@/components/research/hypothesis-belief-explainer";
@@ -29,6 +32,7 @@ import {
   isTerminal,
   runStatusToStatusKind,
 } from "@/lib/research/status-mapping";
+import { resolveScopeLabelUpper } from "@/lib/research/scope";
 import { cn } from "@/lib/cn";
 import { CancelRunButton } from "./cancel-run-button";
 
@@ -45,7 +49,6 @@ type RunGraph = components["schemas"]["RunGraph"];
 type CounterfactualRunSummary =
   components["schemas"]["CounterfactualRunSummary"];
 type LeakageRunPublic = components["schemas"]["LeakageRunPublic"];
-type ScopePayload = ResearchRunDetail["scope_payload"];
 
 const statusToLabel: Record<RunStatus, string> = {
   queued: "QUEUED",
@@ -54,10 +57,6 @@ const statusToLabel: Record<RunStatus, string> = {
   failed: "FAILED",
   cancelled: "CANCELLED",
   paused: "PAUSED",
-};
-
-const SCOPE_UNIVERSE_LABEL: Record<string, string> = {
-  us_equities: "US EQUITIES",
 };
 
 interface StageEntry {
@@ -94,22 +93,7 @@ function resolveHeaderLabel(detail: ResearchRunDetail): string {
   if (detail.ticker !== null) {
     return detail.ticker;
   }
-  return resolveScopeLabel(detail.scope_payload) ?? "—";
-}
-
-function resolveScopeLabel(scope: ScopePayload): string | null {
-  if (scope === null || scope === undefined) {
-    return null;
-  }
-  const record = scope as Record<string, unknown>;
-  const kind = record["kind"];
-  const universe = record["universe"];
-  if (typeof kind !== "string" || typeof universe !== "string") {
-    return null;
-  }
-  const universeLabel =
-    SCOPE_UNIVERSE_LABEL[universe] ?? universe.toUpperCase();
-  return `${kind.toUpperCase()} · ${universeLabel}`;
+  return resolveScopeLabelUpper(detail.scope_payload) ?? "—";
 }
 
 function deriveMacroStage(
@@ -392,6 +376,7 @@ export function RunDetail(props: RunDetailProps): ReactElement {
 
   return (
     <RunSseProvider runId={detail.id} isTerminal={isLogStreamTerminal}>
+      <RunTerminalRefresher />
       <div className="max-w-[1100px] mx-auto">
         <header className="sticky top-0 z-10 bg-canvas border-b border-line">
           <div className="flex items-center gap-4 px-6 py-4">
@@ -473,6 +458,15 @@ export function RunDetail(props: RunDetailProps): ReactElement {
       </div>
     </RunSseProvider>
   );
+}
+
+function RunTerminalRefresher(): ReactElement | null {
+  const router = useRouter();
+  const handleEnd = useCallback((): void => {
+    router.refresh();
+  }, [router]);
+  useRunSseEvent("end", handleEnd);
+  return null;
 }
 
 interface RunPendingBannerProps {
