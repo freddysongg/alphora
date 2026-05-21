@@ -10,7 +10,7 @@ from __future__ import annotations
 import pandas as pd  # type: ignore[import-untyped]
 import pandas_ta as ta
 
-__all__ = ["adx", "ema", "macd", "rsi"]
+__all__ = ["adx", "atr", "ema", "macd", "rsi"]
 
 
 def adx(bars: pd.DataFrame, *, period: int = 14) -> pd.Series:
@@ -34,6 +34,32 @@ def adx(bars: pd.DataFrame, *, period: int = 14) -> pd.Series:
     # 14 golden-output regression to pass on the early bars.
     masked = result.copy()
     masked.iloc[: 2 * period] = float("nan")
+    return masked
+
+
+def atr(bars: pd.DataFrame, *, period: int = 14) -> pd.Series:
+    """Average True Range (Wilder) on a bars DataFrame.
+
+    `bars` must have columns `high`, `low`, `close`. Returns a Series of
+    ATR values aligned to `bars.index`; positions before `period` are
+    NaN. Default period 14 matches the source bot.
+
+    Unused by the MACD+RSI+ADX strategy; included here because the
+    `TrailSpec` returned by other strategies (Phase 3) will be evaluated
+    using this wrapper inside the runner.
+    """
+    result = ta.atr(high=bars["high"], low=bars["low"], close=bars["close"], length=period)
+    if result is None:
+        raise ValueError(
+            f"atr returned None for period={period}, len(bars)={len(bars)}; "
+            "input frame is shorter than the warmup window"
+        )
+    # pandas-ta 0.4.x emits a value starting at index period-1, but the
+    # source bot's `atr` in lib/indicators.js leaves indices 0..period-1
+    # undefined and writes the first value at index `period`. Mask the
+    # warmup region to match.
+    masked = result.copy()
+    masked.iloc[:period] = float("nan")
     return masked
 
 

@@ -109,6 +109,25 @@ def test_adx_flat_series_is_below_25() -> None:
         assert valid.iloc[-1] < 25.0
 
 
+from app.indicators import atr  # noqa: E402
+
+
+def test_atr_returns_aligned_series_warmup_nan() -> None:
+    bars = _ohlcv_frame([100.0 + 0.1 * i for i in range(40)])
+    out = atr(bars, period=14)
+    assert isinstance(out, pd.Series)
+    assert len(out) == 40
+    assert math.isnan(out.iloc[13])
+    assert not math.isnan(out.iloc[14])
+
+
+def test_atr_is_positive_when_range_is_positive() -> None:
+    bars = _ohlcv_frame([100.0 + 0.1 * i for i in range(40)], range_amp=0.5)
+    out = atr(bars, period=14)
+    valid = out.dropna()
+    assert (valid > 0).all()
+
+
 from app.indicators import rsi  # noqa: E402
 
 
