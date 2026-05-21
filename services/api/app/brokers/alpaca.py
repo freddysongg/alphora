@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING
+from decimal import Decimal
+from typing import TYPE_CHECKING, cast
 
 from app.brokers.base import (
     Account,
@@ -21,6 +23,7 @@ from app.config import get_settings
 if TYPE_CHECKING:
     from alpaca.data.historical.stock import StockHistoricalDataClient
     from alpaca.trading.client import TradingClient
+    from alpaca.trading.models import TradeAccount
 
 
 class AlpacaAdapter:
@@ -60,7 +63,14 @@ class AlpacaAdapter:
     # ---- Phase 0 methods (placeholders, implemented in later tasks) ----
 
     async def get_account(self) -> Account:
-        raise NotImplementedError
+        raw = cast("TradeAccount", await asyncio.to_thread(self._trading.get_account))
+        return Account(
+            account_id=str(raw.id),
+            cash=Decimal(str(raw.cash)),
+            equity=Decimal(str(raw.equity)),
+            buying_power=Decimal(str(raw.buying_power)),
+            pattern_day_trader=bool(raw.pattern_day_trader),
+        )
 
     async def get_quote(self, ticker: str) -> Quote:
         raise NotImplementedError
