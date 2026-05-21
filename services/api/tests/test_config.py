@@ -107,9 +107,10 @@ def test_settings_loads_alpaca_env_vars(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setenv("HUMAN_APPROVAL_TOKEN", "tok_dev_1")
     from app.config import Settings
 
-    settings = Settings()
+    settings = Settings(_env_file=None)
     assert settings.alpaca_api_key is not None
     assert settings.alpaca_api_key.get_secret_value() == "PK_TEST"
+    assert settings.alpaca_api_secret is not None
     assert settings.alpaca_api_secret.get_secret_value() == "SK_TEST"
     assert settings.alpaca_mode == "paper"
     assert settings.human_approval_token.get_secret_value() == "tok_dev_1"
@@ -120,4 +121,4 @@ def test_settings_alpaca_mode_rejects_unknown_value(monkeypatch: pytest.MonkeyPa
     from app.config import Settings
 
     with pytest.raises(ValueError):
-        Settings()
+        Settings(_env_file=None)
