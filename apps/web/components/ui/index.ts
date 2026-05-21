@@ -1,5 +1,10 @@
-export { Button } from "./button";
-export type { ButtonProps, ButtonVariant, ButtonSize } from "./button";
+export { Button, Segmented, SegmentedItem } from "./button";
+export type {
+  ButtonProps,
+  ButtonVariant,
+  ButtonShape,
+  ButtonSize,
+} from "./button";
 
 export { Input } from "./input";
 export type { InputProps } from "./input";
