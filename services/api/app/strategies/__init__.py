@@ -14,9 +14,11 @@ from app.strategies.base import (
     Timeframe,
     TrailSpec,
 )
+from app.strategies.macd_rsi_adx import MacdRsiAdxStrategy
 
 __all__ = [
     "Bars",
+    "MacdRsiAdxStrategy",
     "Strategy",
     "StrategyParams",
     "StrategyResult",
