@@ -278,3 +278,16 @@ def test_alpaca_adapter_satisfies_broker_adapter_protocol() -> None:
     # No assertion needed: if the structural type check fails, mypy / runtime
     # protocol check would surface it. The explicit annotation is the assertion.
     assert adapter.mode == "paper"
+
+
+def test_factory_returns_alpaca_adapter_in_paper_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ALPACA_API_KEY", "PK_TEST")
+    monkeypatch.setenv("ALPACA_API_SECRET", "SK_TEST")
+    monkeypatch.setenv("ALPACA_MODE", "paper")
+    from app.brokers.factory import get_broker_adapter
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    adapter = get_broker_adapter()
+    assert isinstance(adapter, AlpacaAdapter)
+    assert adapter.mode == "paper"

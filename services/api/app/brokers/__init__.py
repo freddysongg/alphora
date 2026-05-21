@@ -22,6 +22,7 @@ from app.brokers.errors import (
     OrderRejectedError,
     TradabilityError,
 )
+from app.brokers.factory import get_broker_adapter
 
 __all__ = [
     "Account",
@@ -44,4 +45,5 @@ __all__ = [
     "Timeframe",
     "TradabilityCheck",
     "TradabilityError",
+    "get_broker_adapter",
 ]
