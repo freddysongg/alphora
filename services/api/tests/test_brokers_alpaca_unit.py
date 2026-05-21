@@ -265,3 +265,16 @@ async def test_list_orders_translates_alpaca_orders() -> None:
     assert o.status == "filled"
     assert o.filled_quantity == Decimal("1")
     assert o.avg_fill_price == Decimal("500.10")
+
+
+def test_alpaca_adapter_satisfies_broker_adapter_protocol() -> None:
+    from app.brokers.base import BrokerAdapter
+
+    trading = MagicMock()
+    data = MagicMock()
+    adapter: BrokerAdapter = AlpacaAdapter(
+        trading_client=trading, data_client=data, mode="paper"
+    )
+    # No assertion needed: if the structural type check fails, mypy / runtime
+    # protocol check would surface it. The explicit annotation is the assertion.
+    assert adapter.mode == "paper"
