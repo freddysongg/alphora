@@ -285,3 +285,59 @@ def test_simulate_equity_per_bar_is_monotonic_when_strategy_is_winning() -> None
     after_entry = result.equity_per_bar[3:]
     for prev, curr in pairwise(after_entry):
         assert curr >= prev - 1e-9
+
+
+def test_simulate_counts_wins_and_losses_correctly() -> None:
+    """Construct three winning closes by alternating long/flat over a rising series."""
+
+    class _ToggleLong(MacdRsiAdxStrategy):
+        def evaluate(self, primary_bars, secondary_bars, current_position, params):  # type: ignore[override]
+            from app.strategies.base import StrategyResult
+
+            i = len(primary_bars)
+            if i in (2, 6, 10):
+                return StrategyResult(target=1, meta={})
+            if i in (4, 8, 12):
+                return StrategyResult(target=0, meta={})
+            return StrategyResult(
+                target=1 if current_position > 0 else 0, meta={}
+            )
+
+    bars = _ramp_bars_for_engine(15)
+    result = simulate(bars=bars, strategy=_ToggleLong(), params={})
+    # In a strict uptrend, every long round-trip wins.
+    assert result.win_count >= 1
+    assert result.loss_count == 0
+
+
+def test_simulate_profit_factor_is_none_when_no_trades() -> None:
+    class _AlwaysFlat(MacdRsiAdxStrategy):
+        def evaluate(self, primary_bars, secondary_bars, current_position, params):  # type: ignore[override]
+            from app.strategies.base import StrategyResult
+
+            return StrategyResult(target=0, meta={})
+
+    bars = _ramp_bars_for_engine(20)
+    result = simulate(bars=bars, strategy=_AlwaysFlat(), params={})
+    assert result.profit_factor is None
+
+
+def test_simulate_profit_factor_is_inf_when_no_losses() -> None:
+    class _ToggleLongOnce(MacdRsiAdxStrategy):
+        def evaluate(self, primary_bars, secondary_bars, current_position, params):  # type: ignore[override]
+            from app.strategies.base import StrategyResult
+
+            i = len(primary_bars)
+            if i == 2:
+                return StrategyResult(target=1, meta={})
+            if i == 5:
+                return StrategyResult(target=0, meta={})
+            return StrategyResult(
+                target=1 if current_position > 0 else 0, meta={}
+            )
+
+    bars = _ramp_bars_for_engine(10)
+    result = simulate(bars=bars, strategy=_ToggleLongOnce(), params={})
+    assert result.win_count == 1
+    assert result.loss_count == 0
+    assert result.profit_factor == float("inf")
