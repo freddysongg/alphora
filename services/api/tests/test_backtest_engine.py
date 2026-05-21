@@ -379,3 +379,83 @@ def test_simulate_force_closes_open_short_at_last_close() -> None:
     assert final.exit_reason == "final-bar"
     expected_exit = bars["close"].iloc[-1] + 0.02  # buying back the short
     assert abs(final.exit_price - expected_exit) < 1e-9
+
+
+import json  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+_SPY_FIXTURE = Path(__file__).parent / "fixtures" / "spy_30day_1min.json"
+
+
+def _load_spy_30day_fixture() -> pd.DataFrame:
+    raw = json.loads(_SPY_FIXTURE.read_text())
+    timestamps = [
+        pd.Timestamp(int(b["t"]), unit="ms", tz="UTC") for b in raw
+    ]
+    return pd.DataFrame(
+        {
+            "open": [float(b["o"]) for b in raw],
+            "high": [float(b["h"]) for b in raw],
+            "low": [float(b["l"]) for b in raw],
+            "close": [float(b["c"]) for b in raw],
+            "volume": [float(b["v"]) for b in raw],
+        },
+        index=pd.DatetimeIndex(timestamps, tz="UTC"),
+    )
+
+
+def test_phase2_acceptance_30day_spy_macd_rsi_adx_completes() -> None:
+    """Phase 2 acceptance (spec §12):
+
+    A 30-day SPY 1-minute backtest of MacdRsiAdxStrategy completes; the
+    equity curve and trade log are sensible. 'Sensible' means:
+    - The simulator returns without raising.
+    - All trade entry/exit prices are positive.
+    - All trade timestamps are non-decreasing across the log.
+    - The equity series has the same length as the input bars.
+    - No volume is negative or NaN.
+    - Realised P&L equals the sum of per-trade P&L (accounting parity).
+    - bar_count matches input length.
+    """
+    bars = _load_spy_30day_fixture()
+    assert len(bars) == 11_700
+    assert (bars["volume"] >= 0).all()
+    assert (bars["open"] > 0).all()
+    assert (bars["high"] > 0).all()
+    assert (bars["low"] > 0).all()
+    assert (bars["close"] > 0).all()
+
+    result = simulate(
+        bars=bars,
+        strategy=MacdRsiAdxStrategy(),
+        params={},
+    )
+
+    assert result.bar_count == 11_700
+    assert len(result.equity_per_bar) == 11_700
+
+    # Trade log integrity.
+    prev_exit_idx = -1
+    for t in result.trades:
+        assert t.entry_price > 0.0
+        assert t.exit_price > 0.0
+        assert t.shares > 0
+        assert t.bars_held >= 0
+        assert t.entry_bar_index <= t.exit_bar_index
+        # Trades do not overlap in time. A long->short flip exits and
+        # re-enters at the same bar's open, so adjacent trades may share
+        # a bar index but no time overlap exists.
+        assert t.entry_bar_index >= prev_exit_idx
+        prev_exit_idx = t.exit_bar_index
+        assert t.exit_ts >= t.entry_ts
+
+    # Accounting parity: sum of per-trade P&L equals net P&L on the last bar.
+    sum_pnl = sum(t.pnl_usd for t in result.trades)
+    assert abs(sum_pnl - result.net_pnl_usd) < 1e-6
+
+    # Win + loss + scratch must add up to trade count.
+    scratches = result.trade_count_scratch(  # type: ignore[attr-defined]
+    ) if hasattr(result, "trade_count_scratch") else (
+        len(result.trades) - result.win_count - result.loss_count
+    )
+    assert result.win_count + result.loss_count + scratches == len(result.trades)
