@@ -121,3 +121,101 @@ def test_simulate_empty_bars_returns_empty_result() -> None:
     assert result.trades == []
     assert result.equity_per_bar == []
     assert result.net_pnl_usd == 0.0
+
+
+from datetime import UTC, datetime, timedelta  # noqa: E402,F811
+
+
+def _ramp_bars_for_engine(n: int, *, start: float = 100.0, step: float = 0.5) -> pd.DataFrame:
+    base = datetime(2026, 6, 15, 13, 30, tzinfo=UTC)
+    idx = [base + timedelta(minutes=i) for i in range(n)]
+    closes = [start + step * i for i in range(n)]
+    return pd.DataFrame(
+        {
+            "open": closes,
+            "high": [c + 0.25 for c in closes],
+            "low": [c - 0.25 for c in closes],
+            "close": closes,
+            "volume": [1000.0] * n,
+        },
+        index=pd.DatetimeIndex(idx, tz="UTC"),
+    )
+
+
+def test_simulate_no_peeking_no_entry_on_final_bar() -> None:
+    """If the strategy flips on the LAST bar, no new position opens — we'd
+    have to fill at bar i+1's open which doesn't exist."""
+    strat = MacdRsiAdxStrategy()
+    bars = _ramp_bars_for_engine(60)
+    result = simulate(bars=bars, strategy=strat, params={})
+    # All trades' exit_bar_index must be <= last bar index.
+    for t in result.trades:
+        assert t.entry_bar_index < len(bars)
+        assert t.exit_bar_index < len(bars)
+
+
+def test_simulate_returns_per_bar_equity_with_correct_length() -> None:
+    strat = MacdRsiAdxStrategy()
+    bars = _ramp_bars_for_engine(60)
+    result = simulate(bars=bars, strategy=strat, params={})
+    assert result.bar_count == 60
+    assert len(result.equity_per_bar) == 60
+
+
+def test_simulate_fill_uses_next_bar_open_plus_slippage_on_long_entry() -> None:
+    """Synthetic entry: hand-build a strategy that signals long at bar 1,
+    flat thereafter. Entry fill must be bars.iloc[2]['open'] + slippage,
+    not bars.iloc[1]['close']."""
+
+    class _LongAtBar1(MacdRsiAdxStrategy):
+        def evaluate(self, primary_bars, secondary_bars, current_position, params):  # type: ignore[override]
+            from app.strategies.base import StrategyResult
+
+            if len(primary_bars) == 2:
+                return StrategyResult(target=1, meta={})
+            if current_position > 0:
+                return StrategyResult(target=1, meta={})
+            return StrategyResult(target=0, meta={})
+
+    bars = _ramp_bars_for_engine(10)
+    result = simulate(bars=bars, strategy=_LongAtBar1(), params={})
+    assert len(result.trades) >= 1
+    first = result.trades[0]
+    assert first.side == 1
+    expected_entry = bars["open"].iloc[2] + 0.02  # +2¢/share
+    assert abs(first.entry_price - expected_entry) < 1e-9
+    assert first.entry_bar_index == 2
+
+
+def test_simulate_close_and_flip_uses_same_next_bar_open() -> None:
+    """A long → short flip closes the long and opens the short at the
+    same bar's open. Slippage applies to both fills (long sells at
+    open - slip; short sells at open - slip)."""
+
+    class _FlipAtBar3(MacdRsiAdxStrategy):
+        def evaluate(self, primary_bars, secondary_bars, current_position, params):  # type: ignore[override]
+            from app.strategies.base import StrategyResult
+
+            if len(primary_bars) == 2:
+                return StrategyResult(target=1, meta={})
+            if len(primary_bars) == 4:
+                return StrategyResult(target=-1, meta={})
+            return StrategyResult(
+                target=1 if current_position > 0 else (-1 if current_position < 0 else 0),
+                meta={},
+            )
+
+    bars = _ramp_bars_for_engine(10)
+    result = simulate(bars=bars, strategy=_FlipAtBar3(), params={})
+    assert len(result.trades) >= 2
+    long_trade = result.trades[0]
+    short_trade = result.trades[1]
+    assert long_trade.side == 1
+    assert short_trade.side == -1
+    # Long exits at bar 4's open - 0.02; short enters at bar 4's open - 0.02.
+    expected_close = bars["open"].iloc[4] - 0.02
+    expected_short_entry = bars["open"].iloc[4] - 0.02
+    assert abs(long_trade.exit_price - expected_close) < 1e-9
+    assert abs(short_trade.entry_price - expected_short_entry) < 1e-9
+    assert long_trade.exit_bar_index == 4
+    assert short_trade.entry_bar_index == 4

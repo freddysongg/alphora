@@ -147,7 +147,144 @@ def simulate(
             loss_count=0,
             profit_factor=None,
         )
-    raise NotImplementedError("simulate body is added in Task 7")
+
+    open_positions: list[Trade] = []  # singleton list — at most one open trade at a time
+    trades: list[Trade] = []
+    pending_target: int | None = None  # bias requested at the previous bar
+    equity_per_bar: list[float] = []
+    realized_pnl: float = 0.0
+
+    timestamps = bars.index
+    opens = bars["open"].astype(float).to_numpy()
+    closes = bars["close"].astype(float).to_numpy()
+
+    def _position_bias() -> int:
+        if not open_positions:
+            return 0
+        return open_positions[0].side
+
+    def _open_trade(bar_index: int, side: int) -> None:
+        ref_open = float(opens[bar_index])
+        fill = slippage.apply_to_fill(reference_price=ref_open, side=side)
+        ts = timestamps[bar_index]
+        trade = Trade(
+            side=side,
+            entry_bar_index=bar_index,
+            exit_bar_index=bar_index,  # placeholder; updated on close
+            entry_ts=ts.to_pydatetime() if hasattr(ts, "to_pydatetime") else ts,
+            exit_ts=ts.to_pydatetime() if hasattr(ts, "to_pydatetime") else ts,
+            entry_price=fill,
+            exit_price=fill,
+            shares=position_size_shares,
+            pnl_usd=-commission.cost_per_fill(),
+            bars_held=0,
+            exit_reason="signal",
+        )
+        open_positions.append(trade)
+
+    def _close_trade(bar_index: int, reason: TradeExitReason) -> Trade:
+        nonlocal realized_pnl
+        existing = open_positions.pop()
+        ref_open = float(opens[bar_index]) if reason == "signal" else float(closes[bar_index])
+        # On a signal close, the close-side is opposite the entry side.
+        fill = slippage.apply_to_fill(reference_price=ref_open, side=-existing.side)
+        ts = timestamps[bar_index]
+        gross_pnl = (fill - existing.entry_price) * existing.side * existing.shares
+        # The opening fill already charged one commission (stored as
+        # negative pnl_usd on the open trade); charge one more here.
+        net_pnl = existing.pnl_usd + gross_pnl - commission.cost_per_fill()
+        closed = Trade(
+            side=existing.side,
+            entry_bar_index=existing.entry_bar_index,
+            exit_bar_index=bar_index,
+            entry_ts=existing.entry_ts,
+            exit_ts=ts.to_pydatetime() if hasattr(ts, "to_pydatetime") else ts,
+            entry_price=existing.entry_price,
+            exit_price=fill,
+            shares=existing.shares,
+            pnl_usd=net_pnl,
+            bars_held=bar_index - existing.entry_bar_index,
+            exit_reason=reason,
+        )
+        realized_pnl += net_pnl
+        return closed
+
+    for i in range(bar_count):
+        # 1. Materialize any pending target from the previous bar.
+        if pending_target is not None and i < bar_count:
+            current_bias = _position_bias()
+            if pending_target != current_bias:
+                if current_bias != 0:
+                    trades.append(_close_trade(bar_index=i, reason="signal"))
+                if pending_target != 0:
+                    _open_trade(bar_index=i, side=pending_target)
+            pending_target = None
+
+        # 2. Ask the strategy for its target on the just-closed bar.
+        bars_view = bars.iloc[: i + 1]
+        current_position_shares = (
+            open_positions[0].side * open_positions[0].shares if open_positions else 0
+        )
+        result = strategy.evaluate(
+            primary_bars=bars_view,
+            secondary_bars={},
+            current_position=current_position_shares,
+            params=params,
+        )
+        target = int(result.target)
+
+        # 3. Defer to next bar's open if the target differs from current bias.
+        if i < bar_count - 1:
+            if target != _position_bias():
+                pending_target = target
+            else:
+                pending_target = None
+        else:
+            pending_target = None  # last bar: no entry possible
+
+        # 4. Record per-bar equity (realized + open-trade mark-to-market).
+        open_mark = 0.0
+        if open_positions:
+            ot = open_positions[0]
+            open_mark = (float(closes[i]) - ot.entry_price) * ot.side * ot.shares
+        equity_per_bar.append(realized_pnl + open_mark)
+
+    # 5. Final-bar force-close (added in Task 10) — record any unclosed
+    # position as a placeholder trade (exit fields == entry fields,
+    # exit_reason="signal"). Task 10 will replace this with a proper
+    # close at the last bar's close ± slippage.
+    if open_positions:
+        trades.append(open_positions.pop())
+
+    # 6. Summary stats.
+    wins = [t for t in trades if t.pnl_usd > 0]
+    losses = [t for t in trades if t.pnl_usd < 0]
+    gross_win = sum(t.pnl_usd for t in wins)
+    gross_loss = abs(sum(t.pnl_usd for t in losses))
+    profit_factor: float | None = None
+    if gross_loss > 0:
+        profit_factor = gross_win / gross_loss
+    elif gross_win > 0:
+        profit_factor = float("inf")
+    peak = 0.0
+    max_dd = 0.0
+    for eq in equity_per_bar:
+        if eq > peak:
+            peak = eq
+        dd = peak - eq
+        if dd > max_dd:
+            max_dd = dd
+    net_pnl = equity_per_bar[-1] if equity_per_bar else 0.0
+    return BacktestResult(
+        bar_count=bar_count,
+        trades=trades,
+        equity_per_bar=equity_per_bar,
+        max_drawdown_usd=max_dd,
+        net_pnl_usd=net_pnl,
+        win_count=len(wins),
+        loss_count=len(losses),
+        profit_factor=profit_factor,
+    )
 
 
 __all__ = [
