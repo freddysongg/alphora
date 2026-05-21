@@ -72,8 +72,7 @@ async function loadRunDetail(runId: string): Promise<ResearchRunDetail | null> {
   try {
     const { data } = await getServerApi().GET("/api/research-runs/{run_id}", {
       params: { path: { run_id: runId } },
-      cache: "force-cache",
-      next: { tags: ["research-runs", `research-run-${runId}`] },
+      cache: "no-store",
     });
     if (data === undefined) {
       return null;
