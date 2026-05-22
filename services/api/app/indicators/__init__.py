@@ -220,7 +220,7 @@ def vwap(bars: pd.DataFrame) -> pd.Series:
             current_day = clock.day
         if in_rth:
             typical = (highs[i] + lows[i] + closes[i]) / 3.0
-            vol = volumes[i] if volumes[i] != 0.0 else 1.0
+            vol = volumes[i] if volumes[i] > 0.0 else 1.0
             sum_pv += typical * vol
             sum_v += vol
             if sum_v > 0:

@@ -261,3 +261,23 @@ def test_vwap_volume_zero_falls_back_to_one() -> None:
     v = vwap(bars)
     typical = (101.0 + 99.0 + 100.5) / 3.0
     assert math.isclose(float(v.iloc[0]), typical, abs_tol=1e-9)
+
+
+def test_vwap_nan_volume_falls_back_to_one() -> None:
+    base = datetime(2026, 6, 15, 13, 30, tzinfo=UTC)
+    bars = pd.DataFrame(
+        {
+            "open": [100.0, 101.0],
+            "high": [101.0, 102.0],
+            "low": [99.0, 100.0],
+            "close": [100.5, 101.5],
+            "volume": [float("nan"), 1000.0],
+        },
+        index=pd.DatetimeIndex([base, base + timedelta(minutes=1)], tz="UTC"),
+    )
+    v = vwap(bars)
+    bar0_typical = (101.0 + 99.0 + 100.5) / 3.0
+    assert math.isclose(float(v.iloc[0]), bar0_typical, abs_tol=1e-9)
+    bar1_typical = (102.0 + 100.0 + 101.5) / 3.0
+    expected_bar1 = (bar0_typical * 1.0 + bar1_typical * 1000.0) / (1.0 + 1000.0)
+    assert math.isclose(float(v.iloc[1]), expected_bar1, abs_tol=1e-9)
