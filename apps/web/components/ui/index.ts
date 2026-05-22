@@ -1,8 +1,17 @@
-export { Button } from "./button";
-export type { ButtonProps, ButtonVariant, ButtonSize } from "./button";
+export { Button, Segmented, SegmentedItem } from "./button";
+export type {
+  ButtonProps,
+  ButtonVariant,
+  ButtonShape,
+  ButtonSize,
+} from "./button";
 
 export { Input } from "./input";
 export type { InputProps } from "./input";
+
+export { Slider } from "./slider";
+
+export { Checkbox } from "./checkbox";
 
 export {
   Select,
@@ -23,8 +32,8 @@ export type {
   CardContentProps,
 } from "./card";
 
-export { StatusDot } from "./status-dot";
-export type { StatusDotProps, StatusKind } from "./status-dot";
+export { StatusPill } from "./status-pill";
+export type { StatusPillProps, StatusPillStatus } from "./status-pill";
 
 export { Badge } from "./badge";
 export type { BadgeProps, BadgeVariant } from "./badge";
@@ -87,3 +96,6 @@ export type { ActivityStripProps } from "./activity-strip";
 
 export { HoldButton } from "./hold-button";
 export type { HoldButtonProps } from "./hold-button";
+
+export { Skeleton } from "./skeleton";
+export type { SkeletonProps } from "./skeleton";

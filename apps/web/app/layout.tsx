@@ -1,19 +1,21 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, Fira_Code } from "next/font/google";
 import { Toaster } from "sonner";
 import { NoiseGrain } from "@/components/system/noise-grain";
 import "./globals.css";
 
-const geistSans = Geist({
+const jakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  variable: "--font-geist-sans",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-jakarta",
   display: "swap",
 });
 
-const geistMono = Geist_Mono({
+const firaCode = Fira_Code({
   subsets: ["latin"],
-  variable: "--font-geist-mono",
+  weight: ["400", "500", "600"],
+  variable: "--font-fira",
   display: "swap",
 });
 
@@ -38,7 +40,7 @@ export default function RootLayout({ children }: RootLayoutProps): ReactNode {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable}`}
+      className={`${jakartaSans.variable} ${firaCode.variable}`}
     >
       <body className="min-h-[100dvh] bg-canvas text-fg">
         <NoiseGrain />

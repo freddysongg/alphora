@@ -6,6 +6,7 @@ from typing import Any
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.logging import get_logger
 from app.schemas.extraction import (
     CandidateEntity,
     CandidateRelation,
@@ -16,6 +17,8 @@ from app.services.extraction._llm_call import ExtractionError, call_llm_for_extr
 from app.services.extraction._verifier import verify_candidates
 from app.services.extraction.config import PROMPT_VERSION
 from app.services.llm import LlmCompletionResult
+
+_logger = get_logger(__name__)
 
 
 async def extract_from_chunk(
@@ -105,9 +108,14 @@ def _validate_candidates[T: BaseModel](
         try:
             candidates.append(model.model_validate({**row, "chunk_id": chunk_id}))
         except ValidationError as exc:
-            raise ExtractionError(
-                f"LLM JSON payload {key!r}[{index}] failed validation: {exc}"
-            ) from exc
+            _logger.warning(
+                "extraction_candidate_dropped",
+                chunk_id=str(chunk_id),
+                key=key,
+                index=index,
+                error=str(exc),
+            )
+            continue
     return candidates
 
 

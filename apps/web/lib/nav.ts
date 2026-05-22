@@ -2,7 +2,6 @@ import {
   Briefcase,
   Buildings,
   ClipboardText,
-  FileText,
   Funnel,
   Key,
   PlugsConnected,
@@ -33,10 +32,7 @@ export const navSections: ReadonlyArray<NavSectionConfig> = [
   {
     key: "research",
     label: "RESEARCH",
-    items: [
-      { label: "Runs", href: "/research/runs", icon: Pulse },
-      { label: "Reports", href: "/research/reports", icon: FileText },
-    ],
+    items: [{ label: "Runs", href: "/research/runs", icon: Pulse }],
   },
   {
     key: "markets",

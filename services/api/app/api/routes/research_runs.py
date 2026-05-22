@@ -31,6 +31,9 @@ from app.services.cost_estimator import estimate_run_cost
 from app.services.llm.replay import ReplayError, replay_llm_call
 from app.services.run_orchestrator import RunOrchestratorError
 from app.services.strategies.funnel_research.config import PROMPT_VERSION
+from app.workers.tasks import mark_run_failed_on_job_failure
+
+_RESEARCH_RUN_JOB_TIMEOUT_SECONDS: int = 3600
 
 router = APIRouter()
 
@@ -72,7 +75,12 @@ async def create_research_runs(
 
     await session.commit()
     for run in created:
-        queue.enqueue("app.workers.tasks.execute_research_run", run.id.hex)
+        queue.enqueue(
+            "app.workers.tasks.execute_research_run",
+            run.id.hex,
+            job_timeout=_RESEARCH_RUN_JOB_TIMEOUT_SECONDS,
+            on_failure=mark_run_failed_on_job_failure,
+        )
     return [ResearchRunSummary.model_validate(run) for run in created]
 
 
@@ -378,7 +386,12 @@ async def resume_research_run(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail=str(exc)
         ) from exc
-    queue.enqueue("app.workers.tasks.execute_research_run", run_id.hex)
+    queue.enqueue(
+        "app.workers.tasks.execute_research_run",
+        run_id.hex,
+        job_timeout=_RESEARCH_RUN_JOB_TIMEOUT_SECONDS,
+        on_failure=mark_run_failed_on_job_failure,
+    )
     await session.refresh(existing)
     return ResearchRunSummary.model_validate(existing)
 

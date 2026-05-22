@@ -1,16 +1,17 @@
-import type { StatusKind } from "@/components/ui";
+import type { StatusPillStatus } from "@/components/ui";
 import type { components } from "@/lib/api";
 
 type ProviderCheckStatus = components["schemas"]["ProviderCheckStatusEnum"];
 
-const providerCheckStatusToDot: Record<ProviderCheckStatus, StatusKind> = {
-  success: "succeeded",
-  failure: "failed",
-  partial: "stale",
-};
+const providerCheckStatusToPill: Record<ProviderCheckStatus, StatusPillStatus> =
+  {
+    success: "succeeded",
+    failure: "failed",
+    partial: "paused",
+  };
 
 export function providerCheckStatusToStatusKind(
   status: ProviderCheckStatus,
-): StatusKind {
-  return providerCheckStatusToDot[status];
+): StatusPillStatus {
+  return providerCheckStatusToPill[status];
 }

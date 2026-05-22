@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { ReactElement } from "react";
 import type { Route } from "next";
 import Link from "next/link";
+import { CaretRight } from "@phosphor-icons/react/dist/ssr";
 
 export type EvidenceDisclosureVariant = "label" | "count";
 export type EvidenceDisclosureAlign = "left" | "right";
@@ -19,10 +20,8 @@ export interface EvidenceDisclosure {
   list: ReactElement | null;
 }
 
-const labelTriggerClass =
-  "font-mono text-[11px] tracking-[0.14em] font-medium uppercase text-fg-subtle hover:text-accent-text transition-colors duration-150";
-const countTriggerClass =
-  "font-mono tabular-nums text-fg-muted hover:text-accent-text transition-colors duration-150";
+const triggerClass =
+  "inline-flex items-center gap-1 font-mono text-[11px] tracking-[0.04em] text-highlight-text hover:underline focus-visible:outline-none focus-visible:underline transition-colors duration-150";
 
 export function useEvidenceDisclosure(
   evidenceIds: readonly string[],
@@ -41,9 +40,7 @@ export function useEvidenceDisclosure(
       return {
         hasEvidence: false,
         button: (
-          <span className="font-mono tabular-nums text-fg-muted">
-            {evidenceCount}
-          </span>
+          <span className="font-mono tabular-nums text-fg-subtle">0</span>
         ),
         list: null,
       };
@@ -57,10 +54,10 @@ export function useEvidenceDisclosure(
 
   const linkTestId = `${testIdPrefix}-evidence-link`;
   const runQuery = runId !== undefined ? `?run_id=${runId}` : "";
-  const triggerClass =
-    variant === "count" ? countTriggerClass : labelTriggerClass;
   const triggerLabel =
-    variant === "count" ? `${evidenceCount}` : `Evidence ${evidenceCount}`;
+    variant === "count"
+      ? `${evidenceCount}`
+      : `${evidenceCount} ${evidenceCount === 1 ? "evidence" : "evidence"}`;
   const listAlignClass = align === "right" ? "text-right" : "";
 
   const button = (
@@ -70,7 +67,12 @@ export function useEvidenceDisclosure(
       aria-expanded={isOpen}
       className={triggerClass}
     >
-      {triggerLabel}
+      <CaretRight
+        size={10}
+        weight="bold"
+        className={`transition-transform duration-150 ${isOpen ? "rotate-90" : ""}`}
+      />
+      <span>{triggerLabel}</span>
     </button>
   );
 
@@ -84,7 +86,7 @@ export function useEvidenceDisclosure(
             href={
               `/research/evidence/by-evidence/${evidenceId}${runQuery}` as Route
             }
-            className="text-accent-text hover:underline"
+            className="text-highlight-text hover:underline"
             data-testid={linkTestId}
           >
             {evidenceId}

@@ -1,33 +1,54 @@
 @import "tailwindcss";
 
 @theme {
-  --color-canvas: #06050A;
-  --color-panel: #11101A;
-  --color-surface: #1A1728;
-  --color-surface-2: #211C33;
+  --color-canvas: #06050a;
+  --color-panel: #11101a;
+  --color-surface: #1a1728;
+  --color-surface-2: #211c33;
 
-  --color-line: #332D48;
-  --color-line-strong: #4A2E8A;
+  --color-line: #332d48;
+  --color-line-strong: #4a2e8a;
 
-  --color-accent: #B98CFF;
-  --color-accent-soft: #D9C2FF;
-  --color-accent-deep: #7A4DFF;
-  --color-accent-press: #4A2E8A;
-  --color-accent-text: #D8B4FE;
+  --color-accent: #b98cff;
+  --color-accent-soft: #d9c2ff;
+  --color-accent-deep: #7a4dff;
+  --color-accent-press: #4a2e8a;
+  --color-accent-text: #d8b4fe;
 
-  --color-warn: #E879F9;
-  --color-danger: #FF6B7A;
-  --color-success: #B98CFF;
+  --color-highlight: #ffb938;
+  --color-highlight-soft: #ffd27a;
+  --color-highlight-press: #c68214;
+  --color-highlight-text: #ffc857;
 
-  --color-fg: #ECE6FA;
-  --color-fg-muted: #9A92B5;
-  --color-fg-subtle: #5E5878;
+  --color-warn: #e879f9;
+  --color-danger: #ff6b7a;
+  --color-success: #b98cff;
 
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", monospace;
+  --color-status-pending: #b98cff;
+  --color-status-running: #b98cff;
+  --color-status-success: #5ed48a;
+  --color-status-failed: #ff6b7a;
+  --color-status-paused: #e879f9;
+  --color-status-cancelled: #807a96;
 
-  --shadow-card: 0 1px 0 0 rgba(217, 194, 255, 0.04) inset, 0 8px 24px -12px rgba(6, 5, 10, 0.6);
-  --shadow-popover: 0 1px 0 0 rgba(217, 194, 255, 0.06) inset, 0 16px 48px -16px rgba(6, 5, 10, 0.8);
+  --color-fg: #ece6fa;
+  --color-fg-muted: #9a92b5;
+  --color-fg-subtle: #5e5878;
+
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-fira), ui-monospace, "SF Mono", monospace;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-full: 999px;
+
+  --shadow-card:
+    0 1px 0 0 rgba(217, 194, 255, 0.04) inset,
+    0 8px 24px -12px rgba(6, 5, 10, 0.6);
+  --shadow-popover:
+    0 1px 0 0 rgba(217, 194, 255, 0.06) inset,
+    0 16px 48px -16px rgba(6, 5, 10, 0.8);
 
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
@@ -36,6 +57,8 @@
   --dur-tooltip: 160ms;
   --dur-popover: 200ms;
   --dur-sheet: 320ms;
+  --dur-pulse: 1.6s;
+  --dur-shimmer: 1.4s;
 }
 
 html,
@@ -56,6 +79,59 @@ body {
   transform: scale(0.97);
 }
 
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background-color: var(--color-surface);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(217, 194, 255, 0.06) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s linear infinite;
+}
+
+@keyframes stage-pulse-glow {
+  0%,
+  100% {
+    opacity: 0.4;
+    box-shadow: none;
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 12px 1px rgba(185, 140, 255, 0.6);
+  }
+}
+
+.stage-pulse-glow {
+  animation: stage-pulse-glow var(--dur-pulse) ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 6px rgba(185, 140, 255, 0.6);
+  }
+  50% {
+    opacity: 0.55;
+    box-shadow: 0 0 10px rgba(185, 140, 255, 0.8);
+  }
+}
+
+.pulse-dot {
+  animation: pulse-dot var(--dur-pulse) ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -66,6 +142,15 @@ body {
 
   .press-scale:active {
     transform: scale(0.98);
+  }
+
+  .skeleton-shimmer {
+    animation: none;
+  }
+
+  .stage-pulse-glow,
+  .pulse-dot {
+    animation: none;
   }
 }
 

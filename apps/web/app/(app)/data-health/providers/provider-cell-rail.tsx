@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { CapsLabel, DataTable, StatusDot } from "@/components/ui";
+import { CapsLabel, DataTable, StatusPill } from "@/components/ui";
 import { getBrowserApi, isApiError } from "@/lib/api";
 import type { components } from "@/lib/api";
 import { providerCheckStatusToStatusKind } from "@/lib/data-health/status";
@@ -55,7 +55,7 @@ const callsColumns: ColumnDef<ProviderCheckPublic, unknown>[] = [
     cell: ({ getValue }) => {
       const raw = getValue<ProviderCheckPublic["status"]>();
       return (
-        <StatusDot status={providerCheckStatusToStatusKind(raw)} label={raw} />
+        <StatusPill status={providerCheckStatusToStatusKind(raw)} label={raw} />
       );
     },
   },
@@ -95,9 +95,7 @@ function cellKey(provider: string, tool: string): string {
   return `${provider}::${tool}`;
 }
 
-export function ProviderCellRail(
-  props: ProviderCellRailProps,
-): ReactElement {
+export function ProviderCellRail(props: ProviderCellRailProps): ReactElement {
   const { provider, tool } = props;
   const activeKey = cellKey(provider, tool);
   const [state, setState] = useState<FetchState>({ kind: "loading" });

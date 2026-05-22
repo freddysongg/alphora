@@ -36,15 +36,6 @@ export function CommandPaletteMount(): ReactElement {
       section: "runs",
       onSelect: () => router.push(`/research/runs/${run.id}` as Route),
     }));
-    const reportItems: CommandItem[] = [
-      {
-        id: "report-latest",
-        label: "Latest research report",
-        hint: "Report",
-        section: "reports",
-        onSelect: () => router.push("/research/reports" as Route),
-      },
-    ];
     const settingItems: CommandItem[] = [
       {
         id: "settings-api-keys",
@@ -54,7 +45,7 @@ export function CommandPaletteMount(): ReactElement {
         onSelect: () => router.push("/settings/api-keys" as Route),
       },
     ];
-    return [...tickerItems, ...runItems, ...reportItems, ...settingItems];
+    return [...tickerItems, ...runItems, ...settingItems];
   }, [router]);
 
   return <CommandPalette items={items} />;

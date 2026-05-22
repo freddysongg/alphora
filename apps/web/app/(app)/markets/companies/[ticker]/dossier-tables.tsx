@@ -4,7 +4,7 @@ import type { ReactElement } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Badge, DataTable, StatusDot } from "@/components/ui";
+import { Badge, DataTable, StatusPill } from "@/components/ui";
 import type { BadgeVariant } from "@/components/ui";
 import type { components } from "@/lib/api";
 import { centsToDollars } from "@/lib/format/cents";
@@ -70,7 +70,7 @@ const historicalColumns: ColumnDef<ResearchRunSummary, unknown>[] = [
     accessorKey: "status",
     header: "Status",
     cell: ({ getValue }) => (
-      <StatusDot
+      <StatusPill
         status={runStatusToStatusKind(getValue<ResearchRunSummary["status"]>())}
       />
     ),
@@ -122,9 +122,7 @@ const linkedColumns: ColumnDef<LinkedPositionRow, unknown>[] = [
     accessorKey: "quantity",
     header: "Qty",
     meta: { numeric: true },
-    cell: ({ getValue }) => (
-      <span>{getValue<number>().toLocaleString()}</span>
-    ),
+    cell: ({ getValue }) => <span>{getValue<number>().toLocaleString()}</span>,
   },
   {
     accessorKey: "avgCostCents",

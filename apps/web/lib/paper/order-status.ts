@@ -1,16 +1,16 @@
-import type { StatusKind } from "@/components/ui";
+import type { StatusPillStatus } from "@/components/ui";
 import type { components } from "@/lib/api";
 
 type OrderStatus = components["schemas"]["OrderStatusEnum"];
 
-const orderStatusToDot: Record<OrderStatus, StatusKind> = {
+const orderStatusToPill: Record<OrderStatus, StatusPillStatus> = {
   pending: "pending",
   accepted: "pending",
   filled: "succeeded",
-  cancelled: "stale",
+  cancelled: "cancelled",
   rejected: "failed",
 };
 
-export function orderStatusToStatusKind(status: OrderStatus): StatusKind {
-  return orderStatusToDot[status];
+export function orderStatusToStatusKind(status: OrderStatus): StatusPillStatus {
+  return orderStatusToPill[status];
 }

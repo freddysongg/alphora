@@ -1,13 +1,13 @@
-import type { StatusKind } from "@/components/ui";
+import type { StatusPillStatus } from "@/components/ui";
 import { providerCheckStatusToStatusKind } from "../status";
 
-const _success: StatusKind = providerCheckStatusToStatusKind("success");
-const _failure: StatusKind = providerCheckStatusToStatusKind("failure");
-const _partial: StatusKind = providerCheckStatusToStatusKind("partial");
+const _success: StatusPillStatus = providerCheckStatusToStatusKind("success");
+const _failure: StatusPillStatus = providerCheckStatusToStatusKind("failure");
+const _partial: StatusPillStatus = providerCheckStatusToStatusKind("partial");
 
 const _successCheck: boolean = _success === "succeeded";
 const _failureCheck: boolean = _failure === "failed";
-const _partialCheck: boolean = _partial === "stale";
+const _partialCheck: boolean = _partial === "paused";
 
 void _success;
 void _failure;

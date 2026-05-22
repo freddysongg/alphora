@@ -6,20 +6,33 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CaretRight } from "@phosphor-icons/react/dist/ssr";
-import { Button, CapsLabel, HexPill, StatusDot } from "@/components/ui";
-import type { StatusKind } from "@/components/ui";
+import {
+  Button,
+  CapsLabel,
+  HexPill,
+  Skeleton,
+  StatusPill,
+} from "@/components/ui";
+import type { StatusPillStatus } from "@/components/ui";
 import type { components } from "@/lib/api";
-import { RunSseProvider } from "@/components/research/run-sse-context";
+import {
+  RunSseProvider,
+  useRunSseEvent,
+} from "@/components/research/run-sse-context";
 import { HumanReviewForm } from "@/components/research/human-review-form";
 import { HumanReviewSummaryWidget } from "@/components/research/human-review-summary";
 import type { HypothesisBeliefBundle } from "@/components/research/hypothesis-belief-explainer";
 import type { HypothesisLifecycleBundle } from "@/components/research/hypothesis-lifecycle-card";
 import { LiveCostStrip } from "@/components/research/live-cost-strip";
 import type { CostMeterState } from "@/components/research/live-cost-strip";
+import { ObservabilitySection } from "@/components/research/observability-section";
+import type { InlineClaim } from "@/components/research/inline-claim-review";
+import type { SourceClientCacheStats } from "@/components/research/cost-ledger";
 import {
   isTerminal,
   runStatusToStatusKind,
 } from "@/lib/research/status-mapping";
+import { resolveScopeLabelUpper } from "@/lib/research/scope";
 import { cn } from "@/lib/cn";
 import { CancelRunButton } from "./cancel-run-button";
 
@@ -27,9 +40,39 @@ type ResearchRunDetail = components["schemas"]["ResearchRunDetail"];
 type RunStatus = components["schemas"]["RunStatusEnum"];
 type MacroBriefPublic = components["schemas"]["MacroBriefPublic"];
 type PortfolioBriefPublic = components["schemas"]["PortfolioBriefPublic"];
+type SectorBriefPublic = components["schemas"]["SectorBriefPublic"];
+type SectorCompanyIdea = components["schemas"]["SectorCompanyIdea"];
+
+interface CompanyEntry {
+  sectorEntityId: string;
+  sectorName: string;
+  company: SectorCompanyIdea;
+}
+
+function flattenCompanies(
+  sectors: readonly SectorBriefPublic[],
+): readonly CompanyEntry[] {
+  const entries: CompanyEntry[] = [];
+  for (const sector of sectors) {
+    for (const company of sector.brief.companies) {
+      entries.push({
+        sectorEntityId: sector.brief.sector_entity_id,
+        sectorName: sector.brief.sector_name,
+        company,
+      });
+    }
+  }
+  return entries;
+}
 type HumanReviewSummary = components["schemas"]["HumanReviewSummary"];
 type RunCostEstimate = components["schemas"]["RunCostEstimate"];
-type ScopePayload = ResearchRunDetail["scope_payload"];
+type LlmCallLogPublic = components["schemas"]["LlmCallLogPublic"];
+type RunCostLedger = components["schemas"]["RunCostLedger"];
+type RunEvidenceFlow = components["schemas"]["RunEvidenceFlow"];
+type RunGraph = components["schemas"]["RunGraph"];
+type CounterfactualRunSummary =
+  components["schemas"]["CounterfactualRunSummary"];
+type LeakageRunPublic = components["schemas"]["LeakageRunPublic"];
 
 const statusToLabel: Record<RunStatus, string> = {
   queued: "QUEUED",
@@ -40,15 +83,11 @@ const statusToLabel: Record<RunStatus, string> = {
   paused: "PAUSED",
 };
 
-const SCOPE_UNIVERSE_LABEL: Record<string, string> = {
-  us_equities: "US EQUITIES",
-};
-
 interface StageEntry {
   key: string;
   label: string;
   count: string | null;
-  status: StatusKind;
+  status: StatusPillStatus;
   summary: string;
   href: Route | null;
 }
@@ -64,28 +103,21 @@ export interface RunDetailProps {
   defaultWeekStart: string;
   beliefBundles: readonly HypothesisBeliefBundle[];
   lifecycleBundles: readonly HypothesisLifecycleBundle[];
+  llmCalls: readonly LlmCallLogPublic[];
+  costLedger: RunCostLedger | null;
+  evidenceFlow: RunEvidenceFlow | null;
+  runGraph: RunGraph | null;
+  counterfactuals: CounterfactualRunSummary | null;
+  leakage: readonly LeakageRunPublic[];
+  claims: readonly InlineClaim[];
+  sourceClientCacheStats: SourceClientCacheStats | null;
 }
 
 function resolveHeaderLabel(detail: ResearchRunDetail): string {
   if (detail.ticker !== null) {
     return detail.ticker;
   }
-  return resolveScopeLabel(detail.scope_payload) ?? "—";
-}
-
-function resolveScopeLabel(scope: ScopePayload): string | null {
-  if (scope === null || scope === undefined) {
-    return null;
-  }
-  const record = scope as Record<string, unknown>;
-  const kind = record["kind"];
-  const universe = record["universe"];
-  if (typeof kind !== "string" || typeof universe !== "string") {
-    return null;
-  }
-  const universeLabel =
-    SCOPE_UNIVERSE_LABEL[universe] ?? universe.toUpperCase();
-  return `${kind.toUpperCase()} · ${universeLabel}`;
+  return resolveScopeLabelUpper(detail.scope_payload) ?? "—";
 }
 
 function deriveMacroStage(
@@ -150,68 +182,6 @@ function deriveHypothesesStage(
   };
 }
 
-function deriveSectorsStage(
-  detail: ResearchRunDetail,
-  macroBrief: MacroBriefPublic | null,
-): StageEntry {
-  const runId = detail.id;
-  const sectorBriefs = macroBrief?.sector_briefs ?? [];
-  if (sectorBriefs.length === 0) {
-    return {
-      key: "sectors",
-      label: "SECTORS",
-      count: null,
-      status: stageStatusForMissing(detail.status),
-      summary: missingSummary(detail.status, "Awaiting fan-out"),
-      href: null,
-    };
-  }
-  const sectorNames = sectorBriefs
-    .map((sb) => sb.brief.sector_name)
-    .slice(0, 3)
-    .join(", ");
-  const overflow =
-    sectorBriefs.length > 3 ? ` + ${sectorBriefs.length - 3} more` : "";
-  return {
-    key: "sectors",
-    label: "SECTORS",
-    count: `(${sectorBriefs.length})`,
-    status: "succeeded",
-    summary: `${sectorNames}${overflow}`,
-    href: `/research/runs/${runId}/sectors` as Route,
-  };
-}
-
-function deriveCompaniesStage(
-  detail: ResearchRunDetail,
-  macroBrief: MacroBriefPublic | null,
-): StageEntry {
-  const runId = detail.id;
-  const sectorBriefs = macroBrief?.sector_briefs ?? [];
-  const totalCompanies = sectorBriefs.reduce(
-    (sum, sb) => sum + sb.brief.companies.length,
-    0,
-  );
-  if (totalCompanies === 0) {
-    return {
-      key: "companies",
-      label: "COMPANIES",
-      count: null,
-      status: stageStatusForMissing(detail.status),
-      summary: missingSummary(detail.status, "Awaiting sector briefs"),
-      href: null,
-    };
-  }
-  return {
-    key: "companies",
-    label: "COMPANIES",
-    count: `(${totalCompanies})`,
-    status: "succeeded",
-    summary: `Across ${sectorBriefs.length} sectors`,
-    href: `/research/runs/${runId}/companies` as Route,
-  };
-}
-
 function derivePortfolioStage(
   detail: ResearchRunDetail,
   portfolioBrief: PortfolioBriefPublic | null,
@@ -273,12 +243,15 @@ function deriveHumanReviewStage(
   };
 }
 
-function stageStatusForMissing(runStatus: RunStatus): StatusKind {
-  if (runStatus === "failed" || runStatus === "cancelled") {
-    return "stale";
+function stageStatusForMissing(runStatus: RunStatus): StatusPillStatus {
+  if (runStatus === "failed") {
+    return "failed";
+  }
+  if (runStatus === "cancelled") {
+    return "cancelled";
   }
   if (runStatus === "running") {
-    return "live";
+    return "running";
   }
   return "pending";
 }
@@ -308,6 +281,14 @@ export function RunDetail(props: RunDetailProps): ReactElement {
     defaultWeekStart,
     beliefBundles,
     lifecycleBundles,
+    llmCalls,
+    costLedger,
+    evidenceFlow,
+    runGraph,
+    counterfactuals,
+    leakage,
+    claims,
+    sourceClientCacheStats,
   } = props;
   const router = useRouter();
   const [optimisticStatus, setOptimisticStatus] = useState<RunStatus | null>(
@@ -325,8 +306,6 @@ export function RunDetail(props: RunDetailProps): ReactElement {
     () => [
       deriveMacroStage(detail, macroBrief),
       deriveHypothesesStage(detail, beliefBundles, lifecycleBundles),
-      deriveSectorsStage(detail, macroBrief),
-      deriveCompaniesStage(detail, macroBrief),
       derivePortfolioStage(detail, portfolioBrief),
       deriveHumanReviewStage(detail, humanReviewSummary),
     ],
@@ -338,6 +317,14 @@ export function RunDetail(props: RunDetailProps): ReactElement {
       lifecycleBundles,
       humanReviewSummary,
     ],
+  );
+  const sectorBriefs = useMemo(
+    () => macroBrief?.sector_briefs ?? [],
+    [macroBrief],
+  );
+  const companyEntries = useMemo(
+    () => flattenCompanies(sectorBriefs),
+    [sectorBriefs],
   );
 
   const handleOptimisticCancel = useCallback((): void => {
@@ -353,16 +340,19 @@ export function RunDetail(props: RunDetailProps): ReactElement {
   const showReviewForm =
     isTerminal(resolvedStatus) && humanReviewSummary.weeks.length === 0;
 
+  const isRunPending = !isTerminal(resolvedStatus);
+
   return (
     <RunSseProvider runId={detail.id} isTerminal={isLogStreamTerminal}>
-      <div className="max-w-[1100px] mx-auto">
+      <RunTerminalRefresher />
+      <div className="max-w-[1400px] mx-auto">
         <header className="sticky top-0 z-10 bg-canvas border-b border-line">
           <div className="flex items-center gap-4 px-6 py-4">
             <span className="text-2xl font-mono tabular-nums text-fg">
               {headerLabel}
             </span>
             <HexPill value={detail.id} />
-            <StatusDot
+            <StatusPill
               status={runStatusToStatusKind(resolvedStatus)}
               label={statusToLabel[resolvedStatus]}
             />
@@ -388,11 +378,48 @@ export function RunDetail(props: RunDetailProps): ReactElement {
             </div>
           ) : null}
 
+          {isRunPending ? <RunPendingBanner status={resolvedStatus} /> : null}
+
           <ul className="flex flex-col">
             {stages.map((entry) => (
-              <StageRow key={entry.key} entry={entry} />
+              <StageRow
+                key={entry.key}
+                entry={entry}
+                isRunPending={isRunPending}
+              />
             ))}
           </ul>
+
+          {sectorBriefs.length > 0 ? (
+            <SectorsSection runId={detail.id} sectorBriefs={sectorBriefs} />
+          ) : null}
+
+          {companyEntries.length > 0 ? (
+            <CompaniesSection
+              runId={detail.id}
+              companyEntries={companyEntries}
+            />
+          ) : null}
+
+          <LiveCostStrip
+            initialState={initialCostState}
+            initialSeenLogIds={initialSeenLogIds}
+            costEstimate={costEstimate}
+          />
+
+          <ObservabilitySection
+            runId={detail.id}
+            runStatus={resolvedStatus}
+            llmCalls={llmCalls}
+            costLedger={costLedger}
+            evidenceFlow={evidenceFlow}
+            runGraph={runGraph}
+            counterfactuals={counterfactuals}
+            leakage={leakage}
+            claims={claims}
+            sourceClientCacheStats={sourceClientCacheStats}
+            defaultWeekStart={defaultWeekStart}
+          />
 
           {showReviewForm ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -406,25 +433,72 @@ export function RunDetail(props: RunDetailProps): ReactElement {
           ) : humanReviewSummary.weeks.length > 0 ? (
             <HumanReviewSummaryWidget summary={humanReviewSummary} />
           ) : null}
-
-          <LiveCostStrip
-            runId={detail.id}
-            initialState={initialCostState}
-            initialSeenLogIds={initialSeenLogIds}
-            costEstimate={costEstimate}
-          />
         </div>
       </div>
     </RunSseProvider>
   );
 }
 
+function RunTerminalRefresher(): ReactElement | null {
+  const router = useRouter();
+  const handleEnd = useCallback((): void => {
+    router.refresh();
+  }, [router]);
+  useRunSseEvent("end", handleEnd);
+  return null;
+}
+
+interface RunPendingBannerProps {
+  status: RunStatus;
+}
+
+function RunPendingBanner(props: RunPendingBannerProps): ReactElement {
+  const { status } = props;
+  const label =
+    status === "queued"
+      ? "Run queued"
+      : status === "paused"
+        ? "Run paused"
+        : "Run in progress";
+  const detail =
+    status === "queued"
+      ? "Waiting for a worker to pick this up. Stages will populate as they complete."
+      : status === "paused"
+        ? "Streaming is paused. Resume to continue collecting evidence."
+        : "Streaming evidence, hypotheses, and briefs as the funnel produces them.";
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex items-center gap-3 rounded-md border border-line bg-panel px-4 py-3 text-sm"
+    >
+      <span
+        aria-hidden="true"
+        className="inline-block h-1.5 w-1.5 rounded-full bg-accent skeleton-shimmer"
+      />
+      <span className="font-medium text-fg">{label}</span>
+      <span className="text-fg-muted">{detail}</span>
+    </div>
+  );
+}
+
 interface StageRowProps {
   entry: StageEntry;
+  isRunPending: boolean;
 }
 
 function StageRow(props: StageRowProps): ReactElement {
-  const { entry } = props;
+  const { entry, isRunPending } = props;
+  const showShimmer =
+    isRunPending &&
+    entry.href === null &&
+    entry.status !== "failed" &&
+    entry.status !== "cancelled";
+  const summaryNode = showShimmer ? (
+    <Skeleton className="h-3.5 w-48" />
+  ) : (
+    <span className="text-sm text-fg-muted truncate">{entry.summary}</span>
+  );
   const inner = (
     <div className="flex items-center gap-4 py-4 border-t border-line/60">
       <div className="flex items-center gap-2 w-56 shrink-0">
@@ -435,10 +509,8 @@ function StageRow(props: StageRowProps): ReactElement {
           </span>
         ) : null}
       </div>
-      <StatusDot status={entry.status} />
-      <span className="text-sm text-fg-muted truncate min-w-0 flex-1">
-        {entry.summary}
-      </span>
+      <StatusPill status={entry.status} />
+      <div className="min-w-0 flex-1">{summaryNode}</div>
       {entry.href !== null ? (
         <CaretRight
           size={14}
@@ -455,6 +527,154 @@ function StageRow(props: StageRowProps): ReactElement {
     <li>
       <Link
         href={entry.href}
+        className={cn(
+          "group block px-3 -mx-3 rounded-md transition-colors duration-150",
+          "hover:bg-surface-2",
+        )}
+      >
+        {inner}
+      </Link>
+    </li>
+  );
+}
+
+interface SectorsSectionProps {
+  runId: string;
+  sectorBriefs: readonly SectorBriefPublic[];
+}
+
+function SectorsSection(props: SectorsSectionProps): ReactElement {
+  const { runId, sectorBriefs } = props;
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-baseline gap-2">
+        <CapsLabel className="text-fg">SECTORS</CapsLabel>
+        <span className="font-mono text-xs text-fg-subtle">
+          ({sectorBriefs.length})
+        </span>
+      </div>
+      <ul className="flex flex-col">
+        {sectorBriefs.map((sector) => (
+          <SectorRow
+            key={sector.brief.sector_entity_id}
+            runId={runId}
+            sector={sector}
+          />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+interface SectorRowProps {
+  runId: string;
+  sector: SectorBriefPublic;
+}
+
+function SectorRow(props: SectorRowProps): ReactElement {
+  const { runId, sector } = props;
+  const href =
+    `/research/runs/${runId}/sectors/${sector.brief.sector_entity_id}` as Route;
+  const themeCount = sector.brief.themes.length;
+  const companyCount = sector.brief.companies.length;
+  const summary = `${themeCount} themes · ${companyCount} companies · ${sector.brief.direction.toUpperCase()}`;
+  return (
+    <li>
+      <Link
+        href={href}
+        className={cn(
+          "group block px-3 -mx-3 rounded-md transition-colors duration-150",
+          "hover:bg-surface-2",
+        )}
+      >
+        <div className="flex items-center gap-4 py-3 border-t border-line/60">
+          <div className="w-56 shrink-0">
+            <CapsLabel className="text-fg">
+              {sector.brief.sector_name}
+            </CapsLabel>
+          </div>
+          <span className="text-sm text-fg-muted truncate min-w-0 flex-1">
+            {summary}
+          </span>
+          <CaretRight
+            size={14}
+            weight="regular"
+            className="text-fg-subtle group-hover:text-fg shrink-0"
+          />
+        </div>
+      </Link>
+    </li>
+  );
+}
+
+interface CompaniesSectionProps {
+  runId: string;
+  companyEntries: readonly CompanyEntry[];
+}
+
+function CompaniesSection(props: CompaniesSectionProps): ReactElement {
+  const { runId, companyEntries } = props;
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-baseline gap-2">
+        <CapsLabel className="text-fg">COMPANIES</CapsLabel>
+        <span className="font-mono text-xs text-fg-subtle">
+          ({companyEntries.length})
+        </span>
+      </div>
+      <ul className="flex flex-col">
+        {companyEntries.map((entry) => (
+          <CompanyRow
+            key={`${entry.sectorEntityId}-${entry.company.name}`}
+            runId={runId}
+            entry={entry}
+          />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+interface CompanyRowProps {
+  runId: string;
+  entry: CompanyEntry;
+}
+
+function CompanyRow(props: CompanyRowProps): ReactElement {
+  const { runId, entry } = props;
+  const companyEntityId = entry.company.company_entity_id;
+  const hasDeepDive = companyEntityId !== null && companyEntityId !== undefined;
+  const href = hasDeepDive
+    ? (`/research/runs/${runId}/companies/${companyEntityId}` as Route)
+    : null;
+  const label = entry.company.ticker
+    ? `${entry.company.ticker} · ${entry.company.name}`
+    : entry.company.name;
+  const summary = `${entry.sectorName} · ${entry.company.direction.toUpperCase()} · conviction ${entry.company.conviction.toFixed(2)}`;
+  const inner = (
+    <div className="flex items-center gap-4 py-3 border-t border-line/60">
+      <div className="w-72 shrink-0">
+        <CapsLabel className="text-fg">{label}</CapsLabel>
+      </div>
+      <span className="text-sm text-fg-muted truncate min-w-0 flex-1">
+        {summary}
+      </span>
+      {href !== null ? (
+        <CaretRight
+          size={14}
+          weight="regular"
+          className="text-fg-subtle group-hover:text-fg shrink-0"
+        />
+      ) : null}
+    </div>
+  );
+  if (href === null) {
+    return <li>{inner}</li>;
+  }
+  return (
+    <li>
+      <Link
+        href={href}
         className={cn(
           "group block px-3 -mx-3 rounded-md transition-colors duration-150",
           "hover:bg-surface-2",

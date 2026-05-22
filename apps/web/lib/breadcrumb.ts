@@ -2,12 +2,12 @@ export interface BreadcrumbSegment {
   label: string;
   href: string;
   isHexId: boolean;
+  isLinkable: boolean;
 }
 
 const segmentLabels: Record<string, string> = {
   research: "research",
   runs: "runs",
-  reports: "reports",
   markets: "markets",
   screener: "screener",
   companies: "companies",
@@ -18,7 +18,20 @@ const segmentLabels: Record<string, string> = {
   providers: "providers",
   settings: "settings",
   "api-keys": "api keys",
+  sectors: "sectors",
+  hypotheses: "hypotheses",
+  "macro-brief": "macro brief",
+  "portfolio-brief": "portfolio brief",
 };
+
+const deadHrefPatterns: readonly RegExp[] = [
+  /^\/research\/runs\/[^/]+\/sectors$/,
+  /^\/research\/runs\/[^/]+\/companies$/,
+];
+
+function isDeadHref(href: string): boolean {
+  return deadHrefPatterns.some((pattern) => pattern.test(href));
+}
 
 const hexIdMinLength = 12;
 const hexIdPattern = /^[A-Za-z0-9_-]+$/;
@@ -38,7 +51,7 @@ function readableLabel(segment: string): string {
   if (mapped) {
     return mapped;
   }
-  return segment;
+  return segment.replace(/-/g, " ");
 }
 
 export function buildBreadcrumb(
@@ -55,6 +68,7 @@ export function buildBreadcrumb(
       label: isHex ? part : readableLabel(part),
       href: accumulated,
       isHexId: isHex,
+      isLinkable: !isDeadHref(accumulated),
     });
   }
   return result;
