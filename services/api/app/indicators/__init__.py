@@ -72,32 +72,24 @@ def bollinger(
     match the source bot's `bollinger()` in `lib/indicators.js`. Warmup
     positions (indices 0..period-2) are NaN.
 
-    Implemented manually instead of via `ta.bbands` because pandas-ta's
-    default uses sample stddev; the parity tests need bar-for-bar match.
+    Vectorised via `close.rolling(period).mean()` and `.std(ddof=0)`.
+    `ddof=0` is population stddev, mathematically identical to the source
+    bot's `Math.sqrt(varSum / period)`. Pandas' rolling is C-backed and
+    much faster than the prior Python double-loop, which mattered when
+    the strategy was called N times inside the backtest simulator with
+    growing prefix slices.
     """
-    n = len(close)
-    middle = pd.Series(float("nan"), index=close.index, dtype="float64")
-    upper = pd.Series(float("nan"), index=close.index, dtype="float64")
-    lower = pd.Series(float("nan"), index=close.index, dtype="float64")
-    if n < period:
-        return middle, upper, lower
-
-    values = close.to_numpy(dtype="float64", copy=False)
-    for i in range(period - 1, n):
-        window_sum = 0.0
-        for j in range(i - period + 1, i + 1):
-            window_sum += values[j]
-        m = window_sum / period
-        var_sum = 0.0
-        for j in range(i - period + 1, i + 1):
-            diff = values[j] - m
-            var_sum += diff * diff
-        sd = (var_sum / period) ** 0.5
-        middle.iloc[i] = m
-        upper.iloc[i] = m + mult * sd
-        lower.iloc[i] = m - mult * sd
-
-    return middle, upper, lower
+    if len(close) < period:
+        return (
+            pd.Series(float("nan"), index=close.index, dtype="float64"),
+            pd.Series(float("nan"), index=close.index, dtype="float64"),
+            pd.Series(float("nan"), index=close.index, dtype="float64"),
+        )
+    middle = close.rolling(period).mean()
+    sd = close.rolling(period).std(ddof=0)
+    upper = middle + mult * sd
+    lower = middle - mult * sd
+    return middle.astype("float64"), upper.astype("float64"), lower.astype("float64")
 
 
 def ema(close: pd.Series, *, period: int) -> pd.Series:
