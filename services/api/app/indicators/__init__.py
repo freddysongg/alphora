@@ -10,7 +10,7 @@ from __future__ import annotations
 import pandas as pd  # type: ignore[import-untyped]
 import pandas_ta as ta
 
-__all__ = ["adx", "atr", "ema", "macd", "rsi"]
+__all__ = ["adx", "atr", "bollinger", "ema", "macd", "rsi"]
 
 
 def adx(bars: pd.DataFrame, *, period: int = 14) -> pd.Series:
@@ -61,6 +61,43 @@ def atr(bars: pd.DataFrame, *, period: int = 14) -> pd.Series:
     masked = result.copy()
     masked.iloc[:period] = float("nan")
     return masked
+
+
+def bollinger(
+    close: pd.Series, *, period: int = 20, mult: float = 2.0
+) -> tuple[pd.Series, pd.Series, pd.Series]:
+    """Bollinger Bands -> (middle, upper, lower) aligned to `close`.
+
+    Uses **population** standard deviation (divisor `N`, not `N-1`) to
+    match the source bot's `bollinger()` in `lib/indicators.js`. Warmup
+    positions (indices 0..period-2) are NaN.
+
+    Implemented manually instead of via `ta.bbands` because pandas-ta's
+    default uses sample stddev; the parity tests need bar-for-bar match.
+    """
+    n = len(close)
+    middle = pd.Series(float("nan"), index=close.index, dtype="float64")
+    upper = pd.Series(float("nan"), index=close.index, dtype="float64")
+    lower = pd.Series(float("nan"), index=close.index, dtype="float64")
+    if n < period:
+        return middle, upper, lower
+
+    values = close.to_numpy(dtype="float64", copy=False)
+    for i in range(period - 1, n):
+        window_sum = 0.0
+        for j in range(i - period + 1, i + 1):
+            window_sum += values[j]
+        m = window_sum / period
+        var_sum = 0.0
+        for j in range(i - period + 1, i + 1):
+            diff = values[j] - m
+            var_sum += diff * diff
+        sd = (var_sum / period) ** 0.5
+        middle.iloc[i] = m
+        upper.iloc[i] = m + mult * sd
+        lower.iloc[i] = m - mult * sd
+
+    return middle, upper, lower
 
 
 def ema(close: pd.Series, *, period: int) -> pd.Series:
