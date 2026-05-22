@@ -10,7 +10,7 @@ from __future__ import annotations
 import pandas as pd  # type: ignore[import-untyped]
 import pandas_ta as ta
 
-__all__ = ["adx", "atr", "bollinger", "ema", "macd", "rsi"]
+__all__ = ["adx", "atr", "bollinger", "ema", "macd", "rsi", "vwap"]
 
 
 def adx(bars: pd.DataFrame, *, period: int = 14) -> pd.Series:
@@ -183,3 +183,47 @@ def rsi(close: pd.Series, *, period: int = 14) -> pd.Series:
         )
 
     return out
+
+
+def vwap(bars: pd.DataFrame) -> pd.Series:
+    """Session-resetting VWAP (RTH-only), matching source bot's `vwap()`.
+
+    Resets the cumulative pv/v accumulator at each new ET RTH session
+    open (09:30 America/New_York). Returns NaN for bars outside RTH so
+    strategies can't accidentally trade off overnight-accumulated values.
+    Zero/missing volume falls back to `1.0` (matches `b.v || 1` in JS).
+
+    `bars` must have a UTC `DatetimeIndex` and columns `high`, `low`,
+    `close`, `volume`.
+    """
+    from app.services.market_clock import RTH_CLOSE_ET_MIN, RTH_OPEN_ET_MIN, to_et
+
+    n = len(bars)
+    result = pd.Series(float("nan"), index=bars.index, dtype="float64")
+    if n == 0:
+        return result
+
+    highs = bars["high"].astype(float).to_numpy()
+    lows = bars["low"].astype(float).to_numpy()
+    closes = bars["close"].astype(float).to_numpy()
+    volumes = bars["volume"].astype(float).to_numpy()
+
+    sum_pv = 0.0
+    sum_v = 0.0
+    current_day: str | None = None
+    for i in range(n):
+        clock = to_et(bars.index[i])
+        in_rth = RTH_OPEN_ET_MIN <= clock.minutes < RTH_CLOSE_ET_MIN
+        if in_rth and clock.day != current_day:
+            sum_pv = 0.0
+            sum_v = 0.0
+            current_day = clock.day
+        if in_rth:
+            typical = (highs[i] + lows[i] + closes[i]) / 3.0
+            vol = volumes[i] if volumes[i] != 0.0 else 1.0
+            sum_pv += typical * vol
+            sum_v += vol
+            if sum_v > 0:
+                result.iloc[i] = sum_pv / sum_v
+
+    return result

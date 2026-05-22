@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd  # type: ignore[import-untyped]
 import pytest
@@ -183,3 +184,80 @@ def test_bollinger_with_period_2_and_constant_input_gives_zero_band_width() -> N
     assert math.isclose(float(middle.iloc[2]), 100.0)
     assert math.isclose(float(upper.iloc[2]), 100.0)
     assert math.isclose(float(lower.iloc[2]), 100.0)
+
+
+from app.indicators import vwap  # noqa: E402
+
+
+def test_vwap_undefined_outside_rth() -> None:
+    base = datetime(2026, 6, 15, 13, 0, tzinfo=UTC)
+    bars = pd.DataFrame(
+        {
+            "open": [100.0],
+            "high": [100.5],
+            "low": [99.5],
+            "close": [100.0],
+            "volume": [1000.0],
+        },
+        index=pd.DatetimeIndex([base], tz="UTC"),
+    )
+    v = vwap(bars)
+    assert math.isnan(float(v.iloc[0]))
+
+
+def test_vwap_defined_inside_rth_typical_price_weighted() -> None:
+    base = datetime(2026, 6, 15, 13, 30, tzinfo=UTC)
+    bars = pd.DataFrame(
+        {
+            "open": [100.0],
+            "high": [101.0],
+            "low": [99.0],
+            "close": [100.5],
+            "volume": [1000.0],
+        },
+        index=pd.DatetimeIndex([base], tz="UTC"),
+    )
+    v = vwap(bars)
+    typical = (101.0 + 99.0 + 100.5) / 3.0
+    assert math.isclose(float(v.iloc[0]), typical, abs_tol=1e-9)
+
+
+def test_vwap_resets_at_next_et_session_open() -> None:
+    day1_open = datetime(2026, 6, 15, 13, 30, tzinfo=UTC)
+    day2_open = datetime(2026, 6, 16, 13, 30, tzinfo=UTC)
+    idx = [
+        day1_open,
+        day1_open + timedelta(minutes=1),
+        day1_open + timedelta(minutes=2),
+        day2_open,
+    ]
+    bars = pd.DataFrame(
+        {
+            "open":   [100.0, 101.0, 102.0, 150.0],
+            "high":   [100.5, 101.5, 102.5, 150.5],
+            "low":    [99.5,  100.5, 101.5, 149.5],
+            "close":  [100.0, 101.0, 102.0, 150.0],
+            "volume": [1000.0, 1000.0, 1000.0, 1000.0],
+        },
+        index=pd.DatetimeIndex(idx, tz="UTC"),
+    )
+    v = vwap(bars)
+    expected_day2_typical = (150.5 + 149.5 + 150.0) / 3.0
+    assert math.isclose(float(v.iloc[3]), expected_day2_typical, abs_tol=1e-9)
+
+
+def test_vwap_volume_zero_falls_back_to_one() -> None:
+    base = datetime(2026, 6, 15, 13, 30, tzinfo=UTC)
+    bars = pd.DataFrame(
+        {
+            "open": [100.0],
+            "high": [101.0],
+            "low": [99.0],
+            "close": [100.5],
+            "volume": [0.0],
+        },
+        index=pd.DatetimeIndex([base], tz="UTC"),
+    )
+    v = vwap(bars)
+    typical = (101.0 + 99.0 + 100.5) / 3.0
+    assert math.isclose(float(v.iloc[0]), typical, abs_tol=1e-9)
