@@ -98,3 +98,69 @@ def test_force_flat_at_cutoff_when_holding() -> None:
     r = s.evaluate(primary_bars=df, secondary_bars={}, current_position=10, params={})
     assert r.target == 0
     assert r.meta.get("phase") == "eod-flat"
+
+
+import json  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+_FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+
+def _load_input_bars(name: str) -> pd.DataFrame:
+    raw = json.loads((_FIXTURES_DIR / f"{name}_input_bars.json").read_text())
+    timestamps = [datetime.fromtimestamp(int(b["t"]) / 1000.0, tz=UTC) for b in raw]
+    return pd.DataFrame(
+        {
+            "open": [float(b["o"]) for b in raw],
+            "high": [float(b["h"]) for b in raw],
+            "low": [float(b["l"]) for b in raw],
+            "close": [float(b["c"]) for b in raw],
+            "volume": [float(b["v"]) for b in raw],
+        },
+        index=pd.DatetimeIndex(timestamps, tz="UTC"),
+    )
+
+
+def _load_golden(name: str) -> list[dict[str, object]]:
+    raw: list[dict[str, object]] = json.loads(
+        (_FIXTURES_DIR / f"{name}_golden.json").read_text()
+    )
+    return raw
+
+
+def test_gap_fill_matches_source_bot_bar_for_bar() -> None:
+    s = GapFillStrategy()
+    bars = _load_input_bars("gap_fill")
+    golden = _load_golden("gap_fill")
+    assert len(bars) == len(golden), "fixture length mismatch -- regenerate both files"
+
+    current_position = 0
+    mismatches: list[str] = []
+    for i in range(len(bars)):
+        primary = bars.iloc[: i + 1]
+        result = s.evaluate(
+            primary_bars=primary,
+            secondary_bars={},
+            current_position=current_position,
+            params={},
+        )
+        expected_target = int(golden[i]["target"])  # type: ignore[call-overload]
+        expected_pos_in = int(golden[i]["current_pos_in"])  # type: ignore[call-overload]
+        if current_position != expected_pos_in:
+            mismatches.append(
+                f"bar {i}: current_position_in mismatch (py={current_position}, "
+                f"node={expected_pos_in})"
+            )
+        if result.target != expected_target:
+            mismatches.append(
+                f"bar {i}: target mismatch (py={result.target}, node={expected_target}, "
+                f"py_meta={result.meta}, node_meta={golden[i].get('meta')})"
+            )
+        current_position = result.target
+
+    if mismatches:
+        msg = "\n  ".join(mismatches[:10])
+        total = len(mismatches)
+        raise AssertionError(
+            f"gap_fill golden-output regression: {total} mismatch(es). First 10:\n  {msg}"
+        )

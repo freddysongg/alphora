@@ -86,8 +86,7 @@ class GapFillStrategy:
                 if prior_day is None:
                     prior_day = clock.day
                 if clock.day == prior_day:
-                    if prior_close is None:
-                        prior_close = float(primary_bars["close"].iloc[j])
+                    prior_close = float(primary_bars["close"].iloc[j])
                 elif prior_day is not None:
                     break
 
