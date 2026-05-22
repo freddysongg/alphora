@@ -15,12 +15,14 @@ from app.strategies.base import (
     TrailSpec,
 )
 from app.strategies.bb_rsi import BbRsiStrategy
+from app.strategies.gap_fill import GapFillStrategy
 from app.strategies.macd_rsi_adx import MacdRsiAdxStrategy
 from app.strategies.orb_safe import OrbSafeStrategy
 
 __all__ = [
     "Bars",
     "BbRsiStrategy",
+    "GapFillStrategy",
     "MacdRsiAdxStrategy",
     "OrbSafeStrategy",
     "Strategy",
