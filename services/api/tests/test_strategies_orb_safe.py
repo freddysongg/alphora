@@ -158,3 +158,42 @@ def test_orb_safe_matches_source_bot_bar_for_bar() -> None:
         raise AssertionError(
             f"orb_safe golden-output regression: {total} mismatch(es). First 10:\n  {msg}"
         )
+
+
+from app.services.backtest_engine import simulate  # noqa: E402,F811
+
+_SPY_FIXTURE = _FIXTURES_DIR / "spy_30day_1min.json"
+
+
+def _load_spy_30day_fixture() -> pd.DataFrame:
+    raw = json.loads(_SPY_FIXTURE.read_text())
+    timestamps = [pd.Timestamp(int(b["t"]), unit="ms", tz="UTC") for b in raw]
+    return pd.DataFrame(
+        {
+            "open": [float(b["o"]) for b in raw],
+            "high": [float(b["h"]) for b in raw],
+            "low": [float(b["l"]) for b in raw],
+            "close": [float(b["c"]) for b in raw],
+            "volume": [float(b["v"]) for b in raw],
+        },
+        index=pd.DatetimeIndex(timestamps, tz="UTC"),
+    )
+
+
+def test_orb_safe_30day_spy_backtest_completes_with_sensible_log() -> None:
+    bars = _load_spy_30day_fixture()
+    result = simulate(bars=bars, strategy=OrbSafeStrategy(), params={})
+    assert result.bar_count == 11_700
+    assert len(result.equity_per_bar) == 11_700
+    prev_exit_idx = -1
+    for t in result.trades:
+        assert t.entry_price > 0.0
+        assert t.exit_price > 0.0
+        assert t.shares > 0
+        assert t.bars_held >= 0
+        assert t.entry_bar_index <= t.exit_bar_index
+        assert t.entry_bar_index >= prev_exit_idx
+        prev_exit_idx = t.exit_bar_index
+        assert t.exit_ts >= t.entry_ts
+    sum_pnl = sum(t.pnl_usd for t in result.trades)
+    assert abs(sum_pnl - result.net_pnl_usd) < 1e-6
