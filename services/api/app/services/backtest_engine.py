@@ -28,6 +28,7 @@ from typing import Literal
 import pandas as pd  # type: ignore[import-untyped]
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.brokers.base import Timeframe
 from app.db.models_backtest import (
     BacktestEquityPoint,
     BacktestRun,
@@ -306,7 +307,7 @@ async def persist_backtest_result(
     bars: pd.DataFrame,
     strategy_key: str,
     ticker: str,
-    timeframe: str,
+    timeframe: Timeframe,
     params: StrategyParams,
     slippage: SlippageModel,
     commission: CommissionModel,
@@ -406,7 +407,7 @@ async def run_backtest(
     slippage: SlippageModel | None = None,
     commission: CommissionModel | None = None,
     position_size_shares: int = 1,
-    timeframe: str = "1min",
+    timeframe: Timeframe = "1min",
 ) -> uuid.UUID:
     """End-to-end orchestrator: load OHLCV -> simulate -> persist.
 
@@ -417,7 +418,7 @@ async def run_backtest(
     if commission is None:
         commission = CommissionModel()
     bars = await load_polygon_aggregates_as_dataframe(
-        session, ticker=ticker, from_ts=from_ts, to_ts=to_ts
+        session, ticker=ticker, from_ts=from_ts, to_ts=to_ts, timeframe=timeframe
     )
     if bars.empty:
         raise ValueError(
