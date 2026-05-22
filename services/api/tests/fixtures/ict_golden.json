@@ -1,0 +1,3913 @@
+[
+  {
+    "i": 0,
+    "t": 1781530200000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 1,
+    "t": 1781530260000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 2,
+    "t": 1781530320000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 3,
+    "t": 1781530380000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 4,
+    "t": 1781530440000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 5,
+    "t": 1781530500000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 6,
+    "t": 1781530560000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 7,
+    "t": 1781530620000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 8,
+    "t": 1781530680000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 9,
+    "t": 1781530740000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 10,
+    "t": 1781530800000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 11,
+    "t": 1781530860000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 12,
+    "t": 1781530920000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 13,
+    "t": 1781530980000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 14,
+    "t": 1781531040000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 15,
+    "t": 1781531100000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 16,
+    "t": 1781531160000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 17,
+    "t": 1781531220000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 18,
+    "t": 1781531280000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 19,
+    "t": 1781531340000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 20,
+    "t": 1781531400000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 21,
+    "t": 1781531460000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "warmup"
+    }
+  },
+  {
+    "i": 22,
+    "t": 1781531520000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 23,
+    "t": 1781531580000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 24,
+    "t": 1781531640000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 25,
+    "t": 1781531700000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 26,
+    "t": 1781531760000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 27,
+    "t": 1781531820000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 28,
+    "t": 1781531880000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 29,
+    "t": 1781531940000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 30,
+    "t": 1781532000000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 31,
+    "t": 1781532060000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 32,
+    "t": 1781532120000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 33,
+    "t": 1781532180000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 34,
+    "t": 1781532240000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 35,
+    "t": 1781532300000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 36,
+    "t": 1781532360000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 37,
+    "t": 1781532420000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 38,
+    "t": 1781532480000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 39,
+    "t": 1781532540000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 40,
+    "t": 1781532600000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 41,
+    "t": 1781532660000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 42,
+    "t": 1781532720000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 43,
+    "t": 1781532780000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 44,
+    "t": 1781532840000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 45,
+    "t": 1781532900000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 46,
+    "t": 1781532960000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 47,
+    "t": 1781533020000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 48,
+    "t": 1781533080000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 49,
+    "t": 1781533140000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 50,
+    "t": 1781533200000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 51,
+    "t": 1781533260000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 52,
+    "t": 1781533320000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 53,
+    "t": 1781533380000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 54,
+    "t": 1781533440000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 55,
+    "t": 1781533500000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 56,
+    "t": 1781533560000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 57,
+    "t": 1781533620000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 58,
+    "t": 1781533680000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 59,
+    "t": 1781533740000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 60,
+    "t": 1781533800000,
+    "c": 100,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 61,
+    "t": 1781533860000,
+    "c": 100.05,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 62,
+    "t": 1781533920000,
+    "c": 100.1,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 63,
+    "t": 1781533980000,
+    "c": 100.15,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 64,
+    "t": 1781534040000,
+    "c": 100.2,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 65,
+    "t": 1781534100000,
+    "c": 100.25,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 66,
+    "t": 1781534160000,
+    "c": 100.3,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 67,
+    "t": 1781534220000,
+    "c": 100.35,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 68,
+    "t": 1781534280000,
+    "c": 100.4,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 69,
+    "t": 1781534340000,
+    "c": 100.45,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 70,
+    "t": 1781534400000,
+    "c": 100.5,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 71,
+    "t": 1781534460000,
+    "c": 100.55,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 72,
+    "t": 1781534520000,
+    "c": 100.6,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 73,
+    "t": 1781534580000,
+    "c": 100.65,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 74,
+    "t": 1781534640000,
+    "c": 100.7,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 75,
+    "t": 1781534700000,
+    "c": 100.75,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 76,
+    "t": 1781534760000,
+    "c": 100.8,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 77,
+    "t": 1781534820000,
+    "c": 100.85,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 78,
+    "t": 1781534880000,
+    "c": 100.9,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 79,
+    "t": 1781534940000,
+    "c": 100.95,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 80,
+    "t": 1781535000000,
+    "c": 101,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 81,
+    "t": 1781535060000,
+    "c": 101.05,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 82,
+    "t": 1781535120000,
+    "c": 101.1,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 83,
+    "t": 1781535180000,
+    "c": 101.15,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 84,
+    "t": 1781535240000,
+    "c": 101.2,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 85,
+    "t": 1781535300000,
+    "c": 101.25,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 86,
+    "t": 1781535360000,
+    "c": 101.3,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 87,
+    "t": 1781535420000,
+    "c": 101.35,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 88,
+    "t": 1781535480000,
+    "c": 101.4,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 89,
+    "t": 1781535540000,
+    "c": 101.45,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 90,
+    "t": 1781535600000,
+    "c": 101.5,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 91,
+    "t": 1781535660000,
+    "c": 101.55,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 92,
+    "t": 1781535720000,
+    "c": 101.6,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 93,
+    "t": 1781535780000,
+    "c": 101.65,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 94,
+    "t": 1781535840000,
+    "c": 101.7,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 95,
+    "t": 1781535900000,
+    "c": 101.75,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 96,
+    "t": 1781535960000,
+    "c": 101.8,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 97,
+    "t": 1781536020000,
+    "c": 101.85,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 98,
+    "t": 1781536080000,
+    "c": 101.9,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 99,
+    "t": 1781536140000,
+    "c": 101.95,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 100,
+    "t": 1781536200000,
+    "c": 102,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 101,
+    "t": 1781536260000,
+    "c": 102,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 102,
+    "t": 1781536320000,
+    "c": 102,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 103,
+    "t": 1781536380000,
+    "c": 102,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 104,
+    "t": 1781536440000,
+    "c": 102,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 105,
+    "t": 1781536500000,
+    "c": 102,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 106,
+    "t": 1781536560000,
+    "c": 102,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 107,
+    "t": 1781536620000,
+    "c": 102,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 108,
+    "t": 1781536680000,
+    "c": 102,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 109,
+    "t": 1781536740000,
+    "c": 102,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 110,
+    "t": 1781536800000,
+    "c": 102,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 111,
+    "t": 1781536860000,
+    "c": 101.6,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 112,
+    "t": 1781536920000,
+    "c": 100.9,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 113,
+    "t": 1781536980000,
+    "c": 100.2,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 114,
+    "t": 1781537040000,
+    "c": 99.5,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 115,
+    "t": 1781537100000,
+    "c": 99.5,
+    "current_pos_in": 0,
+    "target": 0,
+    "meta": {
+      "phase": "no-confluence"
+    }
+  },
+  {
+    "i": 116,
+    "t": 1781537160000,
+    "c": 99.7,
+    "current_pos_in": 0,
+    "target": -1,
+    "meta": {
+      "phase": "ict-short",
+      "sweep": {
+        "barIdx": 111,
+        "level": 102.5
+      },
+      "fvg": {
+        "type": "bear",
+        "high": 100.1,
+        "low": 99.6,
+        "barIdx": 115
+      },
+      "c": 99.7
+    }
+  },
+  {
+    "i": 117,
+    "t": 1781537220000,
+    "c": 99.9,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 118,
+    "t": 1781537280000,
+    "c": 100.1,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 119,
+    "t": 1781537340000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 120,
+    "t": 1781537400000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 121,
+    "t": 1781537460000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 122,
+    "t": 1781537520000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 123,
+    "t": 1781537580000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 124,
+    "t": 1781537640000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 125,
+    "t": 1781537700000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 126,
+    "t": 1781537760000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 127,
+    "t": 1781537820000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 128,
+    "t": 1781537880000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 129,
+    "t": 1781537940000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 130,
+    "t": 1781538000000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 131,
+    "t": 1781538060000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 132,
+    "t": 1781538120000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 133,
+    "t": 1781538180000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 134,
+    "t": 1781538240000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 135,
+    "t": 1781538300000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 136,
+    "t": 1781538360000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 137,
+    "t": 1781538420000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 138,
+    "t": 1781538480000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 139,
+    "t": 1781538540000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 140,
+    "t": 1781538600000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 141,
+    "t": 1781538660000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 142,
+    "t": 1781538720000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 143,
+    "t": 1781538780000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 144,
+    "t": 1781538840000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 145,
+    "t": 1781538900000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 146,
+    "t": 1781538960000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 147,
+    "t": 1781539020000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 148,
+    "t": 1781539080000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 149,
+    "t": 1781539140000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 150,
+    "t": 1781539200000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 151,
+    "t": 1781539260000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 152,
+    "t": 1781539320000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 153,
+    "t": 1781539380000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 154,
+    "t": 1781539440000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 155,
+    "t": 1781539500000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 156,
+    "t": 1781539560000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 157,
+    "t": 1781539620000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 158,
+    "t": 1781539680000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 159,
+    "t": 1781539740000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 160,
+    "t": 1781539800000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 161,
+    "t": 1781539860000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 162,
+    "t": 1781539920000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 163,
+    "t": 1781539980000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 164,
+    "t": 1781540040000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 165,
+    "t": 1781540100000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 166,
+    "t": 1781540160000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 167,
+    "t": 1781540220000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 168,
+    "t": 1781540280000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 169,
+    "t": 1781540340000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 170,
+    "t": 1781540400000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 171,
+    "t": 1781540460000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 172,
+    "t": 1781540520000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 173,
+    "t": 1781540580000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 174,
+    "t": 1781540640000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 175,
+    "t": 1781540700000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 176,
+    "t": 1781540760000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 177,
+    "t": 1781540820000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 178,
+    "t": 1781540880000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 179,
+    "t": 1781540940000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 180,
+    "t": 1781541000000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 181,
+    "t": 1781541060000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 182,
+    "t": 1781541120000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 183,
+    "t": 1781541180000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 184,
+    "t": 1781541240000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 185,
+    "t": 1781541300000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 186,
+    "t": 1781541360000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 187,
+    "t": 1781541420000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 188,
+    "t": 1781541480000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 189,
+    "t": 1781541540000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 190,
+    "t": 1781541600000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 191,
+    "t": 1781541660000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 192,
+    "t": 1781541720000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 193,
+    "t": 1781541780000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 194,
+    "t": 1781541840000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 195,
+    "t": 1781541900000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 196,
+    "t": 1781541960000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 197,
+    "t": 1781542020000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 198,
+    "t": 1781542080000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 199,
+    "t": 1781542140000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 200,
+    "t": 1781542200000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 201,
+    "t": 1781542260000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 202,
+    "t": 1781542320000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 203,
+    "t": 1781542380000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 204,
+    "t": 1781542440000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 205,
+    "t": 1781542500000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 206,
+    "t": 1781542560000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 207,
+    "t": 1781542620000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 208,
+    "t": 1781542680000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 209,
+    "t": 1781542740000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 210,
+    "t": 1781542800000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 211,
+    "t": 1781542860000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 212,
+    "t": 1781542920000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 213,
+    "t": 1781542980000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 214,
+    "t": 1781543040000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 215,
+    "t": 1781543100000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 216,
+    "t": 1781543160000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 217,
+    "t": 1781543220000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 218,
+    "t": 1781543280000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 219,
+    "t": 1781543340000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 220,
+    "t": 1781543400000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 221,
+    "t": 1781543460000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 222,
+    "t": 1781543520000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 223,
+    "t": 1781543580000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 224,
+    "t": 1781543640000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 225,
+    "t": 1781543700000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 226,
+    "t": 1781543760000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 227,
+    "t": 1781543820000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 228,
+    "t": 1781543880000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 229,
+    "t": 1781543940000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 230,
+    "t": 1781544000000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 231,
+    "t": 1781544060000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 232,
+    "t": 1781544120000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 233,
+    "t": 1781544180000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 234,
+    "t": 1781544240000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 235,
+    "t": 1781544300000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 236,
+    "t": 1781544360000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 237,
+    "t": 1781544420000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 238,
+    "t": 1781544480000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 239,
+    "t": 1781544540000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 240,
+    "t": 1781544600000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 241,
+    "t": 1781544660000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 242,
+    "t": 1781544720000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 243,
+    "t": 1781544780000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 244,
+    "t": 1781544840000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 245,
+    "t": 1781544900000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 246,
+    "t": 1781544960000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 247,
+    "t": 1781545020000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 248,
+    "t": 1781545080000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 249,
+    "t": 1781545140000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 250,
+    "t": 1781545200000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 251,
+    "t": 1781545260000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 252,
+    "t": 1781545320000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 253,
+    "t": 1781545380000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 254,
+    "t": 1781545440000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 255,
+    "t": 1781545500000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 256,
+    "t": 1781545560000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 257,
+    "t": 1781545620000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 258,
+    "t": 1781545680000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 259,
+    "t": 1781545740000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 260,
+    "t": 1781545800000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 261,
+    "t": 1781545860000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 262,
+    "t": 1781545920000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 263,
+    "t": 1781545980000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 264,
+    "t": 1781546040000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 265,
+    "t": 1781546100000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 266,
+    "t": 1781546160000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 267,
+    "t": 1781546220000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 268,
+    "t": 1781546280000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 269,
+    "t": 1781546340000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 270,
+    "t": 1781546400000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 271,
+    "t": 1781546460000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 272,
+    "t": 1781546520000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 273,
+    "t": 1781546580000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 274,
+    "t": 1781546640000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 275,
+    "t": 1781546700000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 276,
+    "t": 1781546760000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 277,
+    "t": 1781546820000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 278,
+    "t": 1781546880000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 279,
+    "t": 1781546940000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 280,
+    "t": 1781547000000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 281,
+    "t": 1781547060000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 282,
+    "t": 1781547120000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 283,
+    "t": 1781547180000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 284,
+    "t": 1781547240000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 285,
+    "t": 1781547300000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 286,
+    "t": 1781547360000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 287,
+    "t": 1781547420000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 288,
+    "t": 1781547480000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 289,
+    "t": 1781547540000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 290,
+    "t": 1781547600000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 291,
+    "t": 1781547660000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 292,
+    "t": 1781547720000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 293,
+    "t": 1781547780000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 294,
+    "t": 1781547840000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 295,
+    "t": 1781547900000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 296,
+    "t": 1781547960000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 297,
+    "t": 1781548020000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 298,
+    "t": 1781548080000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 299,
+    "t": 1781548140000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 300,
+    "t": 1781548200000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 301,
+    "t": 1781548260000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 302,
+    "t": 1781548320000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 303,
+    "t": 1781548380000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 304,
+    "t": 1781548440000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 305,
+    "t": 1781548500000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 306,
+    "t": 1781548560000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 307,
+    "t": 1781548620000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 308,
+    "t": 1781548680000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 309,
+    "t": 1781548740000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 310,
+    "t": 1781548800000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 311,
+    "t": 1781548860000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 312,
+    "t": 1781548920000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 313,
+    "t": 1781548980000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 314,
+    "t": 1781549040000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 315,
+    "t": 1781549100000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 316,
+    "t": 1781549160000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 317,
+    "t": 1781549220000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 318,
+    "t": 1781549280000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 319,
+    "t": 1781549340000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 320,
+    "t": 1781549400000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 321,
+    "t": 1781549460000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 322,
+    "t": 1781549520000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 323,
+    "t": 1781549580000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 324,
+    "t": 1781549640000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 325,
+    "t": 1781549700000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 326,
+    "t": 1781549760000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 327,
+    "t": 1781549820000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 328,
+    "t": 1781549880000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 329,
+    "t": 1781549940000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 330,
+    "t": 1781550000000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 331,
+    "t": 1781550060000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 332,
+    "t": 1781550120000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 333,
+    "t": 1781550180000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 334,
+    "t": 1781550240000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 335,
+    "t": 1781550300000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 336,
+    "t": 1781550360000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 337,
+    "t": 1781550420000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 338,
+    "t": 1781550480000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 339,
+    "t": 1781550540000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 340,
+    "t": 1781550600000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 341,
+    "t": 1781550660000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 342,
+    "t": 1781550720000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 343,
+    "t": 1781550780000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 344,
+    "t": 1781550840000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 345,
+    "t": 1781550900000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 346,
+    "t": 1781550960000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 347,
+    "t": 1781551020000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 348,
+    "t": 1781551080000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 349,
+    "t": 1781551140000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 350,
+    "t": 1781551200000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 351,
+    "t": 1781551260000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 352,
+    "t": 1781551320000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 353,
+    "t": 1781551380000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 354,
+    "t": 1781551440000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 355,
+    "t": 1781551500000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 356,
+    "t": 1781551560000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 357,
+    "t": 1781551620000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 358,
+    "t": 1781551680000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 359,
+    "t": 1781551740000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 360,
+    "t": 1781551800000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 361,
+    "t": 1781551860000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 362,
+    "t": 1781551920000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 363,
+    "t": 1781551980000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 364,
+    "t": 1781552040000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 365,
+    "t": 1781552100000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 366,
+    "t": 1781552160000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 367,
+    "t": 1781552220000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 368,
+    "t": 1781552280000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 369,
+    "t": 1781552340000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 370,
+    "t": 1781552400000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 371,
+    "t": 1781552460000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 372,
+    "t": 1781552520000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 373,
+    "t": 1781552580000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 374,
+    "t": 1781552640000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 375,
+    "t": 1781552700000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 376,
+    "t": 1781552760000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 377,
+    "t": 1781552820000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 378,
+    "t": 1781552880000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 379,
+    "t": 1781552940000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 380,
+    "t": 1781553000000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 381,
+    "t": 1781553060000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 382,
+    "t": 1781553120000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 383,
+    "t": 1781553180000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 384,
+    "t": 1781553240000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 385,
+    "t": 1781553300000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 386,
+    "t": 1781553360000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 387,
+    "t": 1781553420000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 388,
+    "t": 1781553480000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  },
+  {
+    "i": 389,
+    "t": 1781553540000,
+    "c": 100,
+    "current_pos_in": -1,
+    "target": -1,
+    "meta": {
+      "phase": "holding"
+    }
+  }
+]
