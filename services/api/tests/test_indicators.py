@@ -158,33 +158,27 @@ from app.indicators import bollinger  # noqa: E402
 
 
 def test_bollinger_returns_three_named_series_aligned_to_close() -> None:
-    closes = pd.Series([100.0 + i * 0.1 for i in range(40)])
+    closes = _close_series([100.0 + i * 0.1 for i in range(40)])
     middle, upper, lower = bollinger(closes, period=20, mult=2.0)
     assert len(middle) == len(closes) == 40
     assert len(upper) == 40
     assert len(lower) == 40
-    # Warmup region: first 19 values NaN.
     for i in range(19):
         assert math.isnan(float(middle.iloc[i]))
     assert not math.isnan(float(middle.iloc[19]))
 
 
 def test_bollinger_population_stddev_matches_source_bot() -> None:
-    """Source bot uses Math.sqrt(varSum / period) (population stddev),
-    NOT sample stddev (N-1 divisor). For a known ramp the values must
-    match what the JS algorithm would produce."""
-    closes = pd.Series([100.0 + i for i in range(20)])  # 100..119
+    closes = _close_series([100.0 + i for i in range(20)])
     middle, upper, lower = bollinger(closes, period=20, mult=2.0)
-    # Mean of 100..119 = 109.5
     assert math.isclose(float(middle.iloc[19]), 109.5, abs_tol=1e-9)
-    # Population stddev of 0..19 = sqrt(sum((i-9.5)^2) / 20) = sqrt(33.25)
     expected_std = math.sqrt(33.25)
     assert math.isclose(float(upper.iloc[19]), 109.5 + 2 * expected_std, abs_tol=1e-9)
     assert math.isclose(float(lower.iloc[19]), 109.5 - 2 * expected_std, abs_tol=1e-9)
 
 
 def test_bollinger_with_period_2_and_constant_input_gives_zero_band_width() -> None:
-    closes = pd.Series([100.0, 100.0, 100.0])
+    closes = _close_series([100.0, 100.0, 100.0])
     middle, upper, lower = bollinger(closes, period=2, mult=2.0)
     assert math.isclose(float(middle.iloc[2]), 100.0)
     assert math.isclose(float(upper.iloc[2]), 100.0)
