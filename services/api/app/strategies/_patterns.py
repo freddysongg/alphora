@@ -52,7 +52,7 @@ def find_recent_fvg(
     highs = bars["high"].astype(float).to_numpy()
     lows = bars["low"].astype(float).to_numpy()
     for j in range(start, end_idx):
-        if bull is None and lows[j] > highs[j - 2]:
+        if lows[j] > highs[j - 2]:
             zone_high = float(lows[j])
             zone_low = float(highs[j - 2])
             filled = False
@@ -62,7 +62,7 @@ def find_recent_fvg(
                     break
             if not filled:
                 bull = FvgZone(kind="bull", high=zone_high, low=zone_low, bar_idx=j)
-        if bear is None and highs[j] < lows[j - 2]:
+        if highs[j] < lows[j - 2]:
             zone_high = float(lows[j - 2])
             zone_low = float(highs[j])
             filled = False

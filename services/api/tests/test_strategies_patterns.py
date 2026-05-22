@@ -40,8 +40,8 @@ def test_find_recent_fvg_detects_bullish_gap() -> None:
         (100.0, 101.0, 99.8, 100.5),
         (100.5, 101.5, 100.0, 101.0),
         (102.5, 103.0, 102.0, 102.8),
-        (102.0, 102.5, 101.8, 102.2),
-        (102.0, 102.5, 101.8, 102.2),
+        (101.6, 102.5, 101.4, 102.2),
+        (101.6, 102.5, 101.4, 102.2),
     ]
     bars = _bars_from_ohlc(ohlc)
     result = find_recent_fvg(bars, end_idx=5, lookback=10)
@@ -55,13 +55,13 @@ def test_find_recent_fvg_detects_bearish_gap() -> None:
     ohlc = [
         (100.0, 100.5, 99.5, 100.0),
         (100.0, 100.5, 99.0, 99.5),
-        (99.5, 99.5, 99.0, 99.0),
+        (99.5, 99.5, 98.5, 99.0),
         (97.0, 97.5, 96.5, 97.0),
         (97.0, 97.5, 96.8, 97.2),
-        (97.0, 97.5, 96.8, 97.2),
+        (98.6, 98.7, 98.6, 98.7),
     ]
     bars = _bars_from_ohlc(ohlc)
-    result = find_recent_fvg(bars, end_idx=5, lookback=10)
+    result = find_recent_fvg(bars, end_idx=6, lookback=10)
     assert result.bear is not None
     assert result.bear.high == 99.0
     assert result.bear.low == 97.5
