@@ -45,12 +45,12 @@ def test_warmup_returns_flat_with_empty_meta() -> None:
     assert r.target == 0
 
 
-def test_carry_long_when_close_above_middle() -> None:
+def test_long_exits_when_close_at_or_above_middle_band() -> None:
     s = BbRsiStrategy()
     closes = [100.0 + i * 0.05 for i in range(50)]
     bars = _bars(50, closes=closes)
     r = s.evaluate(primary_bars=bars, secondary_bars={}, current_position=10, params={})
-    assert r.target == 1
+    assert r.target == 0
 
 
 def test_long_exit_when_close_returns_to_middle_from_below() -> None:

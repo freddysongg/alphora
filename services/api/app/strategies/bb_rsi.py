@@ -8,16 +8,10 @@ Behavior (single-timeframe; mean-reversion; entries require both gates):
   - Entry (flat only):
       * close < lower AND RSI < rsiLo (default 30) -> long
       * close > upper AND RSI > rsiHi (default 70) -> short
-  - Exit (crossing semantics):
-      * long position: prev_close < prev_middle AND close >= middle -> flat
-      * short position: prev_close > prev_middle AND close <= middle -> flat
+  - Exit (threshold, mirrors source bot):
+      * long position: close >= middle -> flat
+      * short position: close <= middle -> flat
   - No RTH gate, no ADX gate, no carry filter -- pure mean-reversion.
-
-Note: the JS source uses a threshold exit (`last >= m` for long, `last <= m`
-for short) rather than the crossing variant used here. The Phase 3 port
-adopts the crossing form so a fresh entry that landed above the middle is
-not immediately closed on the same bar. Golden-output parity for `bbrsi`
-is not part of Phase 3 acceptance (no committed fixture exists yet).
 """
 from __future__ import annotations
 
@@ -80,8 +74,6 @@ class BbRsiStrategy:
         lo = float(lower.iloc[-1])
         r = float(rsi_series.iloc[-1])
         c = float(closes.iloc[-1])
-        prev_c = float(closes.iloc[-2])
-        prev_m = float(middle.iloc[-2])
 
         if any(math.isnan(v) for v in (m, u, lo, r)):
             return StrategyResult(target=carry, meta={"phase": "warmup"})
@@ -101,12 +93,10 @@ class BbRsiStrategy:
             elif c > u and r > rsi_hi:
                 target = -1
         elif carry > 0:
-            crossed_up = (not math.isnan(prev_m)) and prev_c < prev_m and c >= m
-            if crossed_up:
+            if c >= m:
                 target = 0
         else:
-            crossed_down = (not math.isnan(prev_m)) and prev_c > prev_m and c <= m
-            if crossed_down:
+            if c <= m:
                 target = 0
 
         return StrategyResult(target=target, meta=meta)
