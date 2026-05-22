@@ -5,7 +5,6 @@ from datetime import UTC, datetime, timedelta
 import pandas as pd  # type: ignore[import-untyped]
 
 from app.strategies._patterns import (
-    FvgZone,
     find_recent_fvg,
     find_swing_high_low,
     pivot_low,

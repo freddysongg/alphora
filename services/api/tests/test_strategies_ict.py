@@ -146,7 +146,7 @@ def test_ict_matches_source_bot_bar_for_bar() -> None:
         )
 
 
-from app.services.backtest_engine import simulate  # noqa: E402,F811
+from app.services.backtest_engine import simulate  # noqa: E402
 
 _SPY_FIXTURE = _FIXTURES_DIR / "spy_30day_1min.json"
 

@@ -87,15 +87,15 @@ def test_long_breakout_path_returns_valid_target() -> None:
     s = OrbSafeStrategy()
     base = datetime(2026, 6, 15, 13, 30, tzinfo=UTC)
     or_closes = [100.0] * 30
-    closes = or_closes + [100.6]
+    closes = [*or_closes, 100.6]
     bars = _rth_bars(day=base, n=31, closes=closes)
     r = s.evaluate(primary_bars=bars, secondary_bars={}, current_position=0, params={})
     assert r.target in (0, 1)
     assert "phase" in r.meta
 
 
-import json  # noqa: E402,F811
-from pathlib import Path  # noqa: E402,F811
+import json  # noqa: E402
+from pathlib import Path  # noqa: E402
 
 _FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -160,7 +160,7 @@ def test_orb_safe_matches_source_bot_bar_for_bar() -> None:
         )
 
 
-from app.services.backtest_engine import simulate  # noqa: E402,F811
+from app.services.backtest_engine import simulate  # noqa: E402
 
 _SPY_FIXTURE = _FIXTURES_DIR / "spy_30day_1min.json"
 

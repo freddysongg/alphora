@@ -94,10 +94,10 @@ def test_no_secondary_returns_warmup_for_adx() -> None:
     assert r.target == 0
 
 
-import json  # noqa: E402,F811
-from pathlib import Path  # noqa: E402,F811
+import json  # noqa: E402
+from pathlib import Path  # noqa: E402
 
-from app.services.timeframes import resample_bars_to_timeframe  # noqa: E402,F811
+from app.services.timeframes import resample_bars_to_timeframe  # noqa: E402
 
 _FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -178,7 +178,7 @@ def test_confluence_long_matches_source_bot_bar_for_bar() -> None:
         )
 
 
-from app.services.backtest_engine import simulate  # noqa: E402,F811
+from app.services.backtest_engine import simulate  # noqa: E402
 
 _SPY_FIXTURE = _FIXTURES_DIR / "spy_30day_1min.json"
 

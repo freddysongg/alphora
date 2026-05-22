@@ -88,8 +88,8 @@ def test_meta_records_band_levels_and_rsi() -> None:
     assert "rsi" in r.meta
 
 
-import json  # noqa: E402,F811
-from pathlib import Path  # noqa: E402,F811
+import json  # noqa: E402
+from pathlib import Path  # noqa: E402
 
 _FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -154,7 +154,7 @@ def test_bb_rsi_matches_source_bot_bar_for_bar() -> None:
         )
 
 
-from app.services.backtest_engine import simulate  # noqa: E402,F811
+from app.services.backtest_engine import simulate  # noqa: E402
 
 _SPY_FIXTURE = _FIXTURES_DIR / "spy_30day_1min.json"
 

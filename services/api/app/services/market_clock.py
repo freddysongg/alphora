@@ -90,10 +90,10 @@ def is_us_market_open(now: datetime | None = None) -> bool:
 
 
 __all__ = [
-    "EtClock",
     "MORNING_CUTOFF_ET_MIN",
     "RTH_CLOSE_ET_MIN",
     "RTH_OPEN_ET_MIN",
+    "EtClock",
     "et_day",
     "et_minutes",
     "is_us_market_open",
