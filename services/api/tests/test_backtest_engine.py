@@ -363,6 +363,63 @@ def test_simulate_force_closes_open_long_at_last_close() -> None:
     assert abs(final.exit_price - expected_exit) < 1e-9
 
 
+def test_simulate_open_position_equity_reflects_entry_commission() -> None:
+    """With nonzero commission, equity_per_bar for a bar with an open
+    position must include the entry commission already charged at open.
+    Without this, equity overstates until the trade closes."""
+    from app.strategies.base import Bars, StrategyParams, StrategyResult, Timeframe
+
+    class _LongFromBar1WithCommission(MacdRsiAdxStrategy):
+        def evaluate(
+            self,
+            primary_bars: Bars,
+            secondary_bars: dict[Timeframe, Bars],
+            current_position: int,
+            params: StrategyParams,
+        ) -> StrategyResult:
+            if len(primary_bars) == 1:
+                return StrategyResult(target=0, meta={})
+            return StrategyResult(target=1, meta={})
+
+    base = datetime(2026, 6, 15, 13, 30, tzinfo=UTC)
+    n = 5
+    slip = SlippageModel().per_share_cents / 100.0
+    idx = [base + timedelta(minutes=i) for i in range(n)]
+    bars = pd.DataFrame(
+        {
+            "open": [100.0] * n,
+            "high": [100.0] * n,
+            "low": [100.0] * n,
+            "close": [100.0] * n,
+            "volume": [1000.0] * n,
+        },
+        index=pd.DatetimeIndex(idx, tz="UTC"),
+    )
+    result = simulate(
+        bars=bars,
+        strategy=_LongFromBar1WithCommission(),
+        params={},
+        commission=CommissionModel(per_trade_usd=0.5),
+    )
+    # Bars 0 and 1: flat, no position. Strategy returns target=0 at i=0
+    # so no pending entry, and target=1 at i=1 defers fill to i=2.
+    assert result.equity_per_bar[0] == 0.0
+    assert result.equity_per_bar[1] == 0.0
+    # Bar 2: long entry materializes at open[2] + slippage = 100.02. Mark
+    # against close[2]=100.0 is -0.02. With the fix, equity also includes
+    # the entry commission -0.5 already charged on the open trade, so
+    # equity[2] = -0.5 + -0.02 = -0.52. Without the fix, equity[2] = -0.02.
+    assert abs(result.equity_per_bar[2] - (-0.5 - slip)) < 1e-9
+    # Bar 3: still open, still flat. equity stays at -0.52.
+    assert abs(result.equity_per_bar[3] - (-0.5 - slip)) < 1e-9
+    # Bar 4: final-bar force-close. realized_pnl folds in both fills'
+    # commissions and both fills' slippage: -0.5 (entry) + (99.98-100.02)
+    # + -0.5 (exit) = -1.04. The force-close path recomputes
+    # equity_per_bar[-1] = realized_pnl, so this assertion holds with or
+    # without the fix — it's a sanity check.
+    assert abs(result.equity_per_bar[4] - (-1.0 - 2 * slip)) < 1e-9
+
+
 def test_simulate_force_closes_open_short_at_last_close() -> None:
     class _ShortFromBar1ToEnd(MacdRsiAdxStrategy):
         def evaluate(self, primary_bars, secondary_bars, current_position, params):  # type: ignore[override]
