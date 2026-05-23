@@ -128,7 +128,18 @@ def _load_golden(name: str) -> list[dict[str, object]]:
     return raw
 
 
-def test_gap_fill_matches_source_bot_bar_for_bar() -> None:
+def test_gap_fill_matches_committed_snapshot_bar_for_bar() -> None:
+    """Snapshot regression test (NOT source-bot parity).
+
+    The committed gap_fill_golden.json was originally captured from the
+    Node source bot, but the source bot had a known semantic bug in its
+    reference-price walkback (today_open ended at the latest today-RTH
+    bar; prior_close ended at the earliest prior-day RTH bar). The Python
+    port now uses the corrected semantics (today_open = 09:30 ET open;
+    prior_close = 16:00 ET close), and the golden JSON has been
+    regenerated from this Python implementation. Going forward, this
+    test guards against regressions of the corrected behavior.
+    """
     s = GapFillStrategy()
     bars = _load_input_bars("gap_fill")
     golden = _load_golden("gap_fill")

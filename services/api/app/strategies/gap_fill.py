@@ -76,18 +76,14 @@ class GapFillStrategy:
         prior_day: str | None = None
         for j in range(n - 1, -1, -1):
             clock = to_et(primary_bars.index[j])
-            if (
-                clock.day == today
-                and clock.minutes >= RTH_OPEN_ET_MIN
-                and today_open is None
-            ):
+            if clock.day == today and clock.minutes >= RTH_OPEN_ET_MIN:
                 today_open = float(primary_bars["open"].iloc[j])
             if clock.day != today and RTH_OPEN_ET_MIN <= clock.minutes < RTH_CLOSE_ET_MIN:
                 if prior_day is None:
                     prior_day = clock.day
-                if clock.day == prior_day:
+                if clock.day == prior_day and prior_close is None:
                     prior_close = float(primary_bars["close"].iloc[j])
-                elif prior_day is not None:
+                if prior_day is not None and clock.day != prior_day:
                     break
 
         if today_open is None or prior_close is None:
