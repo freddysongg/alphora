@@ -258,15 +258,29 @@ class AlpacaAdapter:
         raw_orders = await asyncio.to_thread(self._trading.get_orders, req)
         return [_translate_order(raw) for raw in raw_orders]
 
-    # ---- Streaming methods — deferred to Phase 4 ----
+    # ---- Streaming methods ----
+    # The Protocol declares these as sync `def -> AsyncIterator`, so the
+    # impl must NOT be `async def + yield` (that would be the wrong shape).
+    # Public methods return the iterator produced by a private async-gen helper.
 
-    async def stream_bars(
+    def stream_bars(
         self, tickers: list[str], timeframe: Timeframe
     ) -> AsyncIterator[Bar]:
-        raise NotImplementedError("stream_bars is implemented in Phase 4")
-        # unreachable, but required to satisfy AsyncIterator return type
-        yield
+        return self._stream_bars_impl(tickers, timeframe)
 
-    async def stream_order_updates(self) -> AsyncIterator[Order]:
-        raise NotImplementedError("stream_order_updates is implemented in Phase 4")
+    async def _stream_bars_impl(
+        self, tickers: list[str], timeframe: Timeframe
+    ) -> AsyncIterator[Bar]:
+        raise NotImplementedError(
+            "AlpacaAdapter.stream_bars is wired in Phase 4c via StockDataStream"
+        )
+        yield  # unreachable; required for async generator typing
+
+    def stream_order_updates(self) -> AsyncIterator[Order]:
+        return self._stream_order_updates_impl()
+
+    async def _stream_order_updates_impl(self) -> AsyncIterator[Order]:
+        raise NotImplementedError(
+            "AlpacaAdapter.stream_order_updates is wired in Phase 4c via TradingStream"
+        )
         yield

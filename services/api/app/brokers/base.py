@@ -147,5 +147,14 @@ class BrokerAdapter(Protocol):
 
     def stream_bars(
         self, tickers: list[str], timeframe: Timeframe
-    ) -> AsyncIterator[Bar]: ...
-    def stream_order_updates(self) -> AsyncIterator[Order]: ...
+    ) -> AsyncIterator[Bar]:
+        """Subscribe to real-time bars. Returns an AsyncIterator immediately
+        (no await needed). The iterator yields `Bar` instances until the
+        underlying connection closes or the caller cancels the task."""
+        ...
+
+    def stream_order_updates(self) -> AsyncIterator[Order]:
+        """Subscribe to real-time order updates. Returns an AsyncIterator
+        immediately (no await needed). Yields `Order` whenever an order
+        transitions (new, partial fill, fill, cancel, reject)."""
+        ...
