@@ -36,6 +36,7 @@ from app.config import get_settings
 
 if TYPE_CHECKING:
     from alpaca.data.historical.stock import StockHistoricalDataClient
+    from alpaca.data.live.stock import StockDataStream
     from alpaca.data.models import Quote as AlpacaQuote
     from alpaca.data.models import Trade as AlpacaTrade
     from alpaca.trading.client import TradingClient
@@ -202,6 +203,20 @@ class AlpacaAdapter:
         data = StockHistoricalDataClient(api_key=key, secret_key=secret)
         return cls(trading_client=trading, data_client=data, mode=settings.alpaca_mode)
 
+    def _stock_data_stream_factory(self) -> StockDataStream:
+        """Construct the underlying StockDataStream. Overridable for tests."""
+        from alpaca.data.live.stock import StockDataStream
+
+        settings = get_settings()
+        if settings.alpaca_api_key is None or settings.alpaca_api_secret is None:
+            raise RuntimeError(
+                "ALPACA_API_KEY and ALPACA_API_SECRET must be set to stream bars"
+            )
+        return StockDataStream(
+            api_key=settings.alpaca_api_key.get_secret_value(),
+            secret_key=settings.alpaca_api_secret.get_secret_value(),
+        )
+
     # ---- Phase 0 methods (placeholders, implemented in later tasks) ----
 
     async def get_account(self) -> Account:
@@ -311,10 +326,49 @@ class AlpacaAdapter:
     async def _stream_bars_impl(
         self, tickers: list[str], timeframe: Timeframe
     ) -> AsyncIterator[Bar]:
-        raise NotImplementedError(
-            "AlpacaAdapter.stream_bars is wired in Phase 4c via StockDataStream"
-        )
-        yield  # unreachable; required for async generator typing
+        queue: asyncio.Queue[Bar] = asyncio.Queue(maxsize=1024)
+
+        async def _on_bar(raw_bar) -> None:  # type: ignore[no-untyped-def]
+            bar = Bar(
+                ticker=str(raw_bar.symbol),
+                timeframe=timeframe,
+                open=Decimal(str(raw_bar.open)),
+                high=Decimal(str(raw_bar.high)),
+                low=Decimal(str(raw_bar.low)),
+                close=Decimal(str(raw_bar.close)),
+                volume=Decimal(str(raw_bar.volume)),
+                vwap=Decimal(str(raw_bar.vwap)) if getattr(raw_bar, "vwap", None) else None,
+                as_of=raw_bar.timestamp,
+            )
+            try:
+                queue.put_nowait(bar)
+            except asyncio.QueueFull:
+                try:
+                    queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    pass
+                queue.put_nowait(bar)
+
+        stream = self._stock_data_stream_factory()
+        stream.subscribe_bars(_on_bar, *tickers)
+        # alpaca-py types `run` as sync `() -> None`, but in this context we
+        # need an awaitable so we can schedule it as a background task without
+        # blocking the event loop. Test doubles use AsyncMock; production
+        # callers should override the factory to expose `_run_forever` if the
+        # public `run()` shape proves unworkable in a real event loop.
+        run_coro = stream.run()  # type: ignore[func-returns-value]
+        run_task: asyncio.Task[None] = asyncio.create_task(run_coro)  # type: ignore[arg-type]
+
+        try:
+            while True:
+                bar = await queue.get()
+                yield bar
+        finally:
+            run_task.cancel()
+            try:
+                await stream.close()
+            except Exception:
+                pass
 
     def stream_order_updates(self) -> AsyncIterator[Order]:
         return self._stream_order_updates_impl()
