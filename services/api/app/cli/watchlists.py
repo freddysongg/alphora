@@ -60,9 +60,11 @@ def cmd_create(
     is_active: bool = typer.Option(True, "--is-active/--no-active"),
 ) -> None:
     """Create an empty watchlist."""
-    if source not in {WatchlistSource.manual.value, WatchlistSource.research.value}:
+    allowed_sources = {s.value for s in WatchlistSource}
+    if source not in allowed_sources:
+        allowed_display = " | ".join(sorted(allowed_sources))
         raise typer.BadParameter(
-            f"--source must be 'manual' or 'research'; got {source!r}"
+            f"--source must be one of: {allowed_display}; got {source!r}"
         )
     asyncio.run(_create(name=name, source=source, is_active=is_active))
 
