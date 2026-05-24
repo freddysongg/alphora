@@ -19,6 +19,7 @@ EVENT_RUN_STARTED: Final[str] = "run_started"
 EVENT_RUN_STOPPED: Final[str] = "run_stopped"
 EVENT_EVALUATE: Final[str] = "evaluate"
 EVENT_SIGNAL: Final[str] = "signal"
+EVENT_NOT_TRADABLE: Final[str] = "not_tradable"
 EVENT_RISK_REJECT: Final[str] = "risk_reject"
 EVENT_RISK_THROTTLE: Final[str] = "risk_throttle"
 EVENT_RISK_HALT: Final[str] = "risk_halt"
@@ -63,6 +64,7 @@ __all__ = [
     "EVENT_EOD_FLATTEN",
     "EVENT_EVALUATE",
     "EVENT_JUDGE_VERDICT",
+    "EVENT_NOT_TRADABLE",
     "EVENT_ORDER_FILL",
     "EVENT_ORDER_REJECT",
     "EVENT_ORDER_SUBMIT",

@@ -59,6 +59,7 @@ from app.services.strategy_run_events import (
     EVENT_EOD_FLATTEN,
     EVENT_EVALUATE,
     EVENT_JUDGE_VERDICT,
+    EVENT_NOT_TRADABLE,
     EVENT_ORDER_FILL,
     EVENT_ORDER_REJECT,
     EVENT_ORDER_SUBMIT,
@@ -443,12 +444,45 @@ async def _submit_via_gates(
     proposed: ProposedOrder,
     strategy_meta: dict[str, float | str],
 ) -> None:
-    """Risk -> judge -> approval -> broker -> mirror. Side-effects via session.
+    """Tradability -> risk -> judge -> approval -> broker -> mirror.
+
+    Spec §8.3 step 1: tradability is the first gate. Halted symbols
+    reject every order (open or close). Non-tradable (e.g. delisted)
+    symbols reject every order. A SELL that opens a new short on a
+    non-shortable symbol is rejected too; closing trades (buy-to-cover
+    or sell-to-close) only need is_tradable + not-halted.
 
     Emits the full chain of decision events to `strategy_run_events` so
     audit queries can answer "why did/didn't trade X happen". Returns
     early without submitting whenever any gate blocks the order.
     """
+    tradability = await ctx.broker.is_tradable(proposed.ticker)
+    block_reason: str | None = None
+    if tradability.is_halted:
+        block_reason = "halted"
+    elif not tradability.is_tradable:
+        block_reason = "not_tradable"
+    elif (
+        proposed.side == "sell"
+        and not proposed.is_closing
+        and not tradability.is_shortable
+    ):
+        block_reason = "not_shortable"
+    if block_reason is not None:
+        await _emit_event(
+            ctx,
+            kind=EVENT_NOT_TRADABLE,
+            level=StrategyRunEventLevel.warn,
+            payload={
+                "ticker": proposed.ticker,
+                "side": proposed.side,
+                "qty": str(proposed.qty),
+                "reason": block_reason,
+            },
+            bar_ts=bar.as_of,
+        )
+        return
+
     profile = await _load_risk_profile(ctx)
     snapshot = _portfolio_snapshot(ctx)
     gate = check_pre_order(profile=profile, portfolio=snapshot, order=proposed)

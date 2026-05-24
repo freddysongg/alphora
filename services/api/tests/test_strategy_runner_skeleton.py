@@ -14,7 +14,7 @@ import pytest
 from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
-from app.brokers.base import Bar, Position
+from app.brokers.base import Bar, Position, TradabilityCheck
 from app.db.models_strategy_runner import (
     StrategyRun,
     StrategyRunEvent,
@@ -49,6 +49,15 @@ class _StubBroker:
 
     async def get_positions(self) -> list[Position]:
         return []
+
+    async def is_tradable(self, ticker: str) -> TradabilityCheck:
+        return TradabilityCheck(
+            ticker=ticker,
+            is_tradable=True,
+            is_shortable=True,
+            is_halted=False,
+            fractionable=True,
+        )
 
     def stream_bars(self, tickers: list[str], timeframe: str) -> AsyncIterator[Bar]:
         async def _gen() -> AsyncIterator[Bar]:

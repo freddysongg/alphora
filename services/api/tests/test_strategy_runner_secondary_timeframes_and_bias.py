@@ -24,7 +24,7 @@ from sqlalchemy.engine.interfaces import DBAPIConnection
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.pool import ConnectionPoolEntry
 
-from app.brokers.base import Bar, Position
+from app.brokers.base import Bar, Position, TradabilityCheck
 from app.db.models_strategy_runner import (
     StrategyRun,
     StrategyRunMode,
@@ -58,6 +58,15 @@ class _RecordingBroker:
 
     async def get_positions(self) -> list[Position]:
         return list(self._positions)
+
+    async def is_tradable(self, ticker: str) -> TradabilityCheck:
+        return TradabilityCheck(
+            ticker=ticker,
+            is_tradable=True,
+            is_shortable=True,
+            is_halted=False,
+            fractionable=True,
+        )
 
     def stream_bars(self, tickers: list[str], timeframe: Timeframe) -> AsyncIterator[Bar]:
         async def _gen() -> AsyncIterator[Bar]:
