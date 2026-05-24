@@ -65,9 +65,10 @@ from app.services.strategy_run_events import (
     EVENT_RISK_THROTTLE,
     EVENT_RUN_STARTED,
     EVENT_RUN_STOPPED,
+    EVENT_STOP_HIT,
     emit_strategy_run_event,
 )
-from app.services.trail_manager import TrailMode, TrailState
+from app.services.trail_manager import TrailMode, TrailState, update_trail
 from app.strategies.base import Strategy, StrategyParams, StrategyResult
 
 _DEFAULT_ADOPTION_STOP_FRACTION: Decimal = Decimal("0.05")
@@ -172,6 +173,41 @@ async def _process_bar(ctx: StrategyRunnerContext, bar: Bar) -> None:
         },
         bar_ts=bar.as_of,
     )
+
+    if ctx.trail_state is not None and result.trail is not None:
+        new_state, exit_signal = update_trail(
+            state=ctx.trail_state,
+            bar=bar,
+            trail_spec=result.trail,
+            meta=result.meta,
+        )
+        ctx.trail_state = new_state
+        if exit_signal is not None:
+            await _emit_event(
+                ctx,
+                kind=EVENT_STOP_HIT,
+                level=StrategyRunEventLevel.warn,
+                payload={
+                    "reason": exit_signal.reason,
+                    "exit_price": str(exit_signal.exit_price),
+                },
+                bar_ts=bar.as_of,
+            )
+            close_qty = abs(ctx.current_position)
+            close_side: Literal["buy", "sell"] = (
+                "sell" if ctx.current_position > 0 else "buy"
+            )
+            closing = ProposedOrder(
+                ticker=ctx.ticker,
+                side=close_side,
+                qty=close_qty,
+                estimated_fill_price=exit_signal.exit_price,
+                is_closing=True,
+            )
+            await _submit_via_gates(
+                ctx, bar=bar, proposed=closing, strategy_meta=eval_meta
+            )
+            return
 
     current_sign = _bias_sign(ctx.current_position)
     if result.target == current_sign:
@@ -519,6 +555,38 @@ async def _submit_via_gates(
             },
             bar_ts=bar.as_of,
         )
+        if not proposed.is_closing and ctx.trail_state is None:
+            side_trail: Literal["long", "short"] = (
+                "long" if order_request.side == "buy" else "short"
+            )
+            entry_price = proposed.estimated_fill_price
+            stop_pts_value: Decimal | None = None
+            raw_stop = strategy_meta.get("stop_pts")
+            if isinstance(raw_stop, (int, float)):
+                stop_pts_value = Decimal(str(raw_stop))
+            if stop_pts_value is not None and stop_pts_value > 0:
+                initial_stop = (
+                    entry_price - stop_pts_value
+                    if side_trail == "long"
+                    else entry_price + stop_pts_value
+                )
+            else:
+                initial_stop = (
+                    entry_price * (Decimal("1") - _DEFAULT_ADOPTION_STOP_FRACTION)
+                    if side_trail == "long"
+                    else entry_price * (Decimal("1") + _DEFAULT_ADOPTION_STOP_FRACTION)
+                )
+            ctx.trail_state = TrailState(
+                side=side_trail,
+                entry_price=entry_price,
+                high_watermark=entry_price,
+                low_watermark=entry_price,
+                current_stop=initial_stop,
+                mode=TrailMode.initial,
+            )
+        if proposed.is_closing:
+            ctx.trail_state = None
+            ctx.last_exit_bar_ts = bar.as_of
 
 
 def _map_broker_status(raw: str) -> str:
