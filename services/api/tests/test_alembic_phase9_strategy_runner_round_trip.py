@@ -20,22 +20,24 @@ def _run_alembic(args: list[str], db_path: Path) -> subprocess.CompletedProcess[
 def test_phase9_strategy_runner_migration_round_trip() -> None:
     """Round-trip migration through Phase 4 head (022).
 
+    Scoped to Phase 4's revisions. Does NOT run `alembic check` -- the
+    drift check at HEAD lives in test_alembic_phase10_watchlist_source_round_trip.py.
+
     Verifies:
-    - upgrade head reaches 022 without error
-    - `alembic check` reports no drift between head and ORM metadata
+    - upgrade 022 succeeds (Phase 4 head reachable)
+    - current is 022
     - downgrade to 019 succeeds (back to Phase 3 head)
-    - upgrade back to head succeeds (re-apply 020 + 021 + 022)
+    - upgrade back to 022 succeeds (re-apply 020 + 021 + 022)
     - downgrade to base succeeds (full teardown)
     """
     with tempfile.TemporaryDirectory() as tmp:
         db_path = Path(tmp) / "alembic_phase9.db"
-        _run_alembic(["upgrade", "head"], db_path)
+        _run_alembic(["upgrade", "022"], db_path)
         current = _run_alembic(["current"], db_path)
         assert "022" in current.stdout + current.stderr, (
-            f"expected head=022; got stdout={current.stdout!r} stderr={current.stderr!r}"
+            f"expected head=022; got stdout={current.stdout!r} "
+            f"stderr={current.stderr!r}"
         )
-        check = _run_alembic(["check"], db_path)
-        assert "No new upgrade operations detected" in check.stdout + check.stderr
         _run_alembic(["downgrade", "019"], db_path)
-        _run_alembic(["upgrade", "head"], db_path)
+        _run_alembic(["upgrade", "022"], db_path)
         _run_alembic(["downgrade", "base"], db_path)
