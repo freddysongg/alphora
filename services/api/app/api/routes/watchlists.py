@@ -32,7 +32,12 @@ async def list_watchlists(session: SessionDep) -> list[WatchlistPublic]:
 async def create_watchlist(
     payload: WatchlistCreate, session: SessionDep
 ) -> WatchlistPublic:
-    watchlist = Watchlist(id=uuid.uuid4(), name=payload.name)
+    watchlist = Watchlist(
+        id=uuid.uuid4(),
+        name=payload.name,
+        source=payload.source,
+        is_active=payload.is_active,
+    )
     session.add(watchlist)
     await session.commit()
     await session.refresh(watchlist)
@@ -57,6 +62,9 @@ async def get_watchlist(
         {
             "id": watchlist.id,
             "name": watchlist.name,
+            "source": watchlist.source,
+            "is_active": watchlist.is_active,
+            "last_built_at": watchlist.last_built_at,
             "created_at": watchlist.created_at,
             "members": [
                 WatchlistMemberPublic.model_validate(member)
