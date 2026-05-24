@@ -24,7 +24,7 @@ async def test_stream_bars_yields_bars_from_callback() -> None:
 
     fake_stream = MagicMock()
     fake_stream.subscribe_bars = MagicMock()
-    fake_stream.run = AsyncMock(side_effect=lambda: asyncio.sleep(10))
+    fake_stream._run_forever = AsyncMock(side_effect=lambda: asyncio.sleep(10))
     fake_stream.close = AsyncMock()
     adapter._stock_data_stream_factory = lambda: fake_stream  # type: ignore[method-assign]
 
@@ -72,7 +72,7 @@ async def test_stream_bars_subscribe_uses_correct_symbol_list() -> None:
     adapter = AlpacaAdapter(trading_client=trading, data_client=data, mode="paper")
     fake_stream = MagicMock()
     fake_stream.subscribe_bars = MagicMock()
-    fake_stream.run = AsyncMock(side_effect=lambda: asyncio.sleep(10))
+    fake_stream._run_forever = AsyncMock(side_effect=lambda: asyncio.sleep(10))
     fake_stream.close = AsyncMock()
     adapter._stock_data_stream_factory = lambda: fake_stream  # type: ignore[method-assign]
 
@@ -94,4 +94,32 @@ async def test_stream_bars_subscribe_uses_correct_symbol_list() -> None:
     args = fake_stream.subscribe_bars.call_args
     assert args[0][1] == "SPY"
     assert args[0][2] == "QQQ"
+    await iterator.aclose()
+
+
+@pytest.mark.asyncio
+async def test_stream_bars_awaits_run_forever_not_sync_run() -> None:
+    """`StockDataStream.run()` is sync and internally calls `asyncio.run()`,
+    which raises when invoked from inside an existing event loop. The adapter
+    must schedule the underlying `_run_forever()` coroutine instead."""
+    trading = MagicMock()
+    data = MagicMock()
+    adapter = AlpacaAdapter(trading_client=trading, data_client=data, mode="paper")
+    fake_stream = MagicMock()
+    fake_stream.subscribe_bars = MagicMock()
+    fake_stream._run_forever = AsyncMock(side_effect=lambda: asyncio.sleep(10))
+    fake_stream.run = MagicMock(side_effect=AssertionError("must not call sync run()"))
+    fake_stream.close = AsyncMock()
+    adapter._stock_data_stream_factory = lambda: fake_stream  # type: ignore[method-assign]
+
+    iterator = cast(
+        AsyncGenerator[Bar, None], adapter.stream_bars(["SPY"], "1min")
+    )
+    try:
+        await asyncio.wait_for(iterator.__anext__(), timeout=0.1)
+    except TimeoutError:
+        pass
+    await asyncio.sleep(0.02)
+    fake_stream._run_forever.assert_awaited()
+    fake_stream.run.assert_not_called()
     await iterator.aclose()

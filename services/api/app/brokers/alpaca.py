@@ -367,13 +367,11 @@ class AlpacaAdapter:
 
         stream = self._stock_data_stream_factory()
         stream.subscribe_bars(_on_bar, *tickers)
-        # alpaca-py types `run` as sync `() -> None`, but in this context we
-        # need an awaitable so we can schedule it as a background task without
-        # blocking the event loop. Test doubles use AsyncMock; production
-        # callers should override the factory to expose `_run_forever` if the
-        # public `run()` shape proves unworkable in a real event loop.
-        run_coro = stream.run()  # type: ignore[func-returns-value]
-        run_task: asyncio.Task[None] = asyncio.create_task(run_coro)  # type: ignore[arg-type]
+        # alpaca-py's public `run()` is sync and calls `asyncio.run(_run_forever())`
+        # internally -- starting a nested event loop here would raise. We schedule
+        # the underlying `_run_forever()` coroutine directly. It is a private API
+        # but is the only async-compatible entry point alpaca-py exposes today.
+        run_task: asyncio.Task[None] = asyncio.create_task(stream._run_forever())
 
         try:
             while True:
@@ -406,13 +404,9 @@ class AlpacaAdapter:
 
         stream = self._trading_stream_factory()
         stream.subscribe_trade_updates(_on_event)
-        # alpaca-py types `run` as sync `() -> None`, but in this context we
-        # need an awaitable so we can schedule it as a background task without
-        # blocking the event loop. Test doubles use AsyncMock; production
-        # callers should override the factory to expose `_run_forever` if the
-        # public `run()` shape proves unworkable in a real event loop.
-        run_coro = stream.run()  # type: ignore[func-returns-value]
-        run_task: asyncio.Task[None] = asyncio.create_task(run_coro)  # type: ignore[arg-type]
+        # See _stream_bars_impl for the alpaca-py sync `run()` rationale -- we
+        # await the underlying `_run_forever()` coroutine instead.
+        run_task: asyncio.Task[None] = asyncio.create_task(stream._run_forever())  # type: ignore[no-untyped-call]
 
         try:
             while True:
