@@ -69,6 +69,16 @@ from app.db.models_runs import (
 from app.db.models_sector import SectorBrief
 from app.db.models_settings import ApplicationSettings, LlmProvider
 from app.db.models_strategy import StrategyConfig
+from app.db.models_strategy_runner import (
+    StrategyLiveOrder,
+    StrategyLiveOrderStatus,
+    StrategyRiskConfig,
+    StrategyRun,
+    StrategyRunEvent,
+    StrategyRunEventLevel,
+    StrategyRunMode,
+    StrategyRunStatus,
+)
 
 __all__ = [
     "AnalystKind",
@@ -131,6 +141,14 @@ __all__ = [
     "SectorBrief",
     "SourceProvenance",
     "StrategyConfig",
+    "StrategyLiveOrder",
+    "StrategyLiveOrderStatus",
+    "StrategyRiskConfig",
+    "StrategyRun",
+    "StrategyRunEvent",
+    "StrategyRunEventLevel",
+    "StrategyRunMode",
+    "StrategyRunStatus",
     "TimestampMixin",
     "Watchlist",
     "WatchlistMember",
