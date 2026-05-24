@@ -30,6 +30,7 @@ EVENT_ORDER_FILL: Final[str] = "order_fill"
 EVENT_POSITION_ADOPTION: Final[str] = "position_adoption"
 EVENT_STOP_HIT: Final[str] = "stop_hit"
 EVENT_EOD_FLATTEN: Final[str] = "eod_flatten"
+EVENT_UNIVERSE_RESOLVED: Final[str] = "universe_resolved"
 
 
 def emit_strategy_run_event(
@@ -73,5 +74,6 @@ __all__ = [
     "EVENT_RUN_STOPPED",
     "EVENT_SIGNAL",
     "EVENT_STOP_HIT",
+    "EVENT_UNIVERSE_RESOLVED",
     "emit_strategy_run_event",
 ]
