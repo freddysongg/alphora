@@ -104,7 +104,8 @@ async def test_rebuild_research_endpoint_populates_members(
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["count"] == 1
-    detail_response = TestClient(app).get(f"/api/watchlists/{watchlist.id}")
+    with TestClient(app) as detail_client:
+        detail_response = detail_client.get(f"/api/watchlists/{watchlist.id}")
     detail = detail_response.json()
     assert [m["ticker"] for m in detail["members"]] == ["NVDA"]
     assert detail["last_built_at"] is not None
