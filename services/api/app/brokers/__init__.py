@@ -32,8 +32,8 @@ from app.brokers.base import (
 )
 from app.brokers.errors import (
     BrokerError,
-    OrderRejectedError,
-    TradabilityError,
+    BrokerOrderRejected,
+    BrokerTransientError,
 )
 from app.brokers.factory import get_broker_adapter
 
@@ -44,8 +44,9 @@ __all__ = [
     "BrokerAdapter",
     "BrokerError",
     "BrokerMode",
+    "BrokerOrderRejected",
+    "BrokerTransientError",
     "Order",
-    "OrderRejectedError",
     "OrderRequest",
     "OrderResponse",
     "OrderSide",
@@ -58,6 +59,5 @@ __all__ = [
     "TimeInForce",
     "Timeframe",
     "TradabilityCheck",
-    "TradabilityError",
     "get_broker_adapter",
 ]

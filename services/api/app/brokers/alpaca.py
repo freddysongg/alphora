@@ -31,6 +31,7 @@ from app.brokers.base import (
     Timeframe,
     TradabilityCheck,
 )
+from app.brokers.errors import BrokerError, BrokerOrderRejected, BrokerTransientError
 from app.config import get_settings
 
 if TYPE_CHECKING:
@@ -97,6 +98,24 @@ _STATUS_MAP: dict[str, OrderStatus] = {
 
 def _translate_status(raw: str) -> OrderStatus:
     return _STATUS_MAP.get(raw.lower(), "rejected")
+
+
+def _wrap_broker_call(exc: BaseException, *, request: OrderRequest | None = None) -> BrokerError:
+    """Map an alpaca-py / httpx exception onto our BrokerError hierarchy.
+
+    `APIError` from `alpaca.common.exceptions` covers broker-level
+    rejections. `httpx.HTTPError` subclasses cover transport failures.
+    Anything else falls through as a generic BrokerError so the runner
+    has one type to catch.
+    """
+    import httpx
+    from alpaca.common.exceptions import APIError
+
+    if isinstance(exc, APIError):
+        return BrokerOrderRejected(str(exc), request=request)
+    if isinstance(exc, httpx.HTTPError):
+        return BrokerTransientError(str(exc))
+    return BrokerError(str(exc))
 
 
 def _enum_value(raw: object) -> str:
@@ -186,7 +205,10 @@ class AlpacaAdapter:
     # ---- Phase 0 methods (placeholders, implemented in later tasks) ----
 
     async def get_account(self) -> Account:
-        raw = cast("TradeAccount", await asyncio.to_thread(self._trading.get_account))
+        try:
+            raw = cast("TradeAccount", await asyncio.to_thread(self._trading.get_account))
+        except Exception as exc:
+            raise _wrap_broker_call(exc) from exc
         return Account(
             account_id=str(raw.id),
             cash=Decimal(str(raw.cash)),
@@ -198,10 +220,13 @@ class AlpacaAdapter:
     async def get_quote(self, ticker: str) -> Quote:
         quote_req = StockLatestQuoteRequest(symbol_or_symbols=ticker)
         trade_req = StockLatestTradeRequest(symbol_or_symbols=ticker)
-        quote_map, trade_map = await asyncio.gather(
-            asyncio.to_thread(self._data.get_stock_latest_quote, quote_req),
-            asyncio.to_thread(self._data.get_stock_latest_trade, trade_req),
-        )
+        try:
+            quote_map, trade_map = await asyncio.gather(
+                asyncio.to_thread(self._data.get_stock_latest_quote, quote_req),
+                asyncio.to_thread(self._data.get_stock_latest_trade, trade_req),
+            )
+        except Exception as exc:
+            raise _wrap_broker_call(exc) from exc
         raw_quote = cast("AlpacaQuote", quote_map[ticker])
         raw_trade = cast("AlpacaTrade", trade_map[ticker])
         return Quote(
@@ -213,10 +238,13 @@ class AlpacaAdapter:
         )
 
     async def get_positions(self) -> list[Position]:
-        raw_positions = cast(
-            "list[AlpacaPosition]",
-            await asyncio.to_thread(self._trading.get_all_positions),
-        )
+        try:
+            raw_positions = cast(
+                "list[AlpacaPosition]",
+                await asyncio.to_thread(self._trading.get_all_positions),
+            )
+        except Exception as exc:
+            raise _wrap_broker_call(exc) from exc
         return [
             Position(
                 ticker=str(raw.symbol),
@@ -227,7 +255,10 @@ class AlpacaAdapter:
         ]
 
     async def is_tradable(self, ticker: str) -> TradabilityCheck:
-        raw = cast("AlpacaAsset", await asyncio.to_thread(self._trading.get_asset, ticker))
+        try:
+            raw = cast("AlpacaAsset", await asyncio.to_thread(self._trading.get_asset, ticker))
+        except Exception as exc:
+            raise _wrap_broker_call(exc) from exc
         is_tradable = bool(raw.tradable)
         status = str(raw.status)
         reason = None if is_tradable else f"asset status: {status}"
@@ -242,7 +273,10 @@ class AlpacaAdapter:
 
     async def place_order(self, order: OrderRequest) -> OrderResponse:
         alpaca_req = _build_alpaca_order_request(order)
-        raw = cast("AlpacaOrder", await asyncio.to_thread(self._trading.submit_order, alpaca_req))
+        try:
+            raw = cast("AlpacaOrder", await asyncio.to_thread(self._trading.submit_order, alpaca_req))
+        except Exception as exc:
+            raise _wrap_broker_call(exc, request=order) from exc
         return OrderResponse(
             broker_order_id=str(raw.id),
             client_order_id=str(raw.client_order_id) if raw.client_order_id else None,
@@ -251,11 +285,17 @@ class AlpacaAdapter:
         )
 
     async def cancel_order(self, broker_order_id: str) -> None:
-        await asyncio.to_thread(self._trading.cancel_order_by_id, broker_order_id)
+        try:
+            await asyncio.to_thread(self._trading.cancel_order_by_id, broker_order_id)
+        except Exception as exc:
+            raise _wrap_broker_call(exc) from exc
 
     async def list_orders(self, status: OrderStatusFilter = "all") -> list[Order]:
         req = GetOrdersRequest(status=_FILTER_BY_OURS[status])
-        raw_orders = await asyncio.to_thread(self._trading.get_orders, req)
+        try:
+            raw_orders = await asyncio.to_thread(self._trading.get_orders, req)
+        except Exception as exc:
+            raise _wrap_broker_call(exc) from exc
         return [_translate_order(raw) for raw in raw_orders]
 
     # ---- Streaming methods ----

@@ -82,12 +82,11 @@ def test_unused_imports_compile() -> None:
 
 
 def test_broker_error_hierarchy() -> None:
-    from app.brokers.errors import BrokerError, OrderRejectedError, TradabilityError
+    from app.brokers.errors import BrokerError, BrokerOrderRejected, BrokerTransientError
 
-    rejected = OrderRejectedError("buying power exceeded", broker_order_id="abc")
+    rejected = BrokerOrderRejected("buying power exceeded")
     assert isinstance(rejected, BrokerError)
-    assert rejected.broker_order_id == "abc"
+    assert rejected.reason == "buying power exceeded"
 
-    halted = TradabilityError("SPY halted", ticker="SPY")
-    assert isinstance(halted, BrokerError)
-    assert halted.ticker == "SPY"
+    transient = BrokerTransientError("connection reset")
+    assert isinstance(transient, BrokerError)
