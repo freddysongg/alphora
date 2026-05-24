@@ -22,6 +22,7 @@ from app.db.models_strategy_runner import (
 )
 from app.services.strategy_run_events import (
     EVENT_APPROVAL_DECISION,
+    EVENT_EOD_FLATTEN,
     EVENT_EVALUATE,
     EVENT_JUDGE_VERDICT,
     EVENT_ORDER_FILL,
@@ -102,6 +103,7 @@ async def test_emit_strategy_run_event_adds_to_session() -> None:
 def test_event_kind_constants_cover_runner_lifecycle() -> None:
     constants = {
         EVENT_APPROVAL_DECISION,
+        EVENT_EOD_FLATTEN,
         EVENT_EVALUATE,
         EVENT_JUDGE_VERDICT,
         EVENT_ORDER_FILL,
@@ -118,6 +120,7 @@ def test_event_kind_constants_cover_runner_lifecycle() -> None:
     }
     expected = {
         "approval_decision",
+        "eod_flatten",
         "evaluate",
         "judge_verdict",
         "order_fill",

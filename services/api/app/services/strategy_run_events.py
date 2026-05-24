@@ -29,6 +29,7 @@ EVENT_ORDER_REJECT: Final[str] = "order_reject"
 EVENT_ORDER_FILL: Final[str] = "order_fill"
 EVENT_POSITION_ADOPTION: Final[str] = "position_adoption"
 EVENT_STOP_HIT: Final[str] = "stop_hit"
+EVENT_EOD_FLATTEN: Final[str] = "eod_flatten"
 
 
 def emit_strategy_run_event(
@@ -58,6 +59,7 @@ def emit_strategy_run_event(
 
 __all__ = [
     "EVENT_APPROVAL_DECISION",
+    "EVENT_EOD_FLATTEN",
     "EVENT_EVALUATE",
     "EVENT_JUDGE_VERDICT",
     "EVENT_ORDER_FILL",

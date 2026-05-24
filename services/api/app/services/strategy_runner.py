@@ -42,6 +42,7 @@ from app.db.models_strategy_runner import (
 from app.services.approval_queue import ApprovalRequest, request_approval
 from app.services.llm_judge import JudgeRequest
 from app.services.llm_judge import evaluate as judge_evaluate
+from app.services.market_clock import RTH_CLOSE_ET_MIN, et_minutes
 from app.services.risk_caps import (
     PortfolioSnapshot,
     ProposedOrder,
@@ -54,6 +55,7 @@ from app.services.strategy_indicator_window import (
 )
 from app.services.strategy_run_events import (
     EVENT_APPROVAL_DECISION,
+    EVENT_EOD_FLATTEN,
     EVENT_EVALUATE,
     EVENT_JUDGE_VERDICT,
     EVENT_ORDER_FILL,
@@ -148,7 +150,12 @@ async def _process_bar(ctx: StrategyRunnerContext, bar: Bar) -> None:
     """Append bar, call evaluate, emit evaluate event, and route any bias
     change through the order-submission gate chain.
 
-    Trail updates and EOD logic land in later tasks.
+    Order of operations per bar:
+      1. Append + evaluate strategy, emit evaluate event.
+      2. Trail-manager exit (if open + spec present) -> close + return.
+      3. EOD flatten (requires_rth + last RTH minute + open) -> close + return.
+      4. Same-bar re-entry guard against `last_exit_bar_ts` -> suppress.
+      5. Bias change -> propose order -> gate chain.
     """
     ctx.indicator_window.append(bar)
     primary = ctx.indicator_window.to_frame()
@@ -193,24 +200,41 @@ async def _process_bar(ctx: StrategyRunnerContext, bar: Bar) -> None:
                 },
                 bar_ts=bar.as_of,
             )
-            close_qty = abs(ctx.current_position)
-            close_side: Literal["buy", "sell"] = (
-                "sell" if ctx.current_position > 0 else "buy"
+            await _submit_close(ctx, bar=bar, strategy_meta=eval_meta)
+            return
+
+    if ctx.strategy.requires_rth and ctx.current_position != 0:
+        if et_minutes(bar.as_of) == RTH_CLOSE_ET_MIN - 1:
+            await _emit_event(
+                ctx,
+                kind=EVENT_EOD_FLATTEN,
+                level=StrategyRunEventLevel.info,
+                payload={"position_before": str(ctx.current_position)},
+                bar_ts=bar.as_of,
             )
-            closing = ProposedOrder(
-                ticker=ctx.ticker,
-                side=close_side,
-                qty=close_qty,
-                estimated_fill_price=exit_signal.exit_price,
-                is_closing=True,
-            )
-            await _submit_via_gates(
-                ctx, bar=bar, proposed=closing, strategy_meta=eval_meta
-            )
+            await _submit_close(ctx, bar=bar, strategy_meta=eval_meta)
             return
 
     current_sign = _bias_sign(ctx.current_position)
     if result.target == current_sign:
+        return
+
+    if (
+        current_sign == 0
+        and result.target != 0
+        and ctx.last_exit_bar_ts is not None
+        and bar.as_of == ctx.last_exit_bar_ts
+    ):
+        await _emit_event(
+            ctx,
+            kind=EVENT_RISK_THROTTLE,
+            level=StrategyRunEventLevel.warn,
+            payload={
+                "reason": "same_bar_re_entry_guard",
+                "exit_bar_ts": ctx.last_exit_bar_ts.isoformat(),
+            },
+            bar_ts=bar.as_of,
+        )
         return
 
     proposed = _proposed_order(
@@ -222,6 +246,27 @@ async def _process_bar(ctx: StrategyRunnerContext, bar: Bar) -> None:
     if proposed is None:
         return
     await _submit_via_gates(ctx, bar=bar, proposed=proposed, strategy_meta=eval_meta)
+
+
+async def _submit_close(
+    ctx: StrategyRunnerContext,
+    *,
+    bar: Bar,
+    strategy_meta: dict[str, float | str],
+) -> None:
+    """Submit a closing order for the current open position via the gate chain."""
+    close_qty = abs(ctx.current_position)
+    close_side: Literal["buy", "sell"] = (
+        "sell" if ctx.current_position > 0 else "buy"
+    )
+    closing = ProposedOrder(
+        ticker=ctx.ticker,
+        side=close_side,
+        qty=close_qty,
+        estimated_fill_price=Decimal(str(bar.close)),
+        is_closing=True,
+    )
+    await _submit_via_gates(ctx, bar=bar, proposed=closing, strategy_meta=strategy_meta)
 
 
 async def _emit_event(
