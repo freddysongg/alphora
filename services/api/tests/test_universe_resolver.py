@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,10 +21,20 @@ async def test_resolve_returns_tickers_in_added_at_order(
     watchlist = Watchlist(id=uuid.uuid4(), name="manual")
     db_session.add(watchlist)
     db_session.add(
-        WatchlistMember(id=uuid.uuid4(), watchlist_id=watchlist.id, ticker="SPY")
+        WatchlistMember(
+            id=uuid.uuid4(),
+            watchlist_id=watchlist.id,
+            ticker="SPY",
+            added_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
     )
     db_session.add(
-        WatchlistMember(id=uuid.uuid4(), watchlist_id=watchlist.id, ticker="QQQ")
+        WatchlistMember(
+            id=uuid.uuid4(),
+            watchlist_id=watchlist.id,
+            ticker="QQQ",
+            added_at=datetime(2026, 1, 2, tzinfo=UTC),
+        )
     )
     await db_session.commit()
 
