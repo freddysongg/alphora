@@ -79,4 +79,4 @@ class BoundedBarBuffer:
         )
 
 
-__all__ = ["BoundedBarBuffer", "INDICATOR_WINDOW_BARS"]
+__all__ = ["INDICATOR_WINDOW_BARS", "BoundedBarBuffer"]
