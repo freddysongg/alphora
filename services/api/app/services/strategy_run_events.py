@@ -20,8 +20,13 @@ EVENT_RUN_STOPPED: Final[str] = "run_stopped"
 EVENT_EVALUATE: Final[str] = "evaluate"
 EVENT_SIGNAL: Final[str] = "signal"
 EVENT_RISK_REJECT: Final[str] = "risk_reject"
+EVENT_RISK_THROTTLE: Final[str] = "risk_throttle"
+EVENT_RISK_HALT: Final[str] = "risk_halt"
+EVENT_JUDGE_VERDICT: Final[str] = "judge_verdict"
+EVENT_APPROVAL_DECISION: Final[str] = "approval_decision"
 EVENT_ORDER_SUBMIT: Final[str] = "order_submit"
 EVENT_ORDER_REJECT: Final[str] = "order_reject"
+EVENT_ORDER_FILL: Final[str] = "order_fill"
 EVENT_POSITION_ADOPTION: Final[str] = "position_adoption"
 EVENT_STOP_HIT: Final[str] = "stop_hit"
 
@@ -52,11 +57,16 @@ def emit_strategy_run_event(
 
 
 __all__ = [
+    "EVENT_APPROVAL_DECISION",
     "EVENT_EVALUATE",
+    "EVENT_JUDGE_VERDICT",
+    "EVENT_ORDER_FILL",
     "EVENT_ORDER_REJECT",
     "EVENT_ORDER_SUBMIT",
     "EVENT_POSITION_ADOPTION",
+    "EVENT_RISK_HALT",
     "EVENT_RISK_REJECT",
+    "EVENT_RISK_THROTTLE",
     "EVENT_RUN_STARTED",
     "EVENT_RUN_STOPPED",
     "EVENT_SIGNAL",

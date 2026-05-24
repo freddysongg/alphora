@@ -6,11 +6,11 @@ routes signals through risk-caps -> llm_judge -> approval_queue -> broker.
 Updates ATR-based trailing stops between bars. Persists every decision
 to `strategy_run_events`.
 
-Task 14 lands the skeleton only: bar consumption, indicator window
-append, evaluate-event emission, lifecycle status transitions, and
-cancel-event honoring. Order submission (Task 16), position adoption
-(Task 15), trail updates (Task 17), and EOD flatten (Task 18) extend
-this in subsequent tasks.
+Task 16 lands order submission: when the strategy's target bias differs
+from the runner's current sign, the runner builds a `ProposedOrder`,
+runs the risk -> judge -> approval -> broker chain, and mirrors the
+broker response into `strategy_live_orders`. Trail updates (Task 17)
+and EOD flatten (Task 18) extend this in subsequent tasks.
 
 This file is the runner orchestrator only. All pure logic (risk caps,
 trail manager, indicator window, judge stub, approval stub) lives in
@@ -23,26 +23,46 @@ import asyncio
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Literal
 
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.brokers.base import Bar, BrokerAdapter
+from app.brokers.base import Bar, BrokerAdapter, OrderRequest, OrderResponse
 from app.db.models_strategy_runner import (
+    StrategyLiveOrder,
+    StrategyLiveOrderStatus,
+    StrategyRiskConfig,
     StrategyRun,
     StrategyRunEventLevel,
     StrategyRunStatus,
+)
+from app.services.approval_queue import ApprovalRequest, request_approval
+from app.services.llm_judge import JudgeRequest
+from app.services.llm_judge import evaluate as judge_evaluate
+from app.services.risk_caps import (
+    PortfolioSnapshot,
+    ProposedOrder,
+    RiskCapsProfile,
+    check_pre_order,
 )
 from app.services.strategy_indicator_window import (
     INDICATOR_WINDOW_BARS,
     BoundedBarBuffer,
 )
 from app.services.strategy_run_events import (
+    EVENT_APPROVAL_DECISION,
     EVENT_EVALUATE,
+    EVENT_JUDGE_VERDICT,
+    EVENT_ORDER_FILL,
+    EVENT_ORDER_REJECT,
+    EVENT_ORDER_SUBMIT,
     EVENT_POSITION_ADOPTION,
+    EVENT_RISK_HALT,
+    EVENT_RISK_REJECT,
+    EVENT_RISK_THROTTLE,
     EVENT_RUN_STARTED,
     EVENT_RUN_STOPPED,
     emit_strategy_run_event,
@@ -51,6 +71,8 @@ from app.services.trail_manager import TrailMode, TrailState
 from app.strategies.base import Strategy, StrategyParams, StrategyResult
 
 _DEFAULT_ADOPTION_STOP_FRACTION: Decimal = Decimal("0.05")
+_THROTTLE_WINDOW_SECONDS: int = 60
+_QUANTITY_QUANTIZE: Decimal = Decimal("0.000001")
 
 
 @dataclass
@@ -122,9 +144,10 @@ async def run(ctx: StrategyRunnerContext) -> None:
 
 
 async def _process_bar(ctx: StrategyRunnerContext, bar: Bar) -> None:
-    """Append bar, call evaluate, emit evaluate event.
+    """Append bar, call evaluate, emit evaluate event, and route any bias
+    change through the order-submission gate chain.
 
-    Order submission, trail updates, and EOD logic land in later tasks.
+    Trail updates and EOD logic land in later tasks.
     """
     ctx.indicator_window.append(bar)
     primary = ctx.indicator_window.to_frame()
@@ -134,6 +157,9 @@ async def _process_bar(ctx: StrategyRunnerContext, bar: Bar) -> None:
         current_position=int(ctx.current_position),
         params=ctx.params,
     )
+    eval_meta: dict[str, float | str] = dict(result.meta)
+    if result.stop_pts is not None:
+        eval_meta.setdefault("stop_pts", float(result.stop_pts))
     await _emit_event(
         ctx,
         kind=EVENT_EVALUATE,
@@ -146,6 +172,20 @@ async def _process_bar(ctx: StrategyRunnerContext, bar: Bar) -> None:
         },
         bar_ts=bar.as_of,
     )
+
+    current_sign = _bias_sign(ctx.current_position)
+    if result.target == current_sign:
+        return
+
+    proposed = _proposed_order(
+        ctx=ctx,
+        target_bias=result.target,
+        latest_close=Decimal(str(bar.close)),
+        size_hint=result.size_hint,
+    )
+    if proposed is None:
+        return
+    await _submit_via_gates(ctx, bar=bar, proposed=proposed, strategy_meta=eval_meta)
 
 
 async def _emit_event(
@@ -185,6 +225,313 @@ async def _mark_status(
             update(StrategyRun).where(StrategyRun.id == ctx.run_id).values(**values)
         )
         await session.commit()
+
+
+async def _load_risk_profile(ctx: StrategyRunnerContext) -> RiskCapsProfile:
+    """Fetch the current `strategy_risk_config` row for the runner's mode."""
+    async with ctx.session_maker() as session:
+        row = await session.scalar(
+            select(StrategyRiskConfig).where(StrategyRiskConfig.mode == ctx.mode)
+        )
+    if row is None:
+        raise RuntimeError(
+            f"strategy_risk_config row for mode={ctx.mode} not found; "
+            "did Alembic 022 seed run?"
+        )
+    return RiskCapsProfile(
+        mode=row.mode,
+        max_position_per_ticker_shares=Decimal(str(row.max_position_per_ticker_shares)),
+        max_position_per_ticker_notional_usd=Decimal(
+            str(row.max_position_per_ticker_notional_usd)
+        ),
+        max_open_positions=row.max_open_positions,
+        max_daily_loss_usd=Decimal(str(row.max_daily_loss_usd)),
+        max_consecutive_losses=row.max_consecutive_losses,
+        daily_profit_target_usd=Decimal(str(row.daily_profit_target_usd)),
+        max_orders_per_minute_per_ticker=row.max_orders_per_minute_per_ticker,
+    )
+
+
+def _bias_sign(current_position: Decimal) -> int:
+    if current_position > 0:
+        return 1
+    if current_position < 0:
+        return -1
+    return 0
+
+
+def _portfolio_snapshot(ctx: StrategyRunnerContext) -> PortfolioSnapshot:
+    """Build a portfolio snapshot for the risk gate.
+
+    Phase 4 tracks only the runner's own ticker — daily P&L and
+    consecutive losses are sourced from the runner's in-memory tally
+    (currently zero; richer tracking is Phase 5+). The orders-per-minute
+    list is pruned in-place to the last `_THROTTLE_WINDOW_SECONDS`.
+    """
+    open_positions: dict[str, Decimal] = {}
+    if ctx.current_position != 0:
+        open_positions[ctx.ticker] = ctx.current_position
+    now = datetime.now(UTC)
+    threshold = now - timedelta(seconds=_THROTTLE_WINDOW_SECONDS)
+    recent = [ts for ts in ctx.orders_in_last_minute if ts > threshold]
+    ctx.orders_in_last_minute = recent
+    orders_per_ticker = {ctx.ticker: len(recent)}
+    return PortfolioSnapshot(
+        open_positions_by_ticker=open_positions,
+        open_position_count=len(open_positions),
+        daily_realized_pnl_usd=Decimal("0"),
+        consecutive_losses=0,
+        orders_in_last_minute_by_ticker=orders_per_ticker,
+    )
+
+
+def _proposed_order(
+    *,
+    ctx: StrategyRunnerContext,
+    target_bias: int,
+    latest_close: Decimal,
+    size_hint: int | None,
+) -> ProposedOrder | None:
+    """Translate (target_bias, size_hint, current_position) into a
+    `ProposedOrder` or None if the position already matches the target.
+
+    Phase 4 simplification: only flat->long, flat->short, long->flat,
+    short->flat in a single bar. Flip orders (long->short) are routed
+    via flat — the closing order goes through this bar, the next bar
+    re-evaluates the new bias.
+    """
+    current_sign = _bias_sign(ctx.current_position)
+    if current_sign == target_bias:
+        return None
+    qty = Decimal(str(size_hint)) if size_hint else Decimal("1")
+    is_closing = target_bias == 0
+    side: Literal["buy", "sell"]
+    if is_closing:
+        qty = abs(ctx.current_position)
+        side = "sell" if ctx.current_position > 0 else "buy"
+    elif target_bias == 1:
+        if ctx.current_position < 0:
+            qty = abs(ctx.current_position)
+            side = "buy"
+            is_closing = True
+        else:
+            side = "buy"
+    else:
+        if ctx.current_position > 0:
+            qty = abs(ctx.current_position)
+            side = "sell"
+            is_closing = True
+        else:
+            side = "sell"
+    return ProposedOrder(
+        ticker=ctx.ticker,
+        side=side,
+        qty=qty,
+        estimated_fill_price=latest_close,
+        is_closing=is_closing,
+    )
+
+
+async def _submit_via_gates(
+    ctx: StrategyRunnerContext,
+    *,
+    bar: Bar,
+    proposed: ProposedOrder,
+    strategy_meta: dict[str, float | str],
+) -> None:
+    """Risk -> judge -> approval -> broker -> mirror. Side-effects via session.
+
+    Emits the full chain of decision events to `strategy_run_events` so
+    audit queries can answer "why did/didn't trade X happen". Returns
+    early without submitting whenever any gate blocks the order.
+    """
+    profile = await _load_risk_profile(ctx)
+    snapshot = _portfolio_snapshot(ctx)
+    gate = check_pre_order(profile=profile, portfolio=snapshot, order=proposed)
+    if gate.decision != "allow":
+        kind = {
+            "reject": EVENT_RISK_REJECT,
+            "throttle": EVENT_RISK_THROTTLE,
+            "halt": EVENT_RISK_HALT,
+        }[gate.decision]
+        await _emit_event(
+            ctx,
+            kind=kind,
+            level=StrategyRunEventLevel.warn,
+            payload={
+                "reason": gate.reason,
+                "ticker": proposed.ticker,
+                "side": proposed.side,
+                "qty": str(proposed.qty),
+            },
+            bar_ts=bar.as_of,
+        )
+        return
+
+    judge_req = JudgeRequest(
+        strategy_key=ctx.strategy.key,
+        ticker=proposed.ticker,
+        side=proposed.side,
+        qty=proposed.qty,
+        estimated_fill_price=proposed.estimated_fill_price,
+        mode=ctx.mode,
+        strategy_meta=dict(strategy_meta),
+    )
+    verdict = await judge_evaluate(judge_req)
+    await _emit_event(
+        ctx,
+        kind=EVENT_JUDGE_VERDICT,
+        level=StrategyRunEventLevel.info,
+        payload={
+            "decision": verdict.decision,
+            "reasoning_md": verdict.reasoning_md,
+            "size_multiplier": verdict.size_multiplier,
+        },
+        bar_ts=bar.as_of,
+    )
+    if verdict.decision == "veto" and ctx.mode == "live":
+        return
+
+    approval_req = ApprovalRequest(
+        strategy_key=ctx.strategy.key,
+        ticker=proposed.ticker,
+        side=proposed.side,
+        qty=proposed.qty,
+        estimated_fill_price=proposed.estimated_fill_price,
+        mode=ctx.mode,
+        judge_decision=verdict.decision,
+        judge_size_multiplier=verdict.size_multiplier,
+    )
+    decision = await request_approval(approval_req)
+    await _emit_event(
+        ctx,
+        kind=EVENT_APPROVAL_DECISION,
+        level=StrategyRunEventLevel.info,
+        payload={
+            "decision": decision.decision,
+            "decided_by": decision.decided_by,
+            "decided_at": decision.decided_at.isoformat(),
+        },
+        bar_ts=bar.as_of,
+    )
+    if decision.decision != "approved":
+        return
+
+    final_qty = proposed.qty
+    if verdict.size_multiplier is not None and verdict.size_multiplier != 1.0:
+        final_qty = (proposed.qty * Decimal(str(verdict.size_multiplier))).quantize(
+            _QUANTITY_QUANTIZE
+        )
+    order_request = OrderRequest(
+        ticker=proposed.ticker,
+        side=proposed.side,
+        quantity=final_qty,
+        order_type="market",
+        time_in_force="day",
+        client_order_id=f"runner-{ctx.run_id}-{bar.as_of.isoformat()}",
+    )
+    live_order_id = uuid.uuid4()
+    async with ctx.session_maker() as session:
+        session.add(
+            StrategyLiveOrder(
+                id=live_order_id,
+                run_id=ctx.run_id,
+                mode=ctx.mode,
+                broker_order_id=None,
+                client_order_id=order_request.client_order_id,
+                ticker=order_request.ticker,
+                side=order_request.side,
+                qty=order_request.quantity,
+                limit_price=None,
+                status=StrategyLiveOrderStatus.pending.value,
+            )
+        )
+        await session.commit()
+    await _emit_event(
+        ctx,
+        kind=EVENT_ORDER_SUBMIT,
+        level=StrategyRunEventLevel.info,
+        payload={
+            "live_order_id": str(live_order_id),
+            "ticker": order_request.ticker,
+            "side": order_request.side,
+            "qty": str(order_request.quantity),
+        },
+        bar_ts=bar.as_of,
+    )
+
+    try:
+        response: OrderResponse = await ctx.broker.place_order(order_request)
+    except Exception as exc:
+        async with ctx.session_maker() as session:
+            await session.execute(
+                update(StrategyLiveOrder)
+                .where(StrategyLiveOrder.id == live_order_id)
+                .values(
+                    status=StrategyLiveOrderStatus.rejected.value,
+                    reject_reason=str(exc),
+                )
+            )
+            await session.commit()
+        await _emit_event(
+            ctx,
+            kind=EVENT_ORDER_REJECT,
+            level=StrategyRunEventLevel.warn,
+            payload={"live_order_id": str(live_order_id), "reason": str(exc)},
+            bar_ts=bar.as_of,
+        )
+        return
+
+    final_status = _map_broker_status(response.status)
+    is_filled = final_status == "filled"
+    async with ctx.session_maker() as session:
+        await session.execute(
+            update(StrategyLiveOrder)
+            .where(StrategyLiveOrder.id == live_order_id)
+            .values(
+                broker_order_id=response.broker_order_id,
+                status=final_status,
+                submitted_at=response.submitted_at,
+                filled_at=response.submitted_at if is_filled else None,
+                filled_qty=order_request.quantity if is_filled else Decimal("0"),
+                avg_fill_price=proposed.estimated_fill_price if is_filled else None,
+            )
+        )
+        await session.commit()
+
+    ctx.orders_in_last_minute.append(datetime.now(UTC))
+    if is_filled:
+        delta = (
+            order_request.quantity
+            if order_request.side == "buy"
+            else -order_request.quantity
+        )
+        ctx.current_position += delta
+        await _emit_event(
+            ctx,
+            kind=EVENT_ORDER_FILL,
+            level=StrategyRunEventLevel.info,
+            payload={
+                "live_order_id": str(live_order_id),
+                "broker_order_id": response.broker_order_id,
+                "filled_qty": str(order_request.quantity),
+                "new_position": str(ctx.current_position),
+            },
+            bar_ts=bar.as_of,
+        )
+
+
+def _map_broker_status(raw: str) -> str:
+    """Map BrokerAdapter's OrderStatus to strategy_live_orders.status."""
+    if raw == "filled":
+        return "filled"
+    if raw == "partially_filled":
+        return "partially_filled"
+    if raw == "canceled":
+        return "canceled"
+    if raw in ("rejected", "expired"):
+        return "rejected"
+    return "submitted"
 
 
 async def _adopt_existing_position(ctx: StrategyRunnerContext) -> None:
