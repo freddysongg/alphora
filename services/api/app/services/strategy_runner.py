@@ -127,25 +127,42 @@ async def run(ctx: StrategyRunnerContext) -> None:
         },
     )
 
-    await _adopt_existing_position(ctx)
-
-    iterator = ctx.broker.stream_bars([ctx.ticker], ctx.strategy.primary_timeframe)
-
+    final_status: StrategyRunStatus = StrategyRunStatus.stopped
+    stop_reason: str = "stream_end"
+    stop_level: StrategyRunEventLevel = StrategyRunEventLevel.info
+    stop_payload_extra: dict[str, object] = {}
     try:
-        async for bar in iterator:
-            if ctx.cancel_event.is_set():
-                break
-            await _process_bar(ctx, bar)
-    except asyncio.CancelledError:
-        pass
+        try:
+            await _adopt_existing_position(ctx)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            final_status = StrategyRunStatus.errored
+            stop_reason = "adoption_failed"
+            stop_level = StrategyRunEventLevel.error
+            stop_payload_extra = {"error": str(exc)}
+            raise
+
+        iterator = ctx.broker.stream_bars([ctx.ticker], ctx.strategy.primary_timeframe)
+
+        try:
+            async for bar in iterator:
+                if ctx.cancel_event.is_set():
+                    break
+                await _process_bar(ctx, bar)
+        except asyncio.CancelledError:
+            pass
+        if ctx.cancel_event.is_set():
+            stop_reason = "cancel"
     finally:
+        payload: dict[str, object] = {"reason": stop_reason, **stop_payload_extra}
         await _emit_event(
             ctx,
             kind=EVENT_RUN_STOPPED,
-            level=StrategyRunEventLevel.info,
-            payload={"reason": "cancel" if ctx.cancel_event.is_set() else "stream_end"},
+            level=stop_level,
+            payload=payload,
         )
-        await _mark_status(ctx, StrategyRunStatus.stopped, stopped=True)
+        await _mark_status(ctx, final_status, stopped=True)
 
 
 async def _process_bar(ctx: StrategyRunnerContext, bar: Bar) -> None:
