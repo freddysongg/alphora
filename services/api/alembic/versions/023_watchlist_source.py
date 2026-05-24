@@ -8,7 +8,8 @@ Adds three columns to `watchlists` (source, is_active, last_built_at) and
 two columns to `watchlist_members` (hypothesis_id, member_metadata) to
 support the Phase 5 universe-input layer. Existing rows backfilled via
 server_default on column creation; server_default removed afterwards so
-future inserts MUST specify source explicitly.
+the application -- not the database -- owns the default; raw SQL inserts
+that omit `source` will now fail.
 
 Phase 5 deviation from spec §11.1: no new `daily_universe` table -- the
 existing `watchlists` row IS the universe; the new `source` column
@@ -28,53 +29,50 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "watchlists",
-        sa.Column(
-            "source",
-            sa.String(16),
-            nullable=False,
-            server_default="manual",
-        ),
-    )
-    op.add_column(
-        "watchlists",
-        sa.Column(
-            "is_active",
-            sa.Boolean(),
-            nullable=False,
-            server_default=sa.true(),
-        ),
-    )
-    op.add_column(
-        "watchlists",
-        sa.Column(
-            "last_built_at",
-            sa.DateTime(timezone=True),
-            nullable=True,
-        ),
-    )
-    op.add_column(
-        "watchlist_members",
-        sa.Column(
-            "hypothesis_id",
-            sa.Uuid(),
-            nullable=True,
-        ),
-    )
-    op.add_column(
-        "watchlist_members",
-        sa.Column(
-            "member_metadata",
-            sa.JSON(),
-            nullable=True,
-        ),
-    )
-    op.create_index(
-        "ix_watchlist_members_hypothesis_id",
-        "watchlist_members",
-        ["hypothesis_id"],
-    )
+    with op.batch_alter_table("watchlists") as batch_op:
+        batch_op.add_column(
+            sa.Column(
+                "source",
+                sa.String(16),
+                nullable=False,
+                server_default="manual",
+            ),
+        )
+        batch_op.add_column(
+            sa.Column(
+                "is_active",
+                sa.Boolean(),
+                nullable=False,
+                server_default=sa.true(),
+            ),
+        )
+        batch_op.add_column(
+            sa.Column(
+                "last_built_at",
+                sa.DateTime(timezone=True),
+                nullable=True,
+            ),
+        )
+
+    with op.batch_alter_table("watchlist_members") as batch_op:
+        batch_op.add_column(
+            sa.Column(
+                "hypothesis_id",
+                sa.Uuid(),
+                nullable=True,
+            ),
+        )
+        batch_op.add_column(
+            sa.Column(
+                "member_metadata",
+                sa.JSON(),
+                nullable=True,
+            ),
+        )
+        batch_op.create_index(
+            "ix_watchlist_members_hypothesis_id",
+            ["hypothesis_id"],
+        )
 
     with op.batch_alter_table("watchlists") as batch_op:
         batch_op.alter_column("source", server_default=None)
@@ -82,11 +80,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index(
-        "ix_watchlist_members_hypothesis_id", table_name="watchlist_members"
-    )
-    op.drop_column("watchlist_members", "member_metadata")
-    op.drop_column("watchlist_members", "hypothesis_id")
-    op.drop_column("watchlists", "last_built_at")
-    op.drop_column("watchlists", "is_active")
-    op.drop_column("watchlists", "source")
+    with op.batch_alter_table("watchlist_members") as batch_op:
+        batch_op.drop_index("ix_watchlist_members_hypothesis_id")
+        batch_op.drop_column("member_metadata")
+        batch_op.drop_column("hypothesis_id")
+
+    with op.batch_alter_table("watchlists") as batch_op:
+        batch_op.drop_column("last_built_at")
+        batch_op.drop_column("is_active")
+        batch_op.drop_column("source")
