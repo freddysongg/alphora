@@ -42,12 +42,15 @@ from app.services.strategy_indicator_window import (
 )
 from app.services.strategy_run_events import (
     EVENT_EVALUATE,
+    EVENT_POSITION_ADOPTION,
     EVENT_RUN_STARTED,
     EVENT_RUN_STOPPED,
     emit_strategy_run_event,
 )
-from app.services.trail_manager import TrailState
+from app.services.trail_manager import TrailMode, TrailState
 from app.strategies.base import Strategy, StrategyParams, StrategyResult
+
+_DEFAULT_ADOPTION_STOP_FRACTION: Decimal = Decimal("0.05")
 
 
 @dataclass
@@ -96,6 +99,8 @@ async def run(ctx: StrategyRunnerContext) -> None:
             "mode": ctx.mode,
         },
     )
+
+    await _adopt_existing_position(ctx)
 
     iterator = ctx.broker.stream_bars([ctx.ticker], ctx.strategy.primary_timeframe)
 
@@ -180,6 +185,45 @@ async def _mark_status(
             update(StrategyRun).where(StrategyRun.id == ctx.run_id).values(**values)
         )
         await session.commit()
+
+
+async def _adopt_existing_position(ctx: StrategyRunnerContext) -> None:
+    """Query broker for current position on ctx.ticker; seed runner state
+    so the first evaluate doesn't re-enter. Writes a `position_adoption`
+    event for audit. No-op when flat."""
+    positions = await ctx.broker.get_positions()
+    matching = [p for p in positions if p.ticker == ctx.ticker and p.quantity != 0]
+    if not matching:
+        return
+    pos = matching[0]
+    ctx.current_position = pos.quantity
+    side: Literal["long", "short"] = "long" if pos.quantity > 0 else "short"
+    entry = pos.avg_entry_price
+    stop = (
+        entry * (Decimal("1") - _DEFAULT_ADOPTION_STOP_FRACTION)
+        if side == "long"
+        else entry * (Decimal("1") + _DEFAULT_ADOPTION_STOP_FRACTION)
+    )
+    ctx.trail_state = TrailState(
+        side=side,
+        entry_price=entry,
+        high_watermark=entry,
+        low_watermark=entry,
+        current_stop=stop,
+        mode=TrailMode.initial,
+    )
+    await _emit_event(
+        ctx,
+        kind=EVENT_POSITION_ADOPTION,
+        level=StrategyRunEventLevel.info,
+        payload={
+            "ticker": pos.ticker,
+            "quantity": str(pos.quantity),
+            "avg_entry_price": str(entry),
+            "side": side,
+            "initial_stop": str(stop),
+        },
+    )
 
 
 __all__ = ["StrategyRunnerContext", "run"]

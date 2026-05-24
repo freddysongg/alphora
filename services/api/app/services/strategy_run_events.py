@@ -22,6 +22,7 @@ EVENT_SIGNAL: Final[str] = "signal"
 EVENT_RISK_REJECT: Final[str] = "risk_reject"
 EVENT_ORDER_SUBMIT: Final[str] = "order_submit"
 EVENT_ORDER_REJECT: Final[str] = "order_reject"
+EVENT_POSITION_ADOPTION: Final[str] = "position_adoption"
 EVENT_STOP_HIT: Final[str] = "stop_hit"
 
 
@@ -54,6 +55,7 @@ __all__ = [
     "EVENT_EVALUATE",
     "EVENT_ORDER_REJECT",
     "EVENT_ORDER_SUBMIT",
+    "EVENT_POSITION_ADOPTION",
     "EVENT_RISK_REJECT",
     "EVENT_RUN_STARTED",
     "EVENT_RUN_STOPPED",
