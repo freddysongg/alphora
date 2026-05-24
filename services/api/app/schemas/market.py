@@ -136,3 +136,16 @@ class WatchlistDetail(BaseModel):
     last_built_at: datetime | None
     created_at: datetime
     members: list[WatchlistMemberPublic]
+
+
+class ResearchRebuildRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    evidence_window_hours: int = Field(default=24, ge=1, le=168)
+    min_belief: float = Field(default=0.6, ge=0.0, le=1.0)
+    max_tickers: int = Field(default=25, ge=1, le=100)
+
+
+class ResearchRebuildResponse(BaseModel):
+    watchlist_id: uuid.UUID
+    count: int
