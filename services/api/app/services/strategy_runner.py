@@ -27,10 +27,11 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Literal
 
+import pandas as pd  # type: ignore[import-untyped]
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.brokers.base import Bar, BrokerAdapter, OrderRequest, OrderResponse
+from app.brokers.base import Bar, BrokerAdapter, OrderRequest, OrderResponse, Timeframe
 from app.db.models_strategy_runner import (
     StrategyLiveOrder,
     StrategyLiveOrderStatus,
@@ -70,6 +71,7 @@ from app.services.strategy_run_events import (
     EVENT_STOP_HIT,
     emit_strategy_run_event,
 )
+from app.services.timeframes import resample_bars_to_timeframe
 from app.services.trail_manager import TrailMode, TrailState, update_trail
 from app.strategies.base import Strategy, StrategyParams, StrategyResult
 
@@ -159,10 +161,14 @@ async def _process_bar(ctx: StrategyRunnerContext, bar: Bar) -> None:
     """
     ctx.indicator_window.append(bar)
     primary = ctx.indicator_window.to_frame()
+    secondary_bars: dict[Timeframe, pd.DataFrame] = {
+        tf: resample_bars_to_timeframe(primary, tf)
+        for tf in ctx.strategy.secondary_timeframes
+    }
     result: StrategyResult = ctx.strategy.evaluate(
         primary_bars=primary,
-        secondary_bars={},
-        current_position=int(ctx.current_position),
+        secondary_bars=secondary_bars,
+        current_position=_bias_sign(ctx.current_position),
         params=ctx.params,
     )
     eval_meta: dict[str, float | str] = dict(result.meta)
@@ -509,7 +515,7 @@ async def _submit_via_gates(
         quantity=final_qty,
         order_type="market",
         time_in_force="day",
-        client_order_id=f"runner-{ctx.run_id}-{bar.as_of.isoformat()}",
+        client_order_id=f"r-{ctx.run_id.hex[:8]}-{int(bar.as_of.timestamp())}",
     )
     live_order_id = uuid.uuid4()
     async with ctx.session_maker() as session:
