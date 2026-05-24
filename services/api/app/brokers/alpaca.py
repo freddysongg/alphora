@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from alpaca.trading.models import Order as AlpacaOrder
     from alpaca.trading.models import Position as AlpacaPosition
     from alpaca.trading.models import TradeAccount
+    from alpaca.trading.stream import TradingStream
 
 
 _ALPACA_SIDE_BY_OURS: dict[str, AlpacaOrderSide] = {
@@ -217,6 +218,21 @@ class AlpacaAdapter:
             secret_key=settings.alpaca_api_secret.get_secret_value(),
         )
 
+    def _trading_stream_factory(self) -> TradingStream:
+        """Construct the underlying TradingStream. Overridable for tests."""
+        from alpaca.trading.stream import TradingStream
+
+        settings = get_settings()
+        if settings.alpaca_api_key is None or settings.alpaca_api_secret is None:
+            raise RuntimeError(
+                "ALPACA_API_KEY and ALPACA_API_SECRET must be set to stream order updates"
+            )
+        return TradingStream(
+            api_key=settings.alpaca_api_key.get_secret_value(),
+            secret_key=settings.alpaca_api_secret.get_secret_value(),
+            paper=(self.mode == "paper"),
+        )
+
     # ---- Phase 0 methods (placeholders, implemented in later tasks) ----
 
     async def get_account(self) -> Account:
@@ -374,7 +390,37 @@ class AlpacaAdapter:
         return self._stream_order_updates_impl()
 
     async def _stream_order_updates_impl(self) -> AsyncIterator[Order]:
-        raise NotImplementedError(
-            "AlpacaAdapter.stream_order_updates is wired in Phase 4c via TradingStream"
-        )
-        yield
+        queue: asyncio.Queue[Order] = asyncio.Queue(maxsize=1024)
+
+        async def _on_event(raw_event) -> None:  # type: ignore[no-untyped-def]
+            raw_order = getattr(raw_event, "order", raw_event)
+            order = _translate_order(raw_order)
+            try:
+                queue.put_nowait(order)
+            except asyncio.QueueFull:
+                try:
+                    queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    pass
+                queue.put_nowait(order)
+
+        stream = self._trading_stream_factory()
+        stream.subscribe_trade_updates(_on_event)
+        # alpaca-py types `run` as sync `() -> None`, but in this context we
+        # need an awaitable so we can schedule it as a background task without
+        # blocking the event loop. Test doubles use AsyncMock; production
+        # callers should override the factory to expose `_run_forever` if the
+        # public `run()` shape proves unworkable in a real event loop.
+        run_coro = stream.run()  # type: ignore[func-returns-value]
+        run_task: asyncio.Task[None] = asyncio.create_task(run_coro)  # type: ignore[arg-type]
+
+        try:
+            while True:
+                order = await queue.get()
+                yield order
+        finally:
+            run_task.cancel()
+            try:
+                await stream.close()
+            except Exception:
+                pass
