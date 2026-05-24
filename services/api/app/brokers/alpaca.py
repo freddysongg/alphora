@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
+from contextlib import suppress
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
@@ -375,8 +376,23 @@ class AlpacaAdapter:
 
         try:
             while True:
-                bar = await queue.get()
-                yield bar
+                get_task: asyncio.Task[Bar] = asyncio.create_task(queue.get())
+                done, _ = await asyncio.wait(
+                    {get_task, run_task},
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                if get_task in done:
+                    yield get_task.result()
+                    continue
+                get_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await get_task
+                while not queue.empty():
+                    yield queue.get_nowait()
+                run_exc = run_task.exception()
+                if run_exc is not None:
+                    raise run_exc
+                return
         finally:
             run_task.cancel()
             try:
@@ -410,8 +426,23 @@ class AlpacaAdapter:
 
         try:
             while True:
-                order = await queue.get()
-                yield order
+                get_task: asyncio.Task[Order] = asyncio.create_task(queue.get())
+                done, _ = await asyncio.wait(
+                    {get_task, run_task},
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                if get_task in done:
+                    yield get_task.result()
+                    continue
+                get_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await get_task
+                while not queue.empty():
+                    yield queue.get_nowait()
+                run_exc = run_task.exception()
+                if run_exc is not None:
+                    raise run_exc
+                return
         finally:
             run_task.cancel()
             try:
