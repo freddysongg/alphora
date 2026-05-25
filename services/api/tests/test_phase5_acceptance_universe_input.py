@@ -171,6 +171,7 @@ async def _drain_runners(contexts: list[StrategyRunnerContext]) -> None:
 @pytest.mark.asyncio
 async def test_phase5_acceptance_manual_watchlist_runner_consumes_correctly(
     db_session: AsyncSession,
+    noop_judge_llm_client: object,
 ) -> None:
     await _seed_paper_risk_config(db_session)
 
@@ -207,6 +208,7 @@ async def test_phase5_acceptance_manual_watchlist_runner_consumes_correctly(
         broker=_DeterministicBroker(),
         session_maker=session_factory,
         cancel_event_factory=_make_cancel_event,
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     assert {ctx.ticker for ctx in contexts} == {"SPY", "QQQ"}
 
@@ -241,6 +243,7 @@ async def test_phase5_acceptance_manual_watchlist_runner_consumes_correctly(
 @pytest.mark.asyncio
 async def test_phase5_acceptance_research_driven_watchlist_runner_consumes_correctly(
     db_session: AsyncSession,
+    noop_judge_llm_client: object,
 ) -> None:
     await _seed_paper_risk_config(db_session)
 
@@ -306,6 +309,7 @@ async def test_phase5_acceptance_research_driven_watchlist_runner_consumes_corre
         broker=_DeterministicBroker(),
         session_maker=session_factory,
         cancel_event_factory=_make_cancel_event,
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     assert {ctx.ticker for ctx in contexts} == {"SPY", "QQQ"}
 

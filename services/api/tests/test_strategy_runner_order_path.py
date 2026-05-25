@@ -140,7 +140,10 @@ def _migrate(db_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_runner_submits_order_through_full_gate_chain(tmp_path: Path) -> None:
+async def test_runner_submits_order_through_full_gate_chain(
+    tmp_path: Path,
+    noop_judge_llm_client: object,
+) -> None:
     db_path = tmp_path / "order_path.db"
     _migrate(db_path)
     engine = _build_engine(db_path)
@@ -168,6 +171,7 @@ async def test_runner_submits_order_through_full_gate_chain(tmp_path: Path) -> N
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     await run_strategy(ctx)
 
@@ -201,7 +205,10 @@ async def test_runner_submits_order_through_full_gate_chain(tmp_path: Path) -> N
 
 
 @pytest.mark.asyncio
-async def test_risk_reject_blocks_order_submission(tmp_path: Path) -> None:
+async def test_risk_reject_blocks_order_submission(
+    tmp_path: Path,
+    noop_judge_llm_client: object,
+) -> None:
     """Set max_position_per_ticker_shares=0 so every buy is rejected.
     Verify no broker.place_order calls happen and a `risk_reject` event
     is written."""
@@ -241,6 +248,7 @@ async def test_risk_reject_blocks_order_submission(tmp_path: Path) -> None:
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     await run_strategy(ctx)
 

@@ -153,7 +153,10 @@ def _migrate(db_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_trail_exit_on_long_after_promotion(tmp_path: Path) -> None:
+async def test_trail_exit_on_long_after_promotion(
+    tmp_path: Path,
+    noop_judge_llm_client: object,
+) -> None:
     """Enter long at bar 0, watch trail state evolve through break-even
     and trailing modes, then exit when a subsequent bar's low pierces
     the tightened stop."""
@@ -190,6 +193,7 @@ async def test_trail_exit_on_long_after_promotion(tmp_path: Path) -> None:
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     await run_strategy(ctx)
 

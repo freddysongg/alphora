@@ -41,7 +41,7 @@ from app.db.models_strategy_runner import (
     StrategyRunStatus,
 )
 from app.services.approval_queue import ApprovalRequest, request_approval
-from app.services.llm_judge import JudgeRequest
+from app.services.llm_judge import JudgeLlmClient, JudgeRequest
 from app.services.llm_judge import evaluate as judge_evaluate
 from app.services.market_clock import RTH_CLOSE_ET_MIN, et_minutes
 from app.services.risk_caps import (
@@ -102,6 +102,7 @@ class StrategyRunnerContext:
     broker: BrokerAdapter
     session_maker: Callable[[], AsyncSession]
     cancel_event: asyncio.Event
+    llm_client: JudgeLlmClient
     indicator_window: BoundedBarBuffer = field(
         default_factory=lambda: BoundedBarBuffer(max_size=INDICATOR_WINDOW_BARS)
     )
@@ -507,15 +508,21 @@ async def _submit_via_gates(
         return
 
     judge_req = JudgeRequest(
+        run_id=ctx.run_id,
         strategy_key=ctx.strategy.key,
         ticker=proposed.ticker,
         side=proposed.side,
         qty=proposed.qty,
         estimated_fill_price=proposed.estimated_fill_price,
         mode=ctx.mode,
+        bar_ts=bar.as_of,
         strategy_meta=dict(strategy_meta),
     )
-    verdict = await judge_evaluate(judge_req)
+    verdict = await judge_evaluate(
+        judge_req,
+        session_maker=ctx.session_maker,
+        llm_client=ctx.llm_client,
+    )
     await _emit_event(
         ctx,
         kind=EVENT_JUDGE_VERDICT,

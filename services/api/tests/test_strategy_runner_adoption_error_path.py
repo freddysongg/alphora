@@ -110,6 +110,7 @@ async def _seed_run(
 @pytest.mark.asyncio
 async def test_runner_marks_errored_when_adoption_get_positions_raises(
     tmp_path: Path,
+    noop_judge_llm_client: object,
 ) -> None:
     db_path = tmp_path / "adopt_raises.db"
     _migrate(db_path)
@@ -128,6 +129,7 @@ async def test_runner_marks_errored_when_adoption_get_positions_raises(
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
 
     with pytest.raises(RuntimeError, match="boom"):
@@ -158,6 +160,7 @@ async def test_runner_marks_errored_when_adoption_get_positions_raises(
 @pytest.mark.asyncio
 async def test_runner_keeps_normal_stopped_status_when_adoption_succeeds(
     tmp_path: Path,
+    noop_judge_llm_client: object,
 ) -> None:
     db_path = tmp_path / "adopt_normal.db"
     _migrate(db_path)
@@ -176,6 +179,7 @@ async def test_runner_keeps_normal_stopped_status_when_adoption_succeeds(
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
 
     await run_strategy(ctx)

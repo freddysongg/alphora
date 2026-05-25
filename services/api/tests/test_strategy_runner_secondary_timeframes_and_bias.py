@@ -144,6 +144,7 @@ class _SecondaryRecordingStrategy:
 @pytest.mark.asyncio
 async def test_runner_resamples_secondary_timeframes_when_strategy_declares_them(
     tmp_path: Path,
+    noop_judge_llm_client: object,
 ) -> None:
     """A strategy with `secondary_timeframes=['5min']` must receive a
     populated 5min DataFrame each bar (not the empty dict the original
@@ -165,6 +166,7 @@ async def test_runner_resamples_secondary_timeframes_when_strategy_declares_them
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     await run_strategy(ctx)
     await engine.dispose()
@@ -207,6 +209,7 @@ class _PositionBiasRecorder:
 @pytest.mark.asyncio
 async def test_runner_passes_bias_sign_not_truncated_int_for_fractional_position(
     tmp_path: Path,
+    noop_judge_llm_client: object,
 ) -> None:
     """A 0.5-share long position must surface as `current_position=1` (the
     sign), not `int(Decimal("0.5"))=0`. Otherwise a strategy in
@@ -237,6 +240,7 @@ async def test_runner_passes_bias_sign_not_truncated_int_for_fractional_position
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     await run_strategy(ctx)
     await engine.dispose()
@@ -250,7 +254,10 @@ async def test_runner_passes_bias_sign_not_truncated_int_for_fractional_position
 
 
 @pytest.mark.asyncio
-async def test_runner_passes_bias_sign_for_fractional_short(tmp_path: Path) -> None:
+async def test_runner_passes_bias_sign_for_fractional_short(
+    tmp_path: Path,
+    noop_judge_llm_client: object,
+) -> None:
     db_path = tmp_path / "fractional_short.db"
     _migrate(db_path)
     engine = _build_engine(db_path)
@@ -276,6 +283,7 @@ async def test_runner_passes_bias_sign_for_fractional_short(tmp_path: Path) -> N
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     await run_strategy(ctx)
     await engine.dispose()
