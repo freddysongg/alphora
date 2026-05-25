@@ -686,6 +686,13 @@ async def _submit_via_gates(
                 },
                 bar_ts=bar.as_of,
             )
+        # Trail initialization is gated on `is_filled` only, NOT
+        # `is_optimistically_filled`. The optimistic path has no confirmed
+        # fill price -- seeding TrailState with `proposed.estimated_fill_price`
+        # would produce wrong stop levels once the actual fill price diverges.
+        # An optimistic-fill position therefore runs without a trail until
+        # Phase 6+ `stream_order_updates` reconciliation seeds the trail with
+        # the real `avg_fill_price`.
         if is_filled and not proposed.is_closing and ctx.trail_state is None:
             side_trail: Literal["long", "short"] = (
                 "long" if order_request.side == "buy" else "short"

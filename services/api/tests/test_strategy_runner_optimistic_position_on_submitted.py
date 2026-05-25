@@ -173,6 +173,14 @@ async def test_position_updated_optimistically_when_market_order_submitted(
     assert len(broker.placed_orders) == 1, (
         f"expected exactly 1 order (no duplicate on bar 2), got {len(broker.placed_orders)}"
     )
+    # Trail state must stay None on the optimistic path: there is no confirmed
+    # fill price, so seeding TrailState would produce wrong stop levels.
+    # Phase 6+ stream_order_updates reconciliation will initialize the trail
+    # with the real avg_fill_price once the broker reports it.
+    assert ctx.trail_state is None, (
+        f"trail_state must stay None on optimistic fill (no confirmed fill price); "
+        f"got {ctx.trail_state!r}"
+    )
 
     async with AsyncSession(engine, expire_on_commit=False) as session:
         live_orders = (
