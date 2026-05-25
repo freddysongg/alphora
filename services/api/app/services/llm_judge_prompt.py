@@ -54,6 +54,23 @@ def render_prompt(
     ]
 
 
+def context_to_dict(context: JudgeContext) -> dict[str, object]:
+    """Single representation of JudgeContext used by BOTH the rendered prompt
+    and the persisted judge_verdicts.context_payload row."""
+    return {
+        "ticker": context.ticker,
+        "entity": {
+            "id": str(context.entity_id) if context.entity_id is not None else None,
+            "canonical_name": context.entity_canonical_name,
+        },
+        "active_hypotheses": context.hypotheses,
+        "company_thesis": context.company_thesis,
+        "sector_brief": context.sector_brief,
+        "macro_brief": context.macro_brief,
+        "recent_evidence": context.evidence,
+    }
+
+
 def _build_user_body(request: JudgeRequest, context: JudgeContext) -> str:
     mode_note = (
         "Mode is paper: your verdict is logged and advisory; the runner "
@@ -72,18 +89,7 @@ def _build_user_body(request: JudgeRequest, context: JudgeContext) -> str:
         "bar_ts": request.bar_ts.isoformat(),
         "strategy_meta": request.strategy_meta,
     }
-    ctx_json: dict[str, object] = {
-        "ticker": context.ticker,
-        "entity": {
-            "id": str(context.entity_id) if context.entity_id else None,
-            "canonical_name": context.entity_canonical_name,
-        },
-        "active_hypotheses": context.hypotheses,
-        "company_thesis": context.company_thesis,
-        "sector_brief": context.sector_brief,
-        "macro_brief": context.macro_brief,
-        "recent_evidence": context.evidence,
-    }
+    ctx_json = context_to_dict(context)
     return (
         f"{mode_note}\n\n"
         f"PROPOSED TRADE:\n{json.dumps(trade, indent=2, default=str)}\n\n"
@@ -145,6 +151,7 @@ def _strip_code_fence(text: str) -> str:
 
 __all__ = [
     "PROMPT_VERSION",
+    "context_to_dict",
     "parse_verdict_response",
     "render_prompt",
 ]

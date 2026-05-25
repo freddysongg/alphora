@@ -21,15 +21,18 @@ re-derive verdict semantics.
 from __future__ import annotations
 
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
-from typing import Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Literal, Protocol, runtime_checkable
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.llm.client import LlmCompletionResult, LlmMessage
+
+if TYPE_CHECKING:
+    from app.services.llm_judge_context import JudgeContext
 
 JudgeDecision = Literal["approve", "veto", "approve_reduced"]
 
@@ -74,26 +77,106 @@ class JudgeVerdict:
     size_multiplier: float | None = None
 
 
-_PHASE_4_STUB_REASONING: str = (
-    "phase4 stub: judge is a pass-through in Phase 4; real LLM evaluation "
-    "lands in Phase 6 with full Alphora research context."
-)
+async def evaluate(
+    request: JudgeRequest,
+    *,
+    session_maker: Callable[[], AsyncSession],
+    llm_client: JudgeLlmClient,
+    model: str = "gpt-4o-mini",
+) -> JudgeVerdict:
+    """Judge the proposed order. Persists every verdict (happy + conservative).
 
+    Returns the verdict the runner uses for its mode-policy branch:
+    - "approve": runner submits at proposed.qty
+    - "approve_reduced": runner submits at proposed.qty * size_multiplier
+    - "veto": runner skips submit if mode == "live"; logs only if "paper"
 
-async def evaluate(request: JudgeRequest) -> JudgeVerdict:
-    """Phase 4 stub. Always approves.
+    Three sessions: (1) `ctx_session` reads the research substrate,
+    (2) `llm_session` is the handle the LlmClient uses for its own
+    `llm_call_logs` write, (3) the persistence session inside
+    `_persist_verdict` commits the verdict row atomically after parse
+    succeeds.
 
-    The function is `async` so callers can await it without changing the
-    call shape when Phase 6 swaps in a real LLM HTTP call. The `request`
-    parameter is intentionally unused in the stub; Phase 6 will consume
-    it to build the LLM prompt.
+    Phase 6 happy path only; Task 8 adds the four conservative-default
+    branches (sparse context, LLM transport error, parse failure,
+    approve_reduced with invalid multiplier).
     """
-    del request
-    return JudgeVerdict(
-        decision="approve",
-        reasoning_md=_PHASE_4_STUB_REASONING,
-        size_multiplier=None,
+    # Deferred imports break the circular: llm_judge_prompt imports JudgeRequest/JudgeVerdict from this module.
+    from app.services.llm_judge_context import gather_context
+    from app.services.llm_judge_prompt import (
+        PROMPT_VERSION,
+        parse_verdict_response,
+        render_prompt,
     )
+
+    async with session_maker() as ctx_session:
+        context = await gather_context(ctx_session, ticker=request.ticker)
+
+    messages = render_prompt(request, context)
+
+    async with session_maker() as llm_session:
+        completion = await llm_client.complete(
+            session=llm_session,
+            messages=messages,
+            model=model,
+            prompt_version=PROMPT_VERSION,
+            stage="judge",
+            agent_name="strategy_judge",
+        )
+
+    parsed = parse_verdict_response(completion.content)
+    if parsed is None:
+        raise NotImplementedError("parse-failure branch lands in Task 8")
+
+    await _persist_verdict(
+        session_maker=session_maker,
+        request=request,
+        verdict=parsed,
+        context=context,
+        llm_model=completion.model,
+        prompt_version=PROMPT_VERSION,
+        llm_call_log_id=completion.log_id,
+    )
+    return parsed
+
+
+async def _persist_verdict(
+    *,
+    session_maker: Callable[[], AsyncSession],
+    request: JudgeRequest,
+    verdict: JudgeVerdict,
+    context: JudgeContext | None,
+    llm_model: str | None,
+    prompt_version: str | None,
+    llm_call_log_id: uuid.UUID | None,
+) -> None:
+    from app.db.models_judge import JudgeVerdictRow
+    from app.services.llm_judge_prompt import context_to_dict
+
+    context_payload: dict[str, object]
+    if context is None:
+        context_payload = {}
+    else:
+        context_payload = context_to_dict(context)
+    async with session_maker() as write_session:
+        row = JudgeVerdictRow(
+            id=uuid.uuid4(),
+            run_id=request.run_id,
+            bar_ts=request.bar_ts,
+            ticker=request.ticker,
+            strategy_key=request.strategy_key,
+            side=request.side,
+            proposed_qty=request.qty,
+            decision=verdict.decision,
+            size_multiplier=verdict.size_multiplier,
+            reasoning_md=verdict.reasoning_md,
+            context_payload=context_payload,
+            llm_model=llm_model,
+            prompt_version=prompt_version,
+            llm_call_log_id=llm_call_log_id,
+        )
+        write_session.add(row)
+        await write_session.commit()
 
 
 __all__ = [

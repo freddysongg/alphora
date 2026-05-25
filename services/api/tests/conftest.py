@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 from sqlalchemy import event
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["ENVIRONMENT"] = "test"
@@ -75,6 +75,13 @@ async def db_session(initialized_schema: None) -> AsyncIterator[AsyncSession]:
 
     async with session_factory() as session:
         yield session
+
+
+@pytest.fixture()
+def session_maker(initialized_schema: None) -> async_sessionmaker[AsyncSession]:
+    from app.db.session import session_factory
+
+    return session_factory
 
 
 class _FakeJob:
