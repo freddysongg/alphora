@@ -69,7 +69,7 @@ def _build_user_body(request: JudgeRequest, context: JudgeContext) -> str:
         "side": request.side,
         "qty": str(request.qty),
         "estimated_fill_price": str(request.estimated_fill_price),
-        "bar_ts": request.bar_ts.isoformat(),  # type: ignore[attr-defined]
+        "bar_ts": request.bar_ts.isoformat(),
         "strategy_meta": request.strategy_meta,
     }
     ctx_json: dict[str, object] = {
