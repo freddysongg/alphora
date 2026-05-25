@@ -84,25 +84,15 @@ async def evaluate(
     llm_client: JudgeLlmClient,
     model: str = "gpt-4o-mini",
 ) -> JudgeVerdict:
-    """Judge the proposed order. Persists every verdict (happy + conservative).
+    """Judge the proposed order. Persists every verdict.
 
-    Returns the verdict the runner uses for its mode-policy branch:
-    - "approve": runner submits at proposed.qty
-    - "approve_reduced": runner submits at proposed.qty * size_multiplier
-    - "veto": runner skips submit if mode == "live"; logs only if "paper"
-
-    Three sessions: (1) `ctx_session` reads the research substrate,
-    (2) `llm_session` is the handle the LlmClient uses for its own
-    `llm_call_logs` write, (3) the persistence session inside
-    `_persist_verdict` commits the verdict row atomically after parse
-    succeeds.
-
-    Phase 6 happy path only; Task 8 adds the four conservative-default
-    branches (sparse context, LLM transport error, parse failure,
-    approve_reduced with invalid multiplier).
+    Conservative-default branches (all persist a verdict row):
+      1. Sparse context — veto without LLM call.
+      2. LLM transport / budget exception — veto with no log linkage.
+      3. Parse failure — veto with the failing LLM call's log_id linked.
+      4. (Defense-in-depth) approve_reduced with invalid multiplier — veto.
     """
-    # Deferred imports break the circular: llm_judge_prompt imports JudgeRequest/JudgeVerdict from this module.
-    from app.services.llm_judge_context import gather_context
+    from app.services.llm_judge_context import gather_context, is_sparse
     from app.services.llm_judge_prompt import (
         PROMPT_VERSION,
         parse_verdict_response,
@@ -112,21 +102,105 @@ async def evaluate(
     async with session_maker() as ctx_session:
         context = await gather_context(ctx_session, ticker=request.ticker)
 
+    if is_sparse(context):
+        verdict = JudgeVerdict(
+            decision="veto",
+            reasoning_md=(
+                "context_sparse: research substrate has no Entity / "
+                "active Hypothesis / CompanyThesis / SectorBrief for this "
+                "ticker. Conservative-default veto per spec §6.5."
+            ),
+            size_multiplier=None,
+        )
+        await _persist_verdict(
+            session_maker=session_maker,
+            request=request,
+            verdict=verdict,
+            context=context,
+            llm_model=None,
+            prompt_version=None,
+            llm_call_log_id=None,
+        )
+        return verdict
+
     messages = render_prompt(request, context)
 
-    async with session_maker() as llm_session:
-        completion = await llm_client.complete(
-            session=llm_session,
-            messages=messages,
-            model=model,
-            prompt_version=PROMPT_VERSION,
-            stage="judge",
-            agent_name="strategy_judge",
+    completion: LlmCompletionResult | None = None
+    failure_reason: str | None = None
+    try:
+        async with session_maker() as llm_session:
+            completion = await llm_client.complete(
+                session=llm_session,
+                messages=messages,
+                model=model,
+                prompt_version=PROMPT_VERSION,
+                stage="judge",
+                agent_name="strategy_judge",
+            )
+    except Exception as exc:  # every transport-level failure becomes a conservative veto
+        failure_reason = f"llm_unavailable: {type(exc).__name__}: {exc!s}"
+
+    if completion is None:
+        verdict = JudgeVerdict(
+            decision="veto",
+            reasoning_md=failure_reason or "llm_unavailable: unknown",
+            size_multiplier=None,
         )
+        await _persist_verdict(
+            session_maker=session_maker,
+            request=request,
+            verdict=verdict,
+            context=context,
+            llm_model=None,
+            prompt_version=PROMPT_VERSION,
+            llm_call_log_id=None,
+        )
+        return verdict
 
     parsed = parse_verdict_response(completion.content)
     if parsed is None:
-        raise NotImplementedError("parse-failure branch lands in Task 8")
+        truncated = completion.content[:512]
+        verdict = JudgeVerdict(
+            decision="veto",
+            reasoning_md=(
+                "unparseable_response: LLM returned a payload the parser "
+                f"rejected. Truncated content: {truncated!r}"
+            ),
+            size_multiplier=None,
+        )
+        await _persist_verdict(
+            session_maker=session_maker,
+            request=request,
+            verdict=verdict,
+            context=context,
+            llm_model=completion.model,
+            prompt_version=PROMPT_VERSION,
+            llm_call_log_id=completion.log_id,
+        )
+        return verdict
+
+    if parsed.decision == "approve_reduced" and (
+        parsed.size_multiplier is None
+        or not (0.0 < parsed.size_multiplier <= 1.0)
+    ):
+        verdict = JudgeVerdict(
+            decision="veto",
+            reasoning_md=(
+                "approve_reduced_invalid_multiplier: parser accepted a "
+                "verdict the judge guard rejected."
+            ),
+            size_multiplier=None,
+        )
+        await _persist_verdict(
+            session_maker=session_maker,
+            request=request,
+            verdict=verdict,
+            context=context,
+            llm_model=completion.model,
+            prompt_version=PROMPT_VERSION,
+            llm_call_log_id=completion.log_id,
+        )
+        return verdict
 
     await _persist_verdict(
         session_maker=session_maker,
