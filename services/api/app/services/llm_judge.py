@@ -20,6 +20,7 @@ re-derive verdict semantics.
 """
 from __future__ import annotations
 
+import dataclasses
 import uuid
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -70,11 +71,16 @@ class JudgeRequest:
 
 @dataclass(frozen=True)
 class JudgeVerdict:
-    """Verdict + reasoning persisted to `judge_verdicts`."""
+    """Verdict + reasoning persisted to `judge_verdicts`.
+
+    `verdict_id` is None until evaluate() persists the row. Phase 7's
+    approval queue reads it to wire `pending_approvals.judge_verdict_id`.
+    """
 
     decision: JudgeDecision
     reasoning_md: str
     size_multiplier: float | None = None
+    verdict_id: uuid.UUID | None = None
 
 
 async def evaluate(
@@ -112,7 +118,7 @@ async def evaluate(
             ),
             size_multiplier=None,
         )
-        await _persist_verdict(
+        row_id = await _persist_verdict(
             session_maker=session_maker,
             request=request,
             verdict=verdict,
@@ -121,7 +127,7 @@ async def evaluate(
             prompt_version=None,
             llm_call_log_id=None,
         )
-        return verdict
+        return dataclasses.replace(verdict, verdict_id=row_id)
 
     messages = render_prompt(request, context)
 
@@ -146,7 +152,7 @@ async def evaluate(
             reasoning_md=failure_reason or "llm_unavailable: unknown",
             size_multiplier=None,
         )
-        await _persist_verdict(
+        row_id = await _persist_verdict(
             session_maker=session_maker,
             request=request,
             verdict=verdict,
@@ -155,7 +161,7 @@ async def evaluate(
             prompt_version=PROMPT_VERSION,
             llm_call_log_id=None,
         )
-        return verdict
+        return dataclasses.replace(verdict, verdict_id=row_id)
 
     parsed = parse_verdict_response(completion.content)
     if parsed is None:
@@ -168,7 +174,7 @@ async def evaluate(
             ),
             size_multiplier=None,
         )
-        await _persist_verdict(
+        row_id = await _persist_verdict(
             session_maker=session_maker,
             request=request,
             verdict=verdict,
@@ -177,7 +183,7 @@ async def evaluate(
             prompt_version=PROMPT_VERSION,
             llm_call_log_id=completion.log_id,
         )
-        return verdict
+        return dataclasses.replace(verdict, verdict_id=row_id)
 
     if parsed.decision == "approve_reduced" and (
         parsed.size_multiplier is None
@@ -191,7 +197,7 @@ async def evaluate(
             ),
             size_multiplier=None,
         )
-        await _persist_verdict(
+        row_id = await _persist_verdict(
             session_maker=session_maker,
             request=request,
             verdict=verdict,
@@ -200,9 +206,9 @@ async def evaluate(
             prompt_version=PROMPT_VERSION,
             llm_call_log_id=completion.log_id,
         )
-        return verdict
+        return dataclasses.replace(verdict, verdict_id=row_id)
 
-    await _persist_verdict(
+    row_id = await _persist_verdict(
         session_maker=session_maker,
         request=request,
         verdict=parsed,
@@ -211,7 +217,7 @@ async def evaluate(
         prompt_version=PROMPT_VERSION,
         llm_call_log_id=completion.log_id,
     )
-    return parsed
+    return dataclasses.replace(parsed, verdict_id=row_id)
 
 
 async def _persist_verdict(
@@ -223,7 +229,7 @@ async def _persist_verdict(
     llm_model: str | None,
     prompt_version: str | None,
     llm_call_log_id: uuid.UUID | None,
-) -> None:
+) -> uuid.UUID:
     from app.db.models_judge import JudgeVerdictRow
     from app.services.llm_judge_prompt import context_to_dict
 
@@ -232,9 +238,10 @@ async def _persist_verdict(
         context_payload = {}
     else:
         context_payload = context_to_dict(context)
+    row_id = uuid.uuid4()
     async with session_maker() as write_session:
         row = JudgeVerdictRow(
-            id=uuid.uuid4(),
+            id=row_id,
             run_id=request.run_id,
             bar_ts=request.bar_ts,
             ticker=request.ticker,
@@ -251,6 +258,7 @@ async def _persist_verdict(
         )
         write_session.add(row)
         await write_session.commit()
+    return row_id
 
 
 __all__ = [
