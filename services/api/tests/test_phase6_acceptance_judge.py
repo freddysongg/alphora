@@ -405,9 +405,15 @@ async def test_scenario_a_paper_judge_approves_with_seeded_context(
 
 @pytest.mark.asyncio
 async def test_scenario_b_live_judge_veto_blocks_place_order(
+    monkeypatch: pytest.MonkeyPatch,
     db_session: AsyncSession,
     session_maker: async_sessionmaker[AsyncSession],
 ) -> None:
+    from app.config import get_settings
+
+    monkeypatch.setenv("HUMAN_APPROVAL_TOKEN", "phase7-test-token-32chars-ok-xxxx")
+    get_settings.cache_clear()
+
     ticker = "BLCK"
     await _seed_risk_config(db_session, "live")
     await _seed_research_substrate(db_session, ticker)
@@ -450,6 +456,7 @@ async def test_scenario_b_live_judge_veto_blocks_place_order(
     assert v.decision == "veto"
     assert "filing" in v.reasoning_md
     assert llm.calls == 1
+    get_settings.cache_clear()
 
 
 @pytest.mark.asyncio
