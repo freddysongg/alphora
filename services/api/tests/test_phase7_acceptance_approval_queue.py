@@ -1,16 +1,17 @@
-"""Phase 6 acceptance test (spec §12 Phase 6).
+"""Phase 7 acceptance test (spec §12 Phase 7).
 
 Three scenarios in one file:
-  A) Paper-mode happy path: seeded substrate -> judge approves -> verdict
-     row references seeded context.
-  B) Live-mode veto blocks: stub LLM returns veto -> place_order never
-     called; verdict row records the veto.
-  C) Conservative-default on sparse: empty substrate -> judge vetoes
-     without calling LLM; verdict row recorded.
+  A) Paper E2E: signal -> pending_approvals row inserted with
+     status=approved + decided_by="auto" -> broker.place_order called.
+  B) Live block-and-approve: mode=live -> pending row -> external task
+     posts to /approve via the ORM (simulating the API endpoint) ->
+     runner unblocks, places order.
+  C) Live expiry: mode=live + tiny approval_live_expires_after_seconds ->
+     row flips to expired -> runner does NOT call place_order.
 
-The runner is driven by a deterministic in-process stub broker; the
-strategy emits a long bias on every bar so the runner reliably produces
-ONE signal per ticker.
+Uses an in-process stub broker + always-long stub strategy + always-
+approve stub LLM client. Patterns ported from
+test_phase6_acceptance_judge.py.
 """
 from __future__ import annotations
 
@@ -39,6 +40,7 @@ from app.brokers.base import (
     Timeframe,
     TradabilityCheck,
 )
+from app.db.models_approval import PendingApprovalRow, PendingApprovalStatus
 from app.db.models_company import CompanyThesis
 from app.db.models_graph import (
     Entity,
@@ -221,7 +223,6 @@ def _build_bar(ticker: str, ts: datetime, price: Decimal = Decimal("100")) -> Ba
     )
 
 
-
 async def _seed_research_substrate(
     session: AsyncSession, ticker: str
 ) -> uuid.UUID:
@@ -306,7 +307,7 @@ async def _build_manual_watchlist(
 ) -> uuid.UUID:
     watchlist = Watchlist(
         id=uuid.uuid4(),
-        name=f"acceptance-{ticker}",
+        name=f"phase7-acceptance-{ticker}",
         source=WatchlistSource.manual.value,
         is_active=True,
     )
@@ -323,14 +324,21 @@ async def _build_manual_watchlist(
 
 
 @pytest.mark.asyncio
-async def test_scenario_a_paper_judge_approves_with_seeded_context(
+async def test_scenario_a_paper_auto_approve_e2e(
     db_session: AsyncSession,
     session_maker: async_sessionmaker[AsyncSession],
     seed_risk_config: Callable[..., Awaitable[uuid.UUID]],
 ) -> None:
-    ticker = "ACPT"
+    """Paper E2E: signal -> approved row -> broker.place_order called.
+
+    Verifies the full chain: risk gate passes, judge approves, approval
+    queue inserts a row with status=approved + decided_by=auto, runner
+    calls place_order, and the row's judge_verdict_id references a real
+    judge_verdicts row.
+    """
+    ticker = "PAPE"
     await seed_risk_config("paper")
-    entity_id = await _seed_research_substrate(db_session, ticker)
+    await _seed_research_substrate(db_session, ticker)
     watchlist_id = await _build_manual_watchlist(db_session, ticker)
     await db_session.commit()
 
@@ -354,47 +362,54 @@ async def test_scenario_a_paper_judge_approves_with_seeded_context(
         session_maker=session_maker,
         cancel_event_factory=asyncio.Event,
         llm_client=llm,
+        approval_paper_auto_approve_after_seconds=0.0,
     )
     assert len(contexts) == 1
 
     await runner_run(contexts[0])
 
-    verdicts = (
+    assert broker.place_order_calls >= 1
+
+    rows = (
         await db_session.execute(
-            select(JudgeVerdictRow).where(
-                JudgeVerdictRow.run_id == contexts[0].run_id
+            select(PendingApprovalRow).where(
+                PendingApprovalRow.run_id == contexts[0].run_id
             )
         )
     ).scalars().all()
-    assert len(verdicts) == 1
-    v = verdicts[0]
-    assert v.decision == "approve"
-    assert v.reasoning_md.strip() != ""
-    payload = v.context_payload
-    entity_block = payload["entity"]
-    assert isinstance(entity_block, dict)
-    assert entity_block["id"] == str(entity_id)
-    active_hypos = payload["active_hypotheses"]
-    assert isinstance(active_hypos, list)
-    assert len(active_hypos) >= 1
-    assert payload["company_thesis"] is not None
-    assert llm.calls == 1
-    assert broker.place_order_calls >= 1
+    assert len(rows) >= 1
+    row = rows[0]
+    assert row.status == PendingApprovalStatus.approved.value
+    assert row.decided_by == "auto"
+    assert row.mode == "paper"
+
+    assert row.judge_verdict_id is not None
+    verdict = await db_session.scalar(
+        select(JudgeVerdictRow).where(JudgeVerdictRow.id == row.judge_verdict_id)
+    )
+    assert verdict is not None
+    assert verdict.decision == "approve"
 
 
 @pytest.mark.asyncio
-async def test_scenario_b_live_judge_veto_blocks_place_order(
+async def test_scenario_b_live_block_and_approve(
     monkeypatch: pytest.MonkeyPatch,
     db_session: AsyncSession,
     session_maker: async_sessionmaker[AsyncSession],
     seed_risk_config: Callable[..., Awaitable[uuid.UUID]],
 ) -> None:
+    """Live mode: runner blocks on pending row, external flipper approves it.
+
+    A background task simulates the human-approval API endpoint by polling
+    for any pending row for this run and flipping its status to approved.
+    The runner unblocks and calls place_order exactly once.
+    """
     from app.config import get_settings
 
-    monkeypatch.setenv("HUMAN_APPROVAL_TOKEN", "phase7-test-token-32chars-ok-xxxx")
+    monkeypatch.setenv("HUMAN_APPROVAL_TOKEN", "phase7-acceptance-token-32chars-ok")
     get_settings.cache_clear()
 
-    ticker = "BLCK"
+    ticker = "LIVE"
     await seed_risk_config("live")
     await _seed_research_substrate(db_session, ticker)
     watchlist_id = await _build_manual_watchlist(db_session, ticker)
@@ -402,8 +417,8 @@ async def test_scenario_b_live_judge_veto_blocks_place_order(
 
     llm = _RecordingLlmClient(
         response=json.dumps({
-            "decision": "veto",
-            "reasoning_md": "thesis is contradicted by today's filing.",
+            "decision": "approve",
+            "reasoning_md": f"hypothesis on {ticker} aligns with long entry.",
             "size_multiplier": None,
         })
     )
@@ -420,65 +435,126 @@ async def test_scenario_b_live_judge_veto_blocks_place_order(
         session_maker=session_maker,
         cancel_event_factory=asyncio.Event,
         llm_client=llm,
+        approval_poll_interval_seconds=0.05,
+        approval_live_expires_after_seconds=10.0,
+    )
+    assert len(contexts) == 1
+    run_id = contexts[0].run_id
+
+    async def _flipper() -> None:
+        """Poll for a pending live row for this run and flip it to approved."""
+        deadline = asyncio.get_event_loop().time() + 9.0
+        while asyncio.get_event_loop().time() < deadline:
+            await asyncio.sleep(0.02)
+            async with session_maker() as session:
+                pending_row = await session.scalar(
+                    select(PendingApprovalRow).where(
+                        PendingApprovalRow.run_id == run_id,
+                        PendingApprovalRow.status == PendingApprovalStatus.pending.value,
+                        PendingApprovalRow.mode == "live",
+                    )
+                )
+                if pending_row is not None:
+                    pending_row.status = PendingApprovalStatus.approved.value
+                    pending_row.decided_by = "human:default"
+                    pending_row.decided_at = datetime.now(UTC)
+                    await session.commit()
+                    return
+
+    runner_task = asyncio.create_task(runner_run(contexts[0]))
+    flipper_task = asyncio.create_task(_flipper())
+
+    try:
+        await asyncio.wait_for(
+            asyncio.gather(runner_task, flipper_task),
+            timeout=15.0,
+        )
+    except TimeoutError:
+        runner_task.cancel()
+        flipper_task.cancel()
+        raise
+
+    assert broker.place_order_calls == 1
+
+    rows = (
+        await db_session.execute(
+            select(PendingApprovalRow).where(
+                PendingApprovalRow.run_id == run_id
+            )
+        )
+    ).scalars().all()
+    assert len(rows) >= 1
+    approved_rows = [r for r in rows if r.status == PendingApprovalStatus.approved.value]
+    assert len(approved_rows) >= 1
+    assert approved_rows[0].mode == "live"
+
+    get_settings.cache_clear()
+
+
+@pytest.mark.asyncio
+async def test_scenario_c_live_expiry_blocks_submission(
+    monkeypatch: pytest.MonkeyPatch,
+    db_session: AsyncSession,
+    session_maker: async_sessionmaker[AsyncSession],
+    seed_risk_config: Callable[..., Awaitable[uuid.UUID]],
+) -> None:
+    """Live mode + tiny expiry: pending row flips to expired, no place_order.
+
+    With approval_live_expires_after_seconds=0.05 and
+    approval_poll_interval_seconds=0.02, the poll loop detects expiry
+    on the second iteration at most. The runner receives an 'expired'
+    decision and skips broker submission.
+    """
+    from app.config import get_settings
+
+    monkeypatch.setenv("HUMAN_APPROVAL_TOKEN", "phase7-acceptance-token-32chars-ok")
+    get_settings.cache_clear()
+
+    ticker = "EXPD"
+    await seed_risk_config("live")
+    await _seed_research_substrate(db_session, ticker)
+    watchlist_id = await _build_manual_watchlist(db_session, ticker)
+    await db_session.commit()
+
+    llm = _RecordingLlmClient(
+        response=json.dumps({
+            "decision": "approve",
+            "reasoning_md": f"hypothesis on {ticker} aligns with long entry.",
+            "size_multiplier": None,
+        })
+    )
+    bars = [_build_bar(ticker, datetime.now(UTC).replace(microsecond=0))]
+    broker = _CountingBroker(bars_to_emit=bars, mode="live")
+
+    contexts = await spawn_contexts_from_watchlist(
+        db_session,
+        watchlist_id=watchlist_id,
+        strategy=_AlwaysLongStrategy(),
+        mode=StrategyRunMode.live,
+        params={},
+        broker=broker,
+        session_maker=session_maker,
+        cancel_event_factory=asyncio.Event,
+        llm_client=llm,
+        approval_poll_interval_seconds=0.02,
+        approval_live_expires_after_seconds=0.05,
     )
     assert len(contexts) == 1
 
     await runner_run(contexts[0])
 
     assert broker.place_order_calls == 0
-    v = (
+
+    rows = (
         await db_session.execute(
-            select(JudgeVerdictRow).where(
-                JudgeVerdictRow.run_id == contexts[0].run_id
+            select(PendingApprovalRow).where(
+                PendingApprovalRow.run_id == contexts[0].run_id
             )
         )
-    ).scalar_one()
-    assert v.decision == "veto"
-    assert "filing" in v.reasoning_md
-    assert llm.calls == 1
+    ).scalars().all()
+    assert len(rows) >= 1
+    expired_rows = [r for r in rows if r.status == PendingApprovalStatus.expired.value]
+    assert len(expired_rows) >= 1
+    assert expired_rows[0].mode == "live"
+
     get_settings.cache_clear()
-
-
-@pytest.mark.asyncio
-async def test_scenario_c_paper_sparse_context_vetoes_without_llm_call(
-    db_session: AsyncSession,
-    session_maker: async_sessionmaker[AsyncSession],
-    seed_risk_config: Callable[..., Awaitable[uuid.UUID]],
-) -> None:
-    ticker = "SPRS"
-    await seed_risk_config("paper")
-    watchlist_id = await _build_manual_watchlist(db_session, ticker)
-    await db_session.commit()
-
-    llm = _RecordingLlmClient(response="should never be called")
-    bars = [_build_bar(ticker, datetime.now(UTC).replace(microsecond=0))]
-    broker = _CountingBroker(bars_to_emit=bars, mode="paper")
-
-    contexts = await spawn_contexts_from_watchlist(
-        db_session,
-        watchlist_id=watchlist_id,
-        strategy=_AlwaysLongStrategy(),
-        mode=StrategyRunMode.paper,
-        params={},
-        broker=broker,
-        session_maker=session_maker,
-        cancel_event_factory=asyncio.Event,
-        llm_client=llm,
-    )
-    assert len(contexts) == 1
-
-    await runner_run(contexts[0])
-
-    v = (
-        await db_session.execute(
-            select(JudgeVerdictRow).where(
-                JudgeVerdictRow.run_id == contexts[0].run_id
-            )
-        )
-    ).scalar_one()
-    assert v.decision == "veto"
-    assert "context_sparse" in v.reasoning_md
-    assert v.llm_model is None
-    assert v.llm_call_log_id is None
-    assert llm.calls == 0
-    assert broker.place_order_calls >= 1

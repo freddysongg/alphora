@@ -110,6 +110,9 @@ class StrategyRunnerContext:
     trail_state: TrailState | None = None
     last_exit_bar_ts: datetime | None = None
     orders_in_last_minute: list[datetime] = field(default_factory=list)
+    approval_poll_interval_seconds: float = 1.0
+    approval_paper_auto_approve_after_seconds: float = 0.0
+    approval_live_expires_after_seconds: float = 300.0
 
 
 async def run(ctx: StrategyRunnerContext) -> None:
@@ -117,6 +120,15 @@ async def run(ctx: StrategyRunnerContext) -> None:
     completes (whichever comes first). Always writes a run_started event
     on entry and a run_stopped event on exit, and updates the
     `strategy_runs` row's status + stopped_at."""
+    if ctx.mode == "live":
+        from app.config import get_settings
+
+        token = get_settings().human_approval_token.get_secret_value()
+        if not token:
+            raise RuntimeError(
+                "HUMAN_APPROVAL_TOKEN must be set when mode=live; "
+                "runner refuses to start without the human-approval contract"
+            )
     await _mark_status(ctx, StrategyRunStatus.running, started=True)
     await _emit_event(
         ctx,
@@ -544,6 +556,7 @@ async def _submit_via_gates(
         return
 
     approval_req = ApprovalRequest(
+        run_id=ctx.run_id,
         strategy_key=ctx.strategy.key,
         ticker=proposed.ticker,
         side=proposed.side,
@@ -552,8 +565,15 @@ async def _submit_via_gates(
         mode=ctx.mode,
         judge_decision=verdict.decision,
         judge_size_multiplier=verdict.size_multiplier,
+        judge_verdict_id=verdict.verdict_id,
     )
-    decision = await request_approval(approval_req)
+    decision = await request_approval(
+        approval_req,
+        session_maker=ctx.session_maker,
+        auto_approve_after_seconds=ctx.approval_paper_auto_approve_after_seconds,
+        live_expires_after_seconds=ctx.approval_live_expires_after_seconds,
+        poll_interval_seconds=ctx.approval_poll_interval_seconds,
+    )
     await _emit_event(
         ctx,
         kind=EVENT_APPROVAL_DECISION,
@@ -562,6 +582,8 @@ async def _submit_via_gates(
             "decision": decision.decision,
             "decided_by": decision.decided_by,
             "decided_at": decision.decided_at.isoformat(),
+            "pending_approval_id": str(decision.pending_approval_id),
+            "reject_reason": decision.reject_reason,
         },
         bar_ts=bar.as_of,
     )

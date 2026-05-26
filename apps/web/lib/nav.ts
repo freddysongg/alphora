@@ -4,6 +4,7 @@ import {
   ClipboardText,
   Funnel,
   Key,
+  Checks,
   PlugsConnected,
   Pulse,
 } from "@phosphor-icons/react/dist/ssr";
@@ -13,6 +14,7 @@ export type NavSectionKey =
   | "research"
   | "markets"
   | "paper"
+  | "approvals"
   | "data-health"
   | "settings";
 
@@ -49,6 +51,11 @@ export const navSections: ReadonlyArray<NavSectionConfig> = [
       { label: "Portfolio", href: "/paper/portfolio", icon: Briefcase },
       { label: "Orders", href: "/paper/orders", icon: ClipboardText },
     ],
+  },
+  {
+    key: "approvals",
+    label: "APPROVALS",
+    items: [{ label: "Queue", href: "/approvals", icon: Checks }],
   },
   {
     key: "data-health",

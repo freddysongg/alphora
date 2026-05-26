@@ -48,6 +48,9 @@ async def spawn_contexts_from_watchlist(
     session_maker: Callable[[], AsyncSession],
     cancel_event_factory: Callable[[], asyncio.Event],
     llm_client: JudgeLlmClient,
+    approval_poll_interval_seconds: float = 1.0,
+    approval_paper_auto_approve_after_seconds: float = 0.0,
+    approval_live_expires_after_seconds: float = 300.0,
 ) -> list[StrategyRunnerContext]:
     """Resolve the watchlist, insert one StrategyRun per ticker, return contexts.
 
@@ -80,6 +83,9 @@ async def spawn_contexts_from_watchlist(
                 session_maker=session_maker,
                 cancel_event=cancel_event_factory(),
                 llm_client=llm_client,
+                approval_poll_interval_seconds=approval_poll_interval_seconds,
+                approval_paper_auto_approve_after_seconds=approval_paper_auto_approve_after_seconds,
+                approval_live_expires_after_seconds=approval_live_expires_after_seconds,
             )
         )
     await session.commit()

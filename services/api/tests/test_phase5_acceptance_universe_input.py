@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Literal
@@ -39,7 +39,6 @@ from app.brokers.base import (
 from app.db.models_graph import Entity, EntityType, Hypothesis, HypothesisStatus
 from app.db.models_market import Watchlist, WatchlistMember, WatchlistSource
 from app.db.models_strategy_runner import (
-    StrategyRiskConfig,
     StrategyRunEvent,
     StrategyRunMode,
 )
@@ -135,28 +134,6 @@ class _DeterministicBroker:
         return _gen()
 
 
-async def _seed_paper_risk_config(session: AsyncSession) -> None:
-    existing = await session.scalar(
-        select(StrategyRiskConfig).where(StrategyRiskConfig.mode == "paper")
-    )
-    if existing is not None:
-        return
-    session.add(
-        StrategyRiskConfig(
-            id=uuid.uuid4(),
-            mode="paper",
-            max_position_per_ticker_shares=Decimal("50"),
-            max_position_per_ticker_notional_usd=Decimal("5000"),
-            max_open_positions=6,
-            max_daily_loss_usd=Decimal("1000"),
-            max_consecutive_losses=5,
-            daily_profit_target_usd=Decimal("2000"),
-            max_orders_per_minute_per_ticker=3,
-        )
-    )
-    await session.commit()
-
-
 def _make_cancel_event() -> asyncio.Event:
     return asyncio.Event()
 
@@ -172,8 +149,9 @@ async def _drain_runners(contexts: list[StrategyRunnerContext]) -> None:
 async def test_phase5_acceptance_manual_watchlist_runner_consumes_correctly(
     db_session: AsyncSession,
     noop_judge_llm_client: object,
+    seed_risk_config: Callable[..., Awaitable[uuid.UUID]],
 ) -> None:
-    await _seed_paper_risk_config(db_session)
+    await seed_risk_config("paper")
 
     watchlist = Watchlist(
         id=uuid.uuid4(),
@@ -244,8 +222,9 @@ async def test_phase5_acceptance_manual_watchlist_runner_consumes_correctly(
 async def test_phase5_acceptance_research_driven_watchlist_runner_consumes_correctly(
     db_session: AsyncSession,
     noop_judge_llm_client: object,
+    seed_risk_config: Callable[..., Awaitable[uuid.UUID]],
 ) -> None:
-    await _seed_paper_risk_config(db_session)
+    await seed_risk_config("paper")
 
     spy_entity = Entity(
         id=uuid.uuid4(),

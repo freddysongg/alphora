@@ -1,7 +1,7 @@
 import json
 import os
 import uuid
-from collections.abc import AsyncIterator, Iterator, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator, Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
@@ -149,6 +149,40 @@ def noop_judge_llm_client() -> object:
             )
 
     return _Noop()
+
+
+@pytest.fixture
+def seed_risk_config(
+    session_maker: async_sessionmaker[AsyncSession],
+) -> Callable[..., Awaitable[uuid.UUID]]:
+    """Insert a strategy_risk_config row for the given mode.
+
+    Shared by Phase 5/6/7 acceptance tests. Returns the inserted row id.
+    Default values are permissive enough to clear the runner's risk-caps
+    gate on a typical $100-notional test order.
+    """
+    from app.db.models_strategy_runner import StrategyRiskConfig
+
+    async def _seed(mode: str = "paper") -> uuid.UUID:
+        row_id = uuid.uuid4()
+        async with session_maker() as session:
+            session.add(
+                StrategyRiskConfig(
+                    id=row_id,
+                    mode=mode,
+                    max_position_per_ticker_shares=Decimal("50"),
+                    max_position_per_ticker_notional_usd=Decimal("5000"),
+                    max_open_positions=6,
+                    max_daily_loss_usd=Decimal("1000"),
+                    max_consecutive_losses=5,
+                    daily_profit_target_usd=Decimal("2000"),
+                    max_orders_per_minute_per_ticker=3,
+                )
+            )
+            await session.commit()
+        return row_id
+
+    return _seed
 
 
 class _FakeJob:

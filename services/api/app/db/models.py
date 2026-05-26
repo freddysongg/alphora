@@ -1,4 +1,5 @@
 from app.db.base import Base, TimestampMixin
+from app.db.models_approval import PendingApprovalRow, PendingApprovalStatus
 from app.db.models_backtest import (
     BacktestEquityPoint,
     BacktestRun,
@@ -125,6 +126,8 @@ __all__ = [
     "PaperOrder",
     "PaperPortfolio",
     "PaperPosition",
+    "PendingApprovalRow",
+    "PendingApprovalStatus",
     "PerturbationKind",
     "PortfolioBrief",
     "ProposedType",
