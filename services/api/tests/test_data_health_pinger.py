@@ -6,7 +6,7 @@ so these tests do not depend on httpx or any real provider client.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 from datetime import UTC, datetime
 
 import pytest
@@ -19,8 +19,6 @@ from app.services.data_health_pinger import (
     HealthCheckResult,
     HealthCheckSkipError,
 )
-
-CheckFn = Callable[[], Awaitable[HealthCheckResult]]
 
 
 def _fixed_clock(now: datetime) -> Callable[[], datetime]:
@@ -57,10 +55,9 @@ async def test_success_writes_one_row(
     assert rows[0].tool == "health"
     assert rows[0].status == ProviderCheckStatus.success
     assert rows[0].latency_ms == 42
-    stored_at = rows[0].at
-    if stored_at.tzinfo is None:
-        stored_at = stored_at.replace(tzinfo=UTC)
-    assert stored_at == now
+    stored_at_naive = rows[0].at.replace(tzinfo=None)
+    expected_at_naive = now.replace(tzinfo=None)
+    assert stored_at_naive == expected_at_naive
 
 
 @pytest.mark.asyncio

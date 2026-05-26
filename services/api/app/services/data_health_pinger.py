@@ -1,23 +1,19 @@
 """Long-lived health pinger that writes one `provider_checks` row per
 configured provider per tick. Mirrors the shape of `ApprovalExpirySweeper`.
 
-Per the activation plan, the initial subset is 5 providers:
-  - sec_edgar (no key required; rate-limited via User-Agent)
-  - fred  (skipped if FRED_API_KEY unset)
-  - tiingo (skipped if TIINGO_API_KEY unset)
-  - finnhub (skipped if FINNHUB_API_KEY unset)
-  - polygon (skipped if POLYGON_API_KEY unset)
-
-Each check uses `tool="health"` so the matrix endpoint groups consistently.
-Skipped providers do NOT write a row; the matrix endpoint will omit that cell.
+Providers whose required API key is unset raise `HealthCheckSkipError`; the
+pinger omits the row entirely so the matrix endpoint renders a blank cell
+rather than a misleading failure.
 """
 from __future__ import annotations
 
 import asyncio
+import time
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import partial
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -35,8 +31,8 @@ _logger = get_logger(__name__)
 
 DEFAULT_TOOL = "health"
 DEFAULT_TIMEOUT_SECONDS = 5.0
-_ERROR_MESSAGE_MAX_LEN = 500
-_TIMEOUT_ERROR_MESSAGE = "timeout"
+ERROR_MESSAGE_MAX_LEN = 500
+TIMEOUT_ERROR_MESSAGE = "timeout"
 
 
 class HealthCheckSkipError(Exception):
@@ -67,6 +63,27 @@ def _default_clock() -> datetime:
     return datetime.now(UTC)
 
 
+def _failure_row(
+    *,
+    provider: str,
+    at: datetime,
+    latency_ms: int,
+    error_message: str | None,
+) -> ProviderCheck:
+    return ProviderCheck(
+        id=uuid.uuid4(),
+        provider=provider,
+        tool=DEFAULT_TOOL,
+        ticker=None,
+        at=at,
+        latency_ms=latency_ms,
+        status=ProviderCheckStatus.failure,
+        sample_count=0,
+        as_of=None,
+        error_message=error_message,
+    )
+
+
 class DataHealthPinger:
     def __init__(
         self,
@@ -81,7 +98,7 @@ class DataHealthPinger:
         self._interval_seconds = interval_seconds
         self._timeout_seconds = timeout_seconds
         self._clock = clock
-        self._health_checks: dict[str, HealthCheckFn] = (
+        self._health_checks = (
             health_checks
             if health_checks is not None
             else _default_health_checks(timeout_seconds)
@@ -91,9 +108,11 @@ class DataHealthPinger:
         now = self._clock()
         report = DataHealthSweepReport()
         rows: list[ProviderCheck] = []
-        for provider, check in self._health_checks.items():
+        for provider, check_fn in self._health_checks.items():
             try:
-                result = await asyncio.wait_for(check(), timeout=self._timeout_seconds)
+                result = await asyncio.wait_for(
+                    check_fn(), timeout=self._timeout_seconds
+                )
             except HealthCheckSkipError as skip_exc:
                 report.skipped_count += 1
                 _logger.info(
@@ -106,17 +125,11 @@ class DataHealthPinger:
                 report.checked_count += 1
                 report.fail_count += 1
                 rows.append(
-                    ProviderCheck(
-                        id=uuid.uuid4(),
+                    _failure_row(
                         provider=provider,
-                        tool=DEFAULT_TOOL,
-                        ticker=None,
                         at=now,
                         latency_ms=int(self._timeout_seconds * 1000),
-                        status=ProviderCheckStatus.failure,
-                        sample_count=0,
-                        as_of=None,
-                        error_message=_TIMEOUT_ERROR_MESSAGE,
+                        error_message=TIMEOUT_ERROR_MESSAGE,
                     )
                 )
                 continue
@@ -124,17 +137,11 @@ class DataHealthPinger:
                 report.checked_count += 1
                 report.fail_count += 1
                 rows.append(
-                    ProviderCheck(
-                        id=uuid.uuid4(),
+                    _failure_row(
                         provider=provider,
-                        tool=DEFAULT_TOOL,
-                        ticker=None,
                         at=now,
                         latency_ms=0,
-                        status=ProviderCheckStatus.failure,
-                        sample_count=0,
-                        as_of=None,
-                        error_message=str(check_exc)[:_ERROR_MESSAGE_MAX_LEN],
+                        error_message=str(check_exc)[:ERROR_MESSAGE_MAX_LEN],
                     )
                 )
                 continue
@@ -196,23 +203,25 @@ async def _wait_or_stop(stop_event: asyncio.Event, seconds: float) -> None:
 
 def _default_health_checks(timeout_seconds: float) -> dict[str, HealthCheckFn]:
     return {
-        "sec_edgar": lambda: _check_sec_edgar(timeout_seconds),
-        "fred": lambda: _check_fred(timeout_seconds),
-        "tiingo": lambda: _check_tiingo(timeout_seconds),
-        "finnhub": lambda: _check_finnhub(timeout_seconds),
-        "polygon": lambda: _check_polygon(timeout_seconds),
+        "sec_edgar": partial(_check_sec_edgar, timeout_seconds),
+        "fred": partial(_check_fred, timeout_seconds),
+        "tiingo": partial(_check_tiingo, timeout_seconds),
+        "finnhub": partial(_check_finnhub, timeout_seconds),
+        "polygon": partial(_check_polygon, timeout_seconds),
     }
 
 
-async def _measured(call: Awaitable[object]) -> int:
-    started_at = datetime.now(UTC)
+async def _time_call_ms(call: Awaitable[object]) -> int:
+    started_at = time.perf_counter()
     await call
-    return int((datetime.now(UTC) - started_at).total_seconds() * 1000)
+    return int((time.perf_counter() - started_at) * 1000)
 
 
 async def _check_sec_edgar(timeout_seconds: float) -> HealthCheckResult:
     async with httpx.AsyncClient(timeout=timeout_seconds) as client:
-        elapsed_ms = await _measured(sec_edgar_client.fetch_company_tickers(client=client))
+        elapsed_ms = await _time_call_ms(
+            sec_edgar_client.fetch_company_tickers(client=client)
+        )
     return HealthCheckResult(status=ProviderCheckStatus.success, latency_ms=elapsed_ms)
 
 
@@ -221,7 +230,7 @@ async def _check_fred(timeout_seconds: float) -> HealthCheckResult:
     if settings.fred_api_key is None:
         raise HealthCheckSkipError("FRED_API_KEY unset")
     async with httpx.AsyncClient(timeout=timeout_seconds) as client:
-        elapsed_ms = await _measured(
+        elapsed_ms = await _time_call_ms(
             fred_client.fetch_series_observations(client=client, series_id="GDP")
         )
     return HealthCheckResult(status=ProviderCheckStatus.success, latency_ms=elapsed_ms)
@@ -232,7 +241,7 @@ async def _check_tiingo(timeout_seconds: float) -> HealthCheckResult:
     if settings.tiingo_api_key is None:
         raise HealthCheckSkipError("TIINGO_API_KEY unset")
     async with httpx.AsyncClient(timeout=timeout_seconds) as client:
-        elapsed_ms = await _measured(
+        elapsed_ms = await _time_call_ms(
             tiingo_client.fetch_tiingo_latest(client=client, ticker="AAPL")
         )
     return HealthCheckResult(status=ProviderCheckStatus.success, latency_ms=elapsed_ms)
@@ -243,7 +252,7 @@ async def _check_finnhub(timeout_seconds: float) -> HealthCheckResult:
     if settings.finnhub_api_key is None:
         raise HealthCheckSkipError("FINNHUB_API_KEY unset")
     async with httpx.AsyncClient(timeout=timeout_seconds) as client:
-        elapsed_ms = await _measured(
+        elapsed_ms = await _time_call_ms(
             finnhub_client.fetch_finnhub_profile(client=client, symbol="AAPL")
         )
     return HealthCheckResult(status=ProviderCheckStatus.success, latency_ms=elapsed_ms)
@@ -254,7 +263,7 @@ async def _check_polygon(timeout_seconds: float) -> HealthCheckResult:
     if settings.polygon_api_key is None:
         raise HealthCheckSkipError("POLYGON_API_KEY unset")
     async with httpx.AsyncClient(timeout=timeout_seconds) as client:
-        elapsed_ms = await _measured(
+        elapsed_ms = await _time_call_ms(
             polygon_client.fetch_polygon_tickers(client=client, market="stocks", limit=1)
         )
     return HealthCheckResult(status=ProviderCheckStatus.success, latency_ms=elapsed_ms)
