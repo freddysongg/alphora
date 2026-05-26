@@ -180,3 +180,69 @@ async def test_approve_404_when_not_found(
         )
     assert resp.status_code == 404
     get_settings.cache_clear()
+
+
+@pytest.mark.asyncio
+async def test_approve_422_when_row_already_past_expires_at(
+    session_maker: async_sessionmaker[AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An operator may click approve on a UI showing a pending row whose
+    `expires_at` is already in the past (sweeper hasn't run yet). The
+    approve endpoint must refuse with 422 and flip the row to expired in
+    the same transaction so the runner sees consistent state.
+    """
+    from app.config import get_settings
+
+    monkeypatch.setenv("HUMAN_APPROVAL_TOKEN", _GOOD_TOKEN)
+    get_settings.cache_clear()
+
+    run_id = uuid.uuid4()
+    pending_id = uuid.uuid4()
+    async with session_maker() as session:
+        session.add(
+            StrategyRun(
+                id=run_id,
+                strategy_key="macd_rsi_adx",
+                ticker="SPY",
+                mode=StrategyRunMode.live.value,
+                status=StrategyRunStatus.running.value,
+                params={},
+            )
+        )
+        await session.flush()
+        session.add(
+            PendingApprovalRow(
+                id=pending_id,
+                run_id=run_id,
+                judge_verdict_id=None,
+                strategy_key="macd_rsi_adx",
+                ticker="SPY",
+                side="buy",
+                qty=Decimal("1"),
+                estimated_fill_price=Decimal("100"),
+                mode="live",
+                status=PendingApprovalStatus.pending.value,
+                decided_by=None,
+                decided_at=None,
+                reject_reason=None,
+                expires_at=datetime.now(UTC) - timedelta(minutes=1),
+            )
+        )
+        await session.commit()
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            f"/api/approvals/{pending_id}/approve",
+            headers={"X-Human-Token": _GOOD_TOKEN},
+        )
+    assert resp.status_code == 422
+    assert "expired" in str(resp.json()["detail"])
+    async with session_maker() as session:
+        row = await session.scalar(
+            select(PendingApprovalRow).where(PendingApprovalRow.id == pending_id)
+        )
+    assert row is not None
+    assert row.status == PendingApprovalStatus.expired.value
+    assert row.decided_by == "auto"
+    get_settings.cache_clear()

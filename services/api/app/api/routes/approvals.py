@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import desc, select
+from sqlalchemy import desc, or_, select, update
 
 from app.api.deps import HumanTokenDep, SessionDep
 from app.db.models_approval import PendingApprovalRow, PendingApprovalStatus
@@ -68,31 +68,103 @@ async def get_approval(
     return PendingApprovalDetail(**base.model_dump(), judge_verdict=verdict)
 
 
-@router.post("/{approval_id}/approve", response_model=PendingApprovalPublic)
-async def approve(
-    approval_id: uuid.UUID, session: SessionDep, identity: HumanTokenDep
+async def _decide(
+    *,
+    session: SessionDep,
+    approval_id: uuid.UUID,
+    target_status: PendingApprovalStatus,
+    identity: str,
+    reject_reason: str | None,
 ) -> PendingApprovalPublic:
-    row = await session.scalar(
-        select(PendingApprovalRow).where(PendingApprovalRow.id == approval_id)
-    )
-    if row is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="approval not found"
+    """Conditional-update decide. Prevents stale-pending approval of an
+    expired row (a row whose `expires_at` has passed but which the
+    sweeper/runner has not yet flipped). The update only succeeds when
+    the row is `pending` AND `expires_at` is null or in the future; on
+    failure we resolve the actual state and return 404/422 accordingly.
+    """
+    now = datetime.now(UTC)
+    values: dict[str, object] = {
+        "status": target_status.value,
+        "decided_by": identity,
+        "decided_at": now,
+    }
+    if target_status is PendingApprovalStatus.rejected:
+        values["reject_reason"] = reject_reason
+    result = await session.execute(
+        update(PendingApprovalRow)
+        .where(PendingApprovalRow.id == approval_id)
+        .where(PendingApprovalRow.status == PendingApprovalStatus.pending.value)
+        .where(
+            or_(
+                PendingApprovalRow.expires_at.is_(None),
+                PendingApprovalRow.expires_at > now,
+            )
         )
-    if row.status != PendingApprovalStatus.pending.value:
+        .values(**values)
+    )
+    if result.rowcount == 0:  # type: ignore[attr-defined]
+        existing = await session.scalar(
+            select(PendingApprovalRow).where(PendingApprovalRow.id == approval_id)
+        )
+        if existing is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="approval not found",
+            )
+        existing_expires_at = existing.expires_at
+        if existing_expires_at is not None and existing_expires_at.tzinfo is None:
+            existing_expires_at = existing_expires_at.replace(tzinfo=UTC)
+        if (
+            existing.status == PendingApprovalStatus.pending.value
+            and existing_expires_at is not None
+            and existing_expires_at <= now
+        ):
+            await session.execute(
+                update(PendingApprovalRow)
+                .where(PendingApprovalRow.id == approval_id)
+                .where(
+                    PendingApprovalRow.status == PendingApprovalStatus.pending.value
+                )
+                .values(
+                    status=PendingApprovalStatus.expired.value,
+                    decided_by="auto",
+                    decided_at=now,
+                )
+            )
+            await session.commit()
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "code": "expired",
+                    "current_status": PendingApprovalStatus.expired.value,
+                },
+            )
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={
                 "code": "already_decided",
-                "current_status": row.status,
+                "current_status": existing.status,
             },
         )
-    row.status = PendingApprovalStatus.approved.value
-    row.decided_by = identity
-    row.decided_at = datetime.now(UTC)
     await session.commit()
-    await session.refresh(row)
-    return PendingApprovalPublic.model_validate(row)
+    decided = await session.scalar(
+        select(PendingApprovalRow).where(PendingApprovalRow.id == approval_id)
+    )
+    assert decided is not None
+    return PendingApprovalPublic.model_validate(decided)
+
+
+@router.post("/{approval_id}/approve", response_model=PendingApprovalPublic)
+async def approve(
+    approval_id: uuid.UUID, session: SessionDep, identity: HumanTokenDep
+) -> PendingApprovalPublic:
+    return await _decide(
+        session=session,
+        approval_id=approval_id,
+        target_status=PendingApprovalStatus.approved,
+        identity=identity,
+        reject_reason=None,
+    )
 
 
 @router.post("/{approval_id}/reject", response_model=PendingApprovalPublic)
@@ -102,28 +174,13 @@ async def reject(
     identity: HumanTokenDep,
     payload: ApprovalRejectPayload | None = None,
 ) -> PendingApprovalPublic:
-    row = await session.scalar(
-        select(PendingApprovalRow).where(PendingApprovalRow.id == approval_id)
+    return await _decide(
+        session=session,
+        approval_id=approval_id,
+        target_status=PendingApprovalStatus.rejected,
+        identity=identity,
+        reject_reason=payload.reject_reason if payload is not None else None,
     )
-    if row is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="approval not found"
-        )
-    if row.status != PendingApprovalStatus.pending.value:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={
-                "code": "already_decided",
-                "current_status": row.status,
-            },
-        )
-    row.status = PendingApprovalStatus.rejected.value
-    row.decided_by = identity
-    row.decided_at = datetime.now(UTC)
-    row.reject_reason = (payload.reject_reason if payload is not None else None)
-    await session.commit()
-    await session.refresh(row)
-    return PendingApprovalPublic.model_validate(row)
 
 
 __all__ = ["router"]
