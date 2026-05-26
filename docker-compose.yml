@@ -91,6 +91,20 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
+  data-health-scheduler:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    environment:
+      <<: *api-env
+    command: ["python", "-m", "app.workers.data_health_scheduler"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
   paper-scheduler:
     build:
       context: ./services/api
