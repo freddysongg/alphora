@@ -68,6 +68,7 @@ from app.db.models_runs import (
 )
 from app.db.models_sector import SectorBrief
 from app.db.models_settings import ApplicationSettings, LlmProvider
+from app.db.models_strategy import StrategyConfig
 
 __all__ = [
     "AnalystKind",
@@ -129,6 +130,7 @@ __all__ = [
     "ScreenerRun",
     "SectorBrief",
     "SourceProvenance",
+    "StrategyConfig",
     "TimestampMixin",
     "Watchlist",
     "WatchlistMember",

@@ -35,6 +35,7 @@ from app.db.models_backtest import (
     BacktestTrade,
 )
 from app.services.historical_bars import load_polygon_aggregates_as_dataframe
+from app.services.timeframes import resample_bars_to_timeframe
 from app.strategies.base import Strategy, StrategyParams
 
 
@@ -231,12 +232,15 @@ def simulate(
 
         # 2. Ask the strategy for its target on the just-closed bar.
         bars_view = bars.iloc[: i + 1]
+        secondary_bars: dict[Timeframe, pd.DataFrame] = {}
+        for tf in strategy.secondary_timeframes:
+            secondary_bars[tf] = resample_bars_to_timeframe(bars_view, tf)
         current_position_shares = (
             open_positions[0].side * open_positions[0].shares if open_positions else 0
         )
         result = strategy.evaluate(
             primary_bars=bars_view,
-            secondary_bars={},
+            secondary_bars=secondary_bars,
             current_position=current_position_shares,
             params=params,
         )
