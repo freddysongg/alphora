@@ -1,3 +1,4 @@
+import secrets
 from functools import lru_cache
 from typing import Annotated
 
@@ -55,7 +56,7 @@ async def verify_human_token(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="HUMAN_APPROVAL_TOKEN not configured",
         )
-    if x_human_token is None or x_human_token != stored:
+    if x_human_token is None or not secrets.compare_digest(x_human_token, stored):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="invalid or missing human approval token",

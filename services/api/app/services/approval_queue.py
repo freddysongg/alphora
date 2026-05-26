@@ -21,7 +21,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Literal
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models_approval import PendingApprovalRow, PendingApprovalStatus
@@ -245,10 +245,37 @@ async def _handle_live(
                     reject_reason=row.reject_reason,
                 )
             if current_now >= expires_at:
-                row.status = PendingApprovalStatus.expired.value
-                row.decided_by = _AUTO_APPROVE_DECIDED_BY
-                row.decided_at = current_now
+                result = await session.execute(
+                    update(PendingApprovalRow)
+                    .where(PendingApprovalRow.id == pending_id)
+                    .where(
+                        PendingApprovalRow.status
+                        == PendingApprovalStatus.pending.value
+                    )
+                    .values(
+                        status=PendingApprovalStatus.expired.value,
+                        decided_by=_AUTO_APPROVE_DECIDED_BY,
+                        decided_at=current_now,
+                    )
+                )
                 await session.commit()
+                if result.rowcount == 0:  # type: ignore[attr-defined]
+                    refreshed = await session.scalar(
+                        select(PendingApprovalRow).where(
+                            PendingApprovalRow.id == pending_id
+                        )
+                    )
+                    if refreshed is None:
+                        raise RuntimeError(
+                            f"pending_approvals row {pending_id} vanished after expiry race"
+                        )
+                    return ApprovalDecision(
+                        decision=refreshed.status,  # type: ignore[arg-type]
+                        decided_by=refreshed.decided_by or "human:default",
+                        decided_at=refreshed.decided_at or current_now,
+                        pending_approval_id=pending_id,
+                        reject_reason=refreshed.reject_reason,
+                    )
                 return ApprovalDecision(
                     decision="expired",
                     decided_by=_AUTO_APPROVE_DECIDED_BY,
