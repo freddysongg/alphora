@@ -8,13 +8,14 @@ from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
 
 import pytest
 from sqlalchemy import event, select
+from sqlalchemy.engine.interfaces import DBAPIConnection
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
+from sqlalchemy.pool import ConnectionPoolEntry
 
-from app.brokers.base import Bar, Position, TradabilityCheck
+from app.brokers.base import Bar, Position
 from app.db.models_strategy_runner import (
     StrategyRun,
     StrategyRunEvent,
@@ -40,24 +41,31 @@ def _bar(i: int) -> Bar:
     )
 
 
-class _StubBroker:
-    """Yields a fixed sequence of bars, then completes."""
-    mode: str = "paper"
+class _BrokerRaisingGetPositions:
+    mode = "paper"
+
+    def __init__(self, bars: list[Bar], exc: Exception) -> None:
+        self._bars = bars
+        self._exc = exc
+
+    async def get_positions(self) -> list[Position]:
+        raise self._exc
+
+    def stream_bars(self, tickers: list[str], timeframe: str) -> AsyncIterator[Bar]:
+        async def _gen() -> AsyncIterator[Bar]:
+            for b in self._bars:
+                yield b
+        return _gen()
+
+
+class _BrokerFlatPositions:
+    mode = "paper"
 
     def __init__(self, bars: list[Bar]) -> None:
         self._bars = bars
 
     async def get_positions(self) -> list[Position]:
         return []
-
-    async def is_tradable(self, ticker: str) -> TradabilityCheck:
-        return TradabilityCheck(
-            ticker=ticker,
-            is_tradable=True,
-            is_shortable=True,
-            is_halted=False,
-            fractionable=True,
-        )
 
     def stream_bars(self, tickers: list[str], timeframe: str) -> AsyncIterator[Bar]:
         async def _gen() -> AsyncIterator[Bar]:
@@ -70,44 +78,46 @@ def _build_engine(db_path: Path) -> AsyncEngine:
     engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
 
     @event.listens_for(engine.sync_engine, "connect")
-    def _enable_fk(dbapi_conn: Any, _: Any) -> None:
+    def _enable_fk(dbapi_conn: DBAPIConnection, _: ConnectionPoolEntry) -> None:
         dbapi_conn.execute("PRAGMA foreign_keys=ON")
 
     return engine
 
 
-async def _migrate_then_seed_run(db_path: Path) -> uuid.UUID:
-    env = os.environ.copy()
-    env["DATABASE_URL"] = f"sqlite+aiosqlite:///{db_path}"
+def _migrate(db_path: Path) -> None:
+    env_vars = os.environ.copy()
+    env_vars["DATABASE_URL"] = f"sqlite+aiosqlite:///{db_path}"
     subprocess.run(
         [".venv/bin/python", "-m", "alembic", "upgrade", "head"],
-        env=env, check=True,
+        env=env_vars, check=True,
         cwd=Path(__file__).resolve().parents[1],
     )
-    engine = _build_engine(db_path)
+
+
+async def _seed_run(
+    engine: AsyncEngine, mode: StrategyRunMode = StrategyRunMode.paper
+) -> uuid.UUID:
     run_id = uuid.uuid4()
     async with AsyncSession(engine, expire_on_commit=False) as session:
         session.add(StrategyRun(
-            id=run_id,
-            strategy_key="macd_rsi_adx",
-            ticker="SPY",
-            mode=StrategyRunMode.paper.value,
-            status=StrategyRunStatus.pending.value,
-            params={},
+            id=run_id, strategy_key="macd_rsi_adx", ticker="SPY",
+            mode=mode.value, status=StrategyRunStatus.pending.value, params={},
         ))
         await session.commit()
-    await engine.dispose()
     return run_id
 
 
 @pytest.mark.asyncio
-async def test_runner_consumes_bars_and_writes_evaluate_events(tmp_path: Path) -> None:
-    db_path = tmp_path / "runner_skeleton.db"
-    run_id = await _migrate_then_seed_run(db_path)
-
-    bars = [_bar(i) for i in range(40)]
-    broker = _StubBroker(bars)
+async def test_runner_marks_errored_when_adoption_get_positions_raises(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "adopt_raises.db"
+    _migrate(db_path)
     engine = _build_engine(db_path)
+    run_id = await _seed_run(engine)
+
+    bars = [_bar(i) for i in range(3)]
+    broker = _BrokerRaisingGetPositions(bars=bars, exc=RuntimeError("boom"))
 
     ctx = StrategyRunnerContext(
         run_id=run_id,
@@ -119,13 +129,14 @@ async def test_runner_consumes_bars_and_writes_evaluate_events(tmp_path: Path) -
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
     )
-    await run_strategy(ctx)
+
+    with pytest.raises(RuntimeError, match="boom"):
+        await run_strategy(ctx)
 
     async with AsyncSession(engine, expire_on_commit=False) as session:
-        run = await session.scalar(select(StrategyRun).where(StrategyRun.id == run_id))
-        assert run is not None
-        assert run.status == "stopped"
-        assert run.stopped_at is not None
+        run_row = await session.scalar(
+            select(StrategyRun).where(StrategyRun.id == run_id)
+        )
         events = (
             await session.scalars(
                 select(StrategyRunEvent).where(StrategyRunEvent.run_id == run_id)
@@ -133,22 +144,28 @@ async def test_runner_consumes_bars_and_writes_evaluate_events(tmp_path: Path) -
         ).all()
     await engine.dispose()
 
-    kinds = [e.event_kind for e in events]
-    assert "run_started" in kinds
-    assert "run_stopped" in kinds
-    evaluate_count = sum(1 for k in kinds if k == "evaluate")
-    assert evaluate_count == 40, f"expected 40 evaluate events, got {evaluate_count}"
+    assert run_row is not None
+    assert run_row.status == StrategyRunStatus.errored.value
+    assert run_row.stopped_at is not None
+
+    stopped_events = [e for e in events if e.event_kind == "run_stopped"]
+    assert len(stopped_events) == 1
+    assert stopped_events[0].payload.get("reason") == "adoption_failed"
+    assert "boom" in str(stopped_events[0].payload.get("error", ""))
+    assert stopped_events[0].level == "error"
 
 
 @pytest.mark.asyncio
-async def test_runner_honors_cancel_event(tmp_path: Path) -> None:
-    db_path = tmp_path / "runner_cancel.db"
-    run_id = await _migrate_then_seed_run(db_path)
-
-    bars = [_bar(i) for i in range(200)]
-    broker = _StubBroker(bars)
+async def test_runner_keeps_normal_stopped_status_when_adoption_succeeds(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "adopt_normal.db"
+    _migrate(db_path)
     engine = _build_engine(db_path)
-    cancel = asyncio.Event()
+    run_id = await _seed_run(engine)
+
+    bars = [_bar(i) for i in range(3)]
+    broker = _BrokerFlatPositions(bars=bars)
 
     ctx = StrategyRunnerContext(
         run_id=run_id,
@@ -158,17 +175,26 @@ async def test_runner_honors_cancel_event(tmp_path: Path) -> None:
         params={},
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
-        cancel_event=cancel,
+        cancel_event=asyncio.Event(),
     )
 
-    async def _cancel_soon() -> None:
-        await asyncio.sleep(0.05)
-        cancel.set()
-
-    await asyncio.gather(run_strategy(ctx), _cancel_soon())
+    await run_strategy(ctx)
 
     async with AsyncSession(engine, expire_on_commit=False) as session:
-        run = await session.scalar(select(StrategyRun).where(StrategyRun.id == run_id))
-        assert run is not None
-        assert run.status == "stopped"
+        run_row = await session.scalar(
+            select(StrategyRun).where(StrategyRun.id == run_id)
+        )
+        events = (
+            await session.scalars(
+                select(StrategyRunEvent).where(StrategyRunEvent.run_id == run_id)
+            )
+        ).all()
     await engine.dispose()
+
+    assert run_row is not None
+    assert run_row.status == StrategyRunStatus.stopped.value
+    assert run_row.stopped_at is not None
+
+    stopped_events = [e for e in events if e.event_kind == "run_stopped"]
+    assert len(stopped_events) == 1
+    assert stopped_events[0].payload.get("reason") != "adoption_failed"

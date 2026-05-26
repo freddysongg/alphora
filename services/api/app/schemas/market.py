@@ -10,12 +10,15 @@ _ALLOWED_FACTORS: frozenset[str] = frozenset(
     {"quality", "valuation", "momentum", "volatility", "sentiment"}
 )
 FactorKey = Literal["quality", "valuation", "momentum", "volatility", "sentiment"]
+WatchlistSourceLiteral = Literal["manual", "research"]
 
 
 class WatchlistCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(min_length=1, max_length=128)
+    source: WatchlistSourceLiteral = "manual"
+    is_active: bool = True
 
 
 class WatchlistUpdate(BaseModel):
@@ -29,6 +32,9 @@ class WatchlistPublic(BaseModel):
 
     id: uuid.UUID
     name: str
+    source: WatchlistSourceLiteral
+    is_active: bool
+    last_built_at: datetime | None
     created_at: datetime
 
 
@@ -125,5 +131,21 @@ class WatchlistDetail(BaseModel):
 
     id: uuid.UUID
     name: str
+    source: WatchlistSourceLiteral
+    is_active: bool
+    last_built_at: datetime | None
     created_at: datetime
     members: list[WatchlistMemberPublic]
+
+
+class ResearchRebuildRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    evidence_window_hours: int = Field(default=24, ge=1, le=168)
+    min_belief: float = Field(default=0.6, ge=0.0, le=1.0)
+    max_tickers: int = Field(default=25, ge=1, le=100)
+
+
+class ResearchRebuildResponse(BaseModel):
+    watchlist_id: uuid.UUID
+    count: int

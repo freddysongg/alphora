@@ -24,7 +24,10 @@ async def test_stream_bars_yields_bars_from_callback() -> None:
 
     fake_stream = MagicMock()
     fake_stream.subscribe_bars = MagicMock()
-    fake_stream._run_forever = AsyncMock(side_effect=lambda: asyncio.sleep(10))
+    async def _block_forever() -> None:
+        await asyncio.sleep(10)
+
+    fake_stream._run_forever = AsyncMock(side_effect=_block_forever)
     fake_stream.close = AsyncMock()
     adapter._stock_data_stream_factory = lambda: fake_stream  # type: ignore[method-assign]
 
@@ -72,7 +75,10 @@ async def test_stream_bars_subscribe_uses_correct_symbol_list() -> None:
     adapter = AlpacaAdapter(trading_client=trading, data_client=data, mode="paper")
     fake_stream = MagicMock()
     fake_stream.subscribe_bars = MagicMock()
-    fake_stream._run_forever = AsyncMock(side_effect=lambda: asyncio.sleep(10))
+    async def _block_forever() -> None:
+        await asyncio.sleep(10)
+
+    fake_stream._run_forever = AsyncMock(side_effect=_block_forever)
     fake_stream.close = AsyncMock()
     adapter._stock_data_stream_factory = lambda: fake_stream  # type: ignore[method-assign]
 
@@ -107,7 +113,10 @@ async def test_stream_bars_awaits_run_forever_not_sync_run() -> None:
     adapter = AlpacaAdapter(trading_client=trading, data_client=data, mode="paper")
     fake_stream = MagicMock()
     fake_stream.subscribe_bars = MagicMock()
-    fake_stream._run_forever = AsyncMock(side_effect=lambda: asyncio.sleep(10))
+    async def _block_forever() -> None:
+        await asyncio.sleep(10)
+
+    fake_stream._run_forever = AsyncMock(side_effect=_block_forever)
     fake_stream.run = MagicMock(side_effect=AssertionError("must not call sync run()"))
     fake_stream.close = AsyncMock()
     adapter._stock_data_stream_factory = lambda: fake_stream  # type: ignore[method-assign]

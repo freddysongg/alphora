@@ -19,6 +19,7 @@ EVENT_RUN_STARTED: Final[str] = "run_started"
 EVENT_RUN_STOPPED: Final[str] = "run_stopped"
 EVENT_EVALUATE: Final[str] = "evaluate"
 EVENT_SIGNAL: Final[str] = "signal"
+EVENT_NOT_TRADABLE: Final[str] = "not_tradable"
 EVENT_RISK_REJECT: Final[str] = "risk_reject"
 EVENT_RISK_THROTTLE: Final[str] = "risk_throttle"
 EVENT_RISK_HALT: Final[str] = "risk_halt"
@@ -30,6 +31,7 @@ EVENT_ORDER_FILL: Final[str] = "order_fill"
 EVENT_POSITION_ADOPTION: Final[str] = "position_adoption"
 EVENT_STOP_HIT: Final[str] = "stop_hit"
 EVENT_EOD_FLATTEN: Final[str] = "eod_flatten"
+EVENT_UNIVERSE_RESOLVED: Final[str] = "universe_resolved"
 
 
 def emit_strategy_run_event(
@@ -62,6 +64,7 @@ __all__ = [
     "EVENT_EOD_FLATTEN",
     "EVENT_EVALUATE",
     "EVENT_JUDGE_VERDICT",
+    "EVENT_NOT_TRADABLE",
     "EVENT_ORDER_FILL",
     "EVENT_ORDER_REJECT",
     "EVENT_ORDER_SUBMIT",
@@ -73,5 +76,6 @@ __all__ = [
     "EVENT_RUN_STOPPED",
     "EVENT_SIGNAL",
     "EVENT_STOP_HIT",
+    "EVENT_UNIVERSE_RESOLVED",
     "emit_strategy_run_event",
 ]

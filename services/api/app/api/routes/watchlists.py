@@ -7,12 +7,19 @@ from sqlalchemy.orm import selectinload
 from app.api.deps import SessionDep
 from app.db.models_market import Watchlist, WatchlistMember
 from app.schemas.market import (
+    ResearchRebuildRequest,
+    ResearchRebuildResponse,
     WatchlistCreate,
     WatchlistDetail,
     WatchlistMemberAdd,
     WatchlistMemberPublic,
     WatchlistPublic,
 )
+from app.services.research_watchlist_builder import (
+    ResearchBuilderError,
+    build_research_watchlist,
+)
+from app.services.universe_resolver import WatchlistNotFoundError
 
 router = APIRouter()
 
@@ -32,7 +39,12 @@ async def list_watchlists(session: SessionDep) -> list[WatchlistPublic]:
 async def create_watchlist(
     payload: WatchlistCreate, session: SessionDep
 ) -> WatchlistPublic:
-    watchlist = Watchlist(id=uuid.uuid4(), name=payload.name)
+    watchlist = Watchlist(
+        id=uuid.uuid4(),
+        name=payload.name,
+        source=payload.source,
+        is_active=payload.is_active,
+    )
     session.add(watchlist)
     await session.commit()
     await session.refresh(watchlist)
@@ -57,6 +69,9 @@ async def get_watchlist(
         {
             "id": watchlist.id,
             "name": watchlist.name,
+            "source": watchlist.source,
+            "is_active": watchlist.is_active,
+            "last_built_at": watchlist.last_built_at,
             "created_at": watchlist.created_at,
             "members": [
                 WatchlistMemberPublic.model_validate(member)
@@ -129,6 +144,34 @@ async def remove_watchlist_member(
         )
     await session.delete(existing)
     await session.commit()
+
+
+@router.post(
+    "/{watchlist_id}/rebuild-research",
+    response_model=ResearchRebuildResponse,
+)
+async def rebuild_research_watchlist(
+    watchlist_id: uuid.UUID,
+    payload: ResearchRebuildRequest,
+    session: SessionDep,
+) -> ResearchRebuildResponse:
+    try:
+        count = await build_research_watchlist(
+            session,
+            watchlist_id=watchlist_id,
+            evidence_window_hours=payload.evidence_window_hours,
+            min_belief=payload.min_belief,
+            max_tickers=payload.max_tickers,
+        )
+    except WatchlistNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
+    except ResearchBuilderError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
+    return ResearchRebuildResponse(watchlist_id=watchlist_id, count=count)
 
 
 __all__ = ["router"]

@@ -21,7 +21,10 @@ async def test_stream_order_updates_yields_translated_orders() -> None:
 
     fake_stream = MagicMock()
     fake_stream.subscribe_trade_updates = MagicMock()
-    fake_stream._run_forever = AsyncMock(side_effect=lambda: asyncio.sleep(10))
+    async def _block_forever() -> None:
+        await asyncio.sleep(10)
+
+    fake_stream._run_forever = AsyncMock(side_effect=_block_forever)
     fake_stream.close = AsyncMock()
     adapter._trading_stream_factory = lambda: fake_stream  # type: ignore[method-assign]
 

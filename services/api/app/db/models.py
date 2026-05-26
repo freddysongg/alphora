@@ -45,6 +45,7 @@ from app.db.models_market import (
     ScreenerRun,
     Watchlist,
     WatchlistMember,
+    WatchlistSource,
 )
 from app.db.models_paper import (
     OrderSide,
@@ -152,4 +153,5 @@ __all__ = [
     "TimestampMixin",
     "Watchlist",
     "WatchlistMember",
+    "WatchlistSource",
 ]
