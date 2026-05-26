@@ -21,7 +21,9 @@ RUN pip install --upgrade pip \
         "sqlalchemy>=2.0.35" \
         "asyncpg>=0.30.0" \
         "alembic>=1.13.3" \
+        "alpaca-py>=0.30.0" \
         "structlog>=24.4.0" \
+        "typer>=0.12" \
         "rapidfuzz>=3.0" \
         "redis>=5.1.0" \
         "rq>=1.16.2" \
@@ -29,7 +31,8 @@ RUN pip install --upgrade pip \
         "python-multipart>=0.0.12" \
         "cryptography>=43.0.1" \
         "greenlet>=3.0.0" \
-        "openai>=1.50.0"
+        "openai>=1.50.0" \
+        "pandas-ta>=0.3.14b0"
 
 COPY app ./app
 COPY alembic ./alembic
