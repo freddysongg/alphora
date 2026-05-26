@@ -15,8 +15,9 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.db.models_approval import PendingApprovalRow
+from app.db.models_approval import PendingApprovalRow, PendingApprovalStatus
 from app.db.models_judge import JudgeVerdictRow
+from app.db.models_market import Watchlist
 from app.db.models_strategy_runner import StrategyRun
 from app.scripts.smoke_paper_run import run_smoke
 
@@ -43,7 +44,7 @@ async def test_smoke_paper_run_populates_phase7_tables(
     assert len(runs) == 1
     assert all(v.run_id == runs[0].id for v in verdicts)
     assert all(a.mode == "paper" for a in approvals)
-    assert all(a.status == "approved" for a in approvals)
+    assert all(a.status == PendingApprovalStatus.approved.value for a in approvals)
     assert all(a.decided_by == "auto" for a in approvals)
 
 
@@ -51,8 +52,6 @@ async def test_smoke_paper_run_populates_phase7_tables(
 async def test_smoke_paper_run_is_idempotent_on_watchlist(
     session_maker: async_sessionmaker[AsyncSession],
 ) -> None:
-    from app.db.models_market import Watchlist
-
     first = await run_smoke(
         session_factory=session_maker, ticker="SPY", bar_count=5
     )

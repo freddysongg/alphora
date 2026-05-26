@@ -54,17 +54,22 @@ from app.db.models_strategy_runner import (
     StrategyRunMode,
 )
 from app.db.session import session_factory as default_session_factory
-from app.logging import configure_logging, get_logger
+from app.logging import configure_logging
 from app.schemas.budget import TokenUsage
 from app.services.llm.client import LlmCompletionResult, LlmMessage
 from app.services.strategy_runner import run as runner_run
 from app.services.strategy_runner_spawn import spawn_contexts_from_watchlist
 from app.strategies.base import StrategyParams, StrategyResult
 
-_logger = get_logger(__name__)
-
 _DEMO_WATCHLIST_PREFIX = "demo-paper-"
 _SMOKE_STRATEGY_KEY = "smoke_always_long"
+_VERDICT_RESPONSE_JSON = json.dumps(
+    {
+        "decision": "approve",
+        "reasoning_md": "smoke approve",
+        "size_multiplier": None,
+    }
+)
 
 
 @dataclass
@@ -205,7 +210,7 @@ class _CountingBroker:
     def stream_order_updates(self) -> AsyncIterator[Order]:
         async def _gen() -> AsyncIterator[Order]:
             return
-            yield  # makes _gen an async generator; never reached
+            yield
 
         return _gen()
 
@@ -399,16 +404,6 @@ async def _ensure_demo_watchlist(
     return watchlist.id
 
 
-def _verdict_response() -> str:
-    return json.dumps(
-        {
-            "decision": "approve",
-            "reasoning_md": "smoke approve",
-            "size_multiplier": None,
-        }
-    )
-
-
 async def _collect_summary(session: AsyncSession) -> SmokeSummary:
     runs_count = (
         await session.execute(select(func.count(StrategyRun.id)))
@@ -487,7 +482,7 @@ async def run_smoke(
         for i in range(bar_count)
     ]
     broker = _CountingBroker(bars_to_emit=bars, mode="paper")
-    llm_client = _RecordingLlmClient(response=_verdict_response())
+    llm_client = _RecordingLlmClient(response=_VERDICT_RESPONSE_JSON)
 
     async with session_factory() as spawn_session:
         contexts = await spawn_contexts_from_watchlist(
