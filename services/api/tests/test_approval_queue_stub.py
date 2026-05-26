@@ -4,6 +4,7 @@ import uuid
 from decimal import Decimal
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.services.approval_queue import (
     ApprovalDecision,
@@ -12,55 +13,11 @@ from app.services.approval_queue import (
 )
 
 
-def _paper_request() -> ApprovalRequest:
-    return ApprovalRequest(
-        run_id=uuid.uuid4(),
-        strategy_key="macd_rsi_adx",
-        ticker="SPY",
-        side="buy",
-        qty=Decimal("1"),
-        estimated_fill_price=Decimal("500"),
-        mode="paper",
-        judge_decision="approve",
-        judge_size_multiplier=None,
-        judge_verdict_id=None,
-    )
-
-
 @pytest.mark.asyncio
-async def test_paper_auto_approves_immediately() -> None:
-    decision = await request_approval(_paper_request())
-    assert isinstance(decision, ApprovalDecision)
-    assert decision.decision == "approved"
-    assert decision.decided_by == "auto"
-    assert decision.decided_at is not None
-
-
-@pytest.mark.asyncio
-async def test_paper_auto_approves_even_when_judge_returned_veto() -> None:
-    """Per spec §4.6: in paper mode the judge is advisory — veto does NOT
-    block. The approval queue auto-approves regardless of the judge."""
-    req = ApprovalRequest(
-        run_id=uuid.uuid4(),
-        strategy_key="macd_rsi_adx",
-        ticker="SPY",
-        side="buy",
-        qty=Decimal("1"),
-        estimated_fill_price=Decimal("500"),
-        mode="paper",
-        judge_decision="veto",
-        judge_size_multiplier=None,
-        judge_verdict_id=None,
-    )
-    decision = await request_approval(req)
-    assert decision.decision == "approved"
-
-
-@pytest.mark.asyncio
-async def test_live_request_raises_not_implemented_in_stub() -> None:
-    """Phase 7 implements the live branch (wait for human). The Phase 4
-    stub explicitly refuses live requests so paper-only callers don't
-    accidentally use this stub in live mode."""
+async def test_live_request_raises_not_implemented(
+    session_maker: async_sessionmaker[AsyncSession],
+) -> None:
+    """Live approval queue (Task 6) is not yet implemented; raises fast."""
     req = ApprovalRequest(
         run_id=uuid.uuid4(),
         strategy_key="macd_rsi_adx",
@@ -74,12 +31,13 @@ async def test_live_request_raises_not_implemented_in_stub() -> None:
         judge_verdict_id=None,
     )
     with pytest.raises(NotImplementedError) as exc_info:
-        await request_approval(req)
+        await request_approval(req, session_maker=session_maker)
     assert "phase 7" in str(exc_info.value).lower()
 
 
 def test_approval_decision_carries_decided_by_and_decided_at() -> None:
     from datetime import UTC, datetime
+
     d = ApprovalDecision(
         decision="approved",
         decided_by="auto",

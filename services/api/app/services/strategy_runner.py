@@ -555,7 +555,10 @@ async def _submit_via_gates(
         judge_size_multiplier=verdict.size_multiplier,
         judge_verdict_id=verdict.verdict_id,
     )
-    decision = await request_approval(approval_req)
+    decision = await request_approval(
+        approval_req,
+        session_maker=ctx.session_maker,
+    )
     await _emit_event(
         ctx,
         kind=EVENT_APPROVAL_DECISION,
