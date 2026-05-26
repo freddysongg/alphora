@@ -155,6 +155,6 @@ body {
 }
 
 ::selection {
-  background: var(--color-accent-press);
-  color: var(--color-fg);
+  background: var(--color-highlight);
+  color: var(--color-canvas);
 }
