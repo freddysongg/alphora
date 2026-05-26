@@ -47,12 +47,14 @@ async def _seed_aggregate_evidence(
     *,
     ticker: str,
     bars: list[dict[str, float | int]],
+    multiplier: int = 1,
+    timespan: str = "minute",
 ) -> uuid.UUID:
     evidence_id = uuid.uuid4()
     evidence = Evidence(
         id=evidence_id,
         source="polygon_aggregates",
-        document_id=f"agg|{ticker}|2026-04-01|2026-04-30|1|minute",
+        document_id=f"agg|{ticker}|2026-04-01|2026-04-30|{multiplier}|{timespan}",
         content_hash=f"e-{evidence_id}",
     )
     session.add(evidence)
@@ -184,3 +186,59 @@ async def test_loader_returns_empty_when_no_data(db_session: AsyncSession) -> No
     )
     assert df.empty
     assert list(df.columns) == ["open", "high", "low", "close", "volume"]
+
+
+@pytest.mark.asyncio
+async def test_loader_filters_by_timeframe_excludes_daily_bars_when_requesting_minute(
+    db_session: AsyncSession,
+) -> None:
+    minute_base_ms = int(datetime(2026, 4, 1, 13, 30, tzinfo=UTC).timestamp() * 1000)
+    minute_bars = [
+        {
+            "t": minute_base_ms + i * 60_000,
+            "o": 500.0,
+            "h": 500.5,
+            "l": 499.5,
+            "c": 500.0,
+            "v": 1000.0,
+        }
+        for i in range(10)
+    ]
+    day_base_ms = int(datetime(2026, 4, 1, 0, 0, tzinfo=UTC).timestamp() * 1000)
+    daily_bars = [
+        {
+            "t": day_base_ms + i * 86_400_000,
+            "o": 480.0,
+            "h": 490.0,
+            "l": 475.0,
+            "c": 485.0,
+            "v": 10_000_000.0,
+        }
+        for i in range(3)
+    ]
+    await _seed_aggregate_evidence(
+        db_session,
+        ticker="SPY",
+        bars=daily_bars,
+        multiplier=1,
+        timespan="day",
+    )
+    await _seed_aggregate_evidence(db_session, ticker="SPY", bars=minute_bars)
+
+    df_minute = await load_polygon_aggregates_as_dataframe(
+        db_session,
+        ticker="SPY",
+        from_ts=datetime(2026, 4, 1, 0, 0, tzinfo=UTC),
+        to_ts=datetime(2026, 4, 4, 0, 0, tzinfo=UTC),
+        timeframe="1min",
+    )
+    assert len(df_minute) == 10
+
+    df_daily = await load_polygon_aggregates_as_dataframe(
+        db_session,
+        ticker="SPY",
+        from_ts=datetime(2026, 4, 1, 0, 0, tzinfo=UTC),
+        to_ts=datetime(2026, 4, 4, 0, 0, tzinfo=UTC),
+        timeframe="1d",
+    )
+    assert len(df_daily) == 3

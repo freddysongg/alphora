@@ -28,6 +28,7 @@ from typing import Literal
 import pandas as pd  # type: ignore[import-untyped]
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.brokers.base import Timeframe
 from app.db.models_backtest import (
     BacktestEquityPoint,
     BacktestRun,
@@ -251,10 +252,14 @@ def simulate(
             pending_target = None  # last bar: no entry possible
 
         # 4. Record per-bar equity (realized + open-trade mark-to-market).
+        # `ot.pnl_usd` carries the entry commission already charged at open;
+        # without folding it in here, equity overstates while the position is
+        # open and only catches up to reality when the trade closes.
         open_mark = 0.0
         if open_positions:
             ot = open_positions[0]
             open_mark = (float(closes[i]) - ot.entry_price) * ot.side * ot.shares
+            open_mark += ot.pnl_usd
         equity_per_bar.append(realized_pnl + open_mark)
 
     # 5. Final-bar force-close: any still-open position closes at the last
@@ -306,7 +311,7 @@ async def persist_backtest_result(
     bars: pd.DataFrame,
     strategy_key: str,
     ticker: str,
-    timeframe: str,
+    timeframe: Timeframe,
     params: StrategyParams,
     slippage: SlippageModel,
     commission: CommissionModel,
@@ -406,7 +411,7 @@ async def run_backtest(
     slippage: SlippageModel | None = None,
     commission: CommissionModel | None = None,
     position_size_shares: int = 1,
-    timeframe: str = "1min",
+    timeframe: Timeframe = "1min",
 ) -> uuid.UUID:
     """End-to-end orchestrator: load OHLCV -> simulate -> persist.
 
@@ -417,7 +422,7 @@ async def run_backtest(
     if commission is None:
         commission = CommissionModel()
     bars = await load_polygon_aggregates_as_dataframe(
-        session, ticker=ticker, from_ts=from_ts, to_ts=to_ts
+        session, ticker=ticker, from_ts=from_ts, to_ts=to_ts, timeframe=timeframe
     )
     if bars.empty:
         raise ValueError(
