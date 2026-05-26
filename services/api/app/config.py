@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     data_health_pinger_enabled: bool = True
     data_health_pinger_interval_seconds: int = 300
 
+    strategy_runner_enabled: bool = False
+    strategy_key: str = ""
+    strategy_ticker: str = ""
+    strategy_mode: Literal["paper", "live"] = "paper"
+
     per_stage_budget_caps_usd: dict[str, Decimal] = Field(default_factory=dict)
 
     model_tier_high: str = "gpt-5-mini"
