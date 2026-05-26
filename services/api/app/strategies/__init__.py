@@ -21,7 +21,17 @@ from app.strategies.ict import IctStrategy
 from app.strategies.macd_rsi_adx import MacdRsiAdxStrategy
 from app.strategies.orb_safe import OrbSafeStrategy
 
+STRATEGY_REGISTRY: dict[str, type[Strategy]] = {
+    BbRsiStrategy.key: BbRsiStrategy,
+    ConfluenceLongStrategy.key: ConfluenceLongStrategy,
+    GapFillStrategy.key: GapFillStrategy,
+    IctStrategy.key: IctStrategy,
+    MacdRsiAdxStrategy.key: MacdRsiAdxStrategy,
+    OrbSafeStrategy.key: OrbSafeStrategy,
+}
+
 __all__ = [
+    "STRATEGY_REGISTRY",
     "Bars",
     "BbRsiStrategy",
     "ConfluenceLongStrategy",
