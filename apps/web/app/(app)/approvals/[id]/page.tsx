@@ -2,8 +2,8 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import type { ReactElement } from "react";
 
-import { CapsLabel, StatusDot } from "@/components/ui";
-import type { StatusKind } from "@/components/ui";
+import { CapsLabel, StatusPill } from "@/components/ui";
+import type { StatusPillStatus } from "@/components/ui";
 import { ApprovalActions } from "@/components/approvals/approval-actions";
 import { getApproval } from "@/lib/approvals/api";
 import type { ApprovalStatus } from "@/lib/approvals/api";
@@ -16,11 +16,11 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-const statusToKind: Record<ApprovalStatus, StatusKind> = {
+const statusToKind: Record<ApprovalStatus, StatusPillStatus> = {
   pending: "pending",
   approved: "succeeded",
   rejected: "failed",
-  expired: "stale",
+  expired: "cancelled",
 };
 
 const dlTermClasses = "text-fg-muted text-sm";
@@ -56,7 +56,7 @@ export default async function ApprovalDetailPage(
             mode={approval.mode} · strategy={approval.strategy_key}
           </p>
         </div>
-        <StatusDot
+        <StatusPill
           status={statusToKind[approval.status]}
           label={approval.status}
         />
