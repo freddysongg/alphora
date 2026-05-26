@@ -14,6 +14,7 @@ target — keep stable through Phase 7.
 """
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -28,6 +29,7 @@ ApprovalStatus = Literal["approved", "rejected", "expired"]
 class ApprovalRequest:
     """Input to the queue. The runner passes one of these per order."""
 
+    run_id: uuid.UUID
     strategy_key: str
     ticker: str
     side: Literal["buy", "sell"]
@@ -36,16 +38,24 @@ class ApprovalRequest:
     mode: Literal["paper", "live"]
     judge_decision: JudgeDecision
     judge_size_multiplier: float | None
+    judge_verdict_id: uuid.UUID | None
 
 
 @dataclass(frozen=True)
 class ApprovalDecision:
     """Outcome. `decided_by` is "auto" for paper, "human:<user_id>" for
-    live (Phase 7). `decided_at` is when the decision was recorded."""
+    live (Phase 7). `decided_at` is when the decision was recorded.
+
+    `pending_approval_id` is the id of the `pending_approvals` row that
+    produced this decision. `reject_reason` carries the optional human
+    explanation; auto-approve and approve paths leave it None.
+    """
 
     decision: ApprovalStatus
     decided_by: str
     decided_at: datetime
+    pending_approval_id: uuid.UUID
+    reject_reason: str | None = None
 
 
 async def request_approval(request: ApprovalRequest) -> ApprovalDecision:
@@ -60,6 +70,7 @@ async def request_approval(request: ApprovalRequest) -> ApprovalDecision:
             decision="approved",
             decided_by="auto",
             decided_at=datetime.now(UTC),
+            pending_approval_id=uuid.uuid4(),
         )
     raise NotImplementedError(
         "live approval queue is wired in Phase 7; "

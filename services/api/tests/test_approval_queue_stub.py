@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from decimal import Decimal
 
 import pytest
@@ -13,6 +14,7 @@ from app.services.approval_queue import (
 
 def _paper_request() -> ApprovalRequest:
     return ApprovalRequest(
+        run_id=uuid.uuid4(),
         strategy_key="macd_rsi_adx",
         ticker="SPY",
         side="buy",
@@ -21,6 +23,7 @@ def _paper_request() -> ApprovalRequest:
         mode="paper",
         judge_decision="approve",
         judge_size_multiplier=None,
+        judge_verdict_id=None,
     )
 
 
@@ -38,6 +41,7 @@ async def test_paper_auto_approves_even_when_judge_returned_veto() -> None:
     """Per spec §4.6: in paper mode the judge is advisory — veto does NOT
     block. The approval queue auto-approves regardless of the judge."""
     req = ApprovalRequest(
+        run_id=uuid.uuid4(),
         strategy_key="macd_rsi_adx",
         ticker="SPY",
         side="buy",
@@ -46,6 +50,7 @@ async def test_paper_auto_approves_even_when_judge_returned_veto() -> None:
         mode="paper",
         judge_decision="veto",
         judge_size_multiplier=None,
+        judge_verdict_id=None,
     )
     decision = await request_approval(req)
     assert decision.decision == "approved"
@@ -57,6 +62,7 @@ async def test_live_request_raises_not_implemented_in_stub() -> None:
     stub explicitly refuses live requests so paper-only callers don't
     accidentally use this stub in live mode."""
     req = ApprovalRequest(
+        run_id=uuid.uuid4(),
         strategy_key="macd_rsi_adx",
         ticker="SPY",
         side="buy",
@@ -65,6 +71,7 @@ async def test_live_request_raises_not_implemented_in_stub() -> None:
         mode="live",
         judge_decision="approve",
         judge_size_multiplier=None,
+        judge_verdict_id=None,
     )
     with pytest.raises(NotImplementedError) as exc_info:
         await request_approval(req)
@@ -77,6 +84,7 @@ def test_approval_decision_carries_decided_by_and_decided_at() -> None:
         decision="approved",
         decided_by="auto",
         decided_at=datetime(2026, 6, 15, 13, 30, tzinfo=UTC),
+        pending_approval_id=uuid.uuid4(),
     )
     assert d.decision == "approved"
     assert d.decided_by == "auto"

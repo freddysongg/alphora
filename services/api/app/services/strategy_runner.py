@@ -544,6 +544,7 @@ async def _submit_via_gates(
         return
 
     approval_req = ApprovalRequest(
+        run_id=ctx.run_id,
         strategy_key=ctx.strategy.key,
         ticker=proposed.ticker,
         side=proposed.side,
@@ -552,6 +553,7 @@ async def _submit_via_gates(
         mode=ctx.mode,
         judge_decision=verdict.decision,
         judge_size_multiplier=verdict.size_multiplier,
+        judge_verdict_id=verdict.verdict_id,
     )
     decision = await request_approval(approval_req)
     await _emit_event(
@@ -562,6 +564,8 @@ async def _submit_via_gates(
             "decision": decision.decision,
             "decided_by": decision.decided_by,
             "decided_at": decision.decided_at.isoformat(),
+            "pending_approval_id": str(decision.pending_approval_id),
+            "reject_reason": decision.reject_reason,
         },
         bar_ts=bar.as_of,
     )
