@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     approval_expiry_sweeper_enabled: bool = True
     approval_expiry_sweeper_interval_seconds: int = 10
 
+    data_health_pinger_enabled: bool = True
+    data_health_pinger_interval_seconds: int = 300
+
     per_stage_budget_caps_usd: dict[str, Decimal] = Field(default_factory=dict)
 
     model_tier_high: str = "gpt-5-mini"
