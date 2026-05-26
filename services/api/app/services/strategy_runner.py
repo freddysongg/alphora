@@ -41,7 +41,7 @@ from app.db.models_strategy_runner import (
     StrategyRunStatus,
 )
 from app.services.approval_queue import ApprovalRequest, request_approval
-from app.services.llm_judge import JudgeRequest
+from app.services.llm_judge import JudgeLlmClient, JudgeRequest
 from app.services.llm_judge import evaluate as judge_evaluate
 from app.services.market_clock import RTH_CLOSE_ET_MIN, et_minutes
 from app.services.risk_caps import (
@@ -102,6 +102,7 @@ class StrategyRunnerContext:
     broker: BrokerAdapter
     session_maker: Callable[[], AsyncSession]
     cancel_event: asyncio.Event
+    llm_client: JudgeLlmClient
     indicator_window: BoundedBarBuffer = field(
         default_factory=lambda: BoundedBarBuffer(max_size=INDICATOR_WINDOW_BARS)
     )
@@ -153,6 +154,12 @@ async def run(ctx: StrategyRunnerContext) -> None:
                 await _process_bar(ctx, bar)
         except asyncio.CancelledError:
             pass
+        except Exception as exc:
+            final_status = StrategyRunStatus.errored
+            stop_reason = "bar_processing_failed"
+            stop_level = StrategyRunEventLevel.error
+            stop_payload_extra = {"error": str(exc)}
+            raise
         if ctx.cancel_event.is_set():
             stop_reason = "cancel"
     finally:
@@ -507,15 +514,21 @@ async def _submit_via_gates(
         return
 
     judge_req = JudgeRequest(
+        run_id=ctx.run_id,
         strategy_key=ctx.strategy.key,
         ticker=proposed.ticker,
         side=proposed.side,
         qty=proposed.qty,
         estimated_fill_price=proposed.estimated_fill_price,
         mode=ctx.mode,
+        bar_ts=bar.as_of,
         strategy_meta=dict(strategy_meta),
     )
-    verdict = await judge_evaluate(judge_req)
+    verdict = await judge_evaluate(
+        judge_req,
+        session_maker=ctx.session_maker,
+        llm_client=ctx.llm_client,
+    )
     await _emit_event(
         ctx,
         kind=EVENT_JUDGE_VERDICT,
@@ -556,7 +569,11 @@ async def _submit_via_gates(
         return
 
     final_qty = proposed.qty
-    if verdict.size_multiplier is not None and verdict.size_multiplier != 1.0:
+    if (
+        not proposed.is_closing
+        and verdict.size_multiplier is not None
+        and verdict.size_multiplier != 1.0
+    ):
         final_qty = (proposed.qty * Decimal(str(verdict.size_multiplier))).quantize(
             _QUANTITY_QUANTIZE
         )
@@ -622,6 +639,17 @@ async def _submit_via_gates(
 
     final_status = _map_broker_status(response.status)
     is_filled = final_status == "filled"
+    # Optimistic position update: market orders accepted by the broker (status
+    # "submitted") are treated as position-changing immediately. This prevents
+    # the next bar from seeing a flat position and firing a duplicate entry
+    # signal. This is a v1 hack until Phase 6+ stream_order_updates
+    # reconciliation lands — at that point the optimistic update should be
+    # replaced with reconciliation-driven position tracking.
+    is_optimistically_filled = (
+        not is_filled
+        and final_status == "submitted"
+        and order_request.order_type == "market"
+    )
     async with ctx.session_maker() as session:
         await session.execute(
             update(StrategyLiveOrder)
@@ -638,26 +666,34 @@ async def _submit_via_gates(
         await session.commit()
 
     ctx.orders_in_last_minute.append(datetime.now(UTC))
-    if is_filled:
+    if is_filled or is_optimistically_filled:
         delta = (
             order_request.quantity
             if order_request.side == "buy"
             else -order_request.quantity
         )
         ctx.current_position += delta
-        await _emit_event(
-            ctx,
-            kind=EVENT_ORDER_FILL,
-            level=StrategyRunEventLevel.info,
-            payload={
-                "live_order_id": str(live_order_id),
-                "broker_order_id": response.broker_order_id,
-                "filled_qty": str(order_request.quantity),
-                "new_position": str(ctx.current_position),
-            },
-            bar_ts=bar.as_of,
-        )
-        if not proposed.is_closing and ctx.trail_state is None:
+        if is_filled:
+            await _emit_event(
+                ctx,
+                kind=EVENT_ORDER_FILL,
+                level=StrategyRunEventLevel.info,
+                payload={
+                    "live_order_id": str(live_order_id),
+                    "broker_order_id": response.broker_order_id,
+                    "filled_qty": str(order_request.quantity),
+                    "new_position": str(ctx.current_position),
+                },
+                bar_ts=bar.as_of,
+            )
+        # Trail initialization is gated on `is_filled` only, NOT
+        # `is_optimistically_filled`. The optimistic path has no confirmed
+        # fill price -- seeding TrailState with `proposed.estimated_fill_price`
+        # would produce wrong stop levels once the actual fill price diverges.
+        # An optimistic-fill position therefore runs without a trail until
+        # Phase 6+ `stream_order_updates` reconciliation seeds the trail with
+        # the real `avg_fill_price`.
+        if is_filled and not proposed.is_closing and ctx.trail_state is None:
             side_trail: Literal["long", "short"] = (
                 "long" if order_request.side == "buy" else "short"
             )

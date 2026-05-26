@@ -99,7 +99,10 @@ def _migrate(db_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_phase4_acceptance_alpaca_paper_runner(tmp_path: Path) -> None:
+async def test_phase4_acceptance_alpaca_paper_runner(
+    tmp_path: Path,
+    noop_judge_llm_client: object,
+) -> None:
     _skip_if_no_creds()
 
     duration_s = int(
@@ -136,6 +139,7 @@ async def test_phase4_acceptance_alpaca_paper_runner(tmp_path: Path) -> None:
         broker=adapter,
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=cancel,
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
 
     started = datetime.now(UTC)

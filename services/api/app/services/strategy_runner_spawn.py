@@ -27,6 +27,7 @@ from app.db.models_strategy_runner import (
     StrategyRunMode,
     StrategyRunStatus,
 )
+from app.services.llm_judge import JudgeLlmClient
 from app.services.strategy_run_events import (
     EVENT_UNIVERSE_RESOLVED,
     emit_strategy_run_event,
@@ -46,6 +47,7 @@ async def spawn_contexts_from_watchlist(
     broker: BrokerAdapter,
     session_maker: Callable[[], AsyncSession],
     cancel_event_factory: Callable[[], asyncio.Event],
+    llm_client: JudgeLlmClient,
 ) -> list[StrategyRunnerContext]:
     """Resolve the watchlist, insert one StrategyRun per ticker, return contexts.
 
@@ -77,6 +79,7 @@ async def spawn_contexts_from_watchlist(
                 broker=broker,
                 session_maker=session_maker,
                 cancel_event=cancel_event_factory(),
+                llm_client=llm_client,
             )
         )
     await session.commit()

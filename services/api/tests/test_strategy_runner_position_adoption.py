@@ -92,7 +92,10 @@ async def _seed_run(
 
 
 @pytest.mark.asyncio
-async def test_runner_adopts_existing_long_position_on_startup(tmp_path: Path) -> None:
+async def test_runner_adopts_existing_long_position_on_startup(
+    tmp_path: Path,
+    noop_judge_llm_client: object,
+) -> None:
     db_path = tmp_path / "adopt_long.db"
     _migrate(db_path)
     engine = _build_engine(db_path)
@@ -113,6 +116,7 @@ async def test_runner_adopts_existing_long_position_on_startup(tmp_path: Path) -
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     await run_strategy(ctx)
 
@@ -137,7 +141,10 @@ async def test_runner_adopts_existing_long_position_on_startup(tmp_path: Path) -
 
 
 @pytest.mark.asyncio
-async def test_runner_seeds_no_state_when_no_existing_position(tmp_path: Path) -> None:
+async def test_runner_seeds_no_state_when_no_existing_position(
+    tmp_path: Path,
+    noop_judge_llm_client: object,
+) -> None:
     db_path = tmp_path / "adopt_flat.db"
     _migrate(db_path)
     engine = _build_engine(db_path)
@@ -151,6 +158,7 @@ async def test_runner_seeds_no_state_when_no_existing_position(tmp_path: Path) -
         mode="paper", params={}, broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     await run_strategy(ctx)
 
@@ -160,7 +168,10 @@ async def test_runner_seeds_no_state_when_no_existing_position(tmp_path: Path) -
 
 
 @pytest.mark.asyncio
-async def test_runner_adopts_existing_short_position(tmp_path: Path) -> None:
+async def test_runner_adopts_existing_short_position(
+    tmp_path: Path,
+    noop_judge_llm_client: object,
+) -> None:
     db_path = tmp_path / "adopt_short.db"
     _migrate(db_path)
     engine = _build_engine(db_path)
@@ -177,6 +188,7 @@ async def test_runner_adopts_existing_short_position(tmp_path: Path) -> None:
         mode="paper", params={}, broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     await run_strategy(ctx)
 

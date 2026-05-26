@@ -98,6 +98,7 @@ def _empty_params() -> StrategyParams:
 @pytest.mark.asyncio
 async def test_spawn_returns_one_context_per_member(
     db_session: AsyncSession,
+    noop_judge_llm_client: object,
 ) -> None:
     watchlist = Watchlist(id=uuid.uuid4(), name="manual")
     db_session.add(watchlist)
@@ -129,6 +130,7 @@ async def test_spawn_returns_one_context_per_member(
         broker=_NoopBroker(),
         session_maker=session_factory,
         cancel_event_factory=_make_event_factory,
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     assert [ctx.ticker for ctx in contexts] == ["SPY", "QQQ"]
     for ctx in contexts:
@@ -140,6 +142,7 @@ async def test_spawn_returns_one_context_per_member(
 @pytest.mark.asyncio
 async def test_spawn_inserts_strategy_run_row_per_context(
     db_session: AsyncSession,
+    noop_judge_llm_client: object,
 ) -> None:
     watchlist = Watchlist(id=uuid.uuid4(), name="manual")
     db_session.add(watchlist)
@@ -162,6 +165,7 @@ async def test_spawn_inserts_strategy_run_row_per_context(
         broker=_NoopBroker(),
         session_maker=session_factory,
         cancel_event_factory=_make_event_factory,
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     run_ids = [ctx.run_id for ctx in contexts]
     async with session_factory() as session:
@@ -179,6 +183,7 @@ async def test_spawn_inserts_strategy_run_row_per_context(
 @pytest.mark.asyncio
 async def test_spawn_emits_universe_resolved_event(
     db_session: AsyncSession,
+    noop_judge_llm_client: object,
 ) -> None:
     watchlist = Watchlist(id=uuid.uuid4(), name="manual")
     db_session.add(watchlist)
@@ -209,6 +214,7 @@ async def test_spawn_emits_universe_resolved_event(
         broker=_NoopBroker(),
         session_maker=session_factory,
         cancel_event_factory=_make_event_factory,
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     run_ids = [ctx.run_id for ctx in contexts]
     async with session_factory() as session:
@@ -228,6 +234,7 @@ async def test_spawn_emits_universe_resolved_event(
 @pytest.mark.asyncio
 async def test_spawn_against_empty_watchlist_raises(
     db_session: AsyncSession,
+    noop_judge_llm_client: object,
 ) -> None:
     watchlist = Watchlist(id=uuid.uuid4(), name="empty")
     db_session.add(watchlist)
@@ -242,6 +249,7 @@ async def test_spawn_against_empty_watchlist_raises(
             broker=_NoopBroker(),
             session_maker=session_factory,
             cancel_event_factory=_make_event_factory,
+            llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
         )
     async with session_factory() as session:
         runs = (

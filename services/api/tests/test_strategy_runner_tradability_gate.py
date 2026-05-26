@@ -231,7 +231,10 @@ async def _collect_orders_and_events(
 
 
 @pytest.mark.asyncio
-async def test_runner_blocks_open_on_halted_symbol(tmp_path: Path) -> None:
+async def test_runner_blocks_open_on_halted_symbol(
+    tmp_path: Path,
+    noop_judge_llm_client: object,
+) -> None:
     db_path = tmp_path / "halted_open.db"
     _migrate(db_path)
     engine = _build_engine(db_path)
@@ -256,6 +259,7 @@ async def test_runner_blocks_open_on_halted_symbol(tmp_path: Path) -> None:
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     await run_strategy(ctx)
 
@@ -275,7 +279,10 @@ async def test_runner_blocks_open_on_halted_symbol(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_runner_blocks_close_on_halted_symbol(tmp_path: Path) -> None:
+async def test_runner_blocks_close_on_halted_symbol(
+    tmp_path: Path,
+    noop_judge_llm_client: object,
+) -> None:
     db_path = tmp_path / "halted_close.db"
     _migrate(db_path)
     engine = _build_engine(db_path)
@@ -305,6 +312,7 @@ async def test_runner_blocks_close_on_halted_symbol(tmp_path: Path) -> None:
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     await run_strategy(ctx)
 
@@ -322,7 +330,10 @@ async def test_runner_blocks_close_on_halted_symbol(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_runner_blocks_open_when_is_tradable_false(tmp_path: Path) -> None:
+async def test_runner_blocks_open_when_is_tradable_false(
+    tmp_path: Path,
+    noop_judge_llm_client: object,
+) -> None:
     db_path = tmp_path / "not_tradable.db"
     _migrate(db_path)
     engine = _build_engine(db_path)
@@ -347,6 +358,7 @@ async def test_runner_blocks_open_when_is_tradable_false(tmp_path: Path) -> None
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     await run_strategy(ctx)
 
@@ -363,7 +375,10 @@ async def test_runner_blocks_open_when_is_tradable_false(tmp_path: Path) -> None
 
 
 @pytest.mark.asyncio
-async def test_runner_blocks_short_open_when_not_shortable(tmp_path: Path) -> None:
+async def test_runner_blocks_short_open_when_not_shortable(
+    tmp_path: Path,
+    noop_judge_llm_client: object,
+) -> None:
     db_path = tmp_path / "not_shortable.db"
     _migrate(db_path)
     engine = _build_engine(db_path)
@@ -388,6 +403,7 @@ async def test_runner_blocks_short_open_when_not_shortable(tmp_path: Path) -> No
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     await run_strategy(ctx)
 
@@ -405,7 +421,10 @@ async def test_runner_blocks_short_open_when_not_shortable(tmp_path: Path) -> No
 
 
 @pytest.mark.asyncio
-async def test_runner_allows_long_close_even_when_not_shortable(tmp_path: Path) -> None:
+async def test_runner_allows_long_close_even_when_not_shortable(
+    tmp_path: Path,
+    noop_judge_llm_client: object,
+) -> None:
     """Closing a short position is a BUY, not a sell, so the not_shortable
     flag must not block it."""
     db_path = tmp_path / "close_short_ok.db"
@@ -437,6 +456,7 @@ async def test_runner_allows_long_close_even_when_not_shortable(tmp_path: Path) 
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     await run_strategy(ctx)
 
@@ -451,7 +471,10 @@ async def test_runner_allows_long_close_even_when_not_shortable(tmp_path: Path) 
 
 
 @pytest.mark.asyncio
-async def test_runner_allows_order_when_fully_tradable(tmp_path: Path) -> None:
+async def test_runner_allows_order_when_fully_tradable(
+    tmp_path: Path,
+    noop_judge_llm_client: object,
+) -> None:
     db_path = tmp_path / "fully_tradable.db"
     _migrate(db_path)
     engine = _build_engine(db_path)
@@ -476,6 +499,7 @@ async def test_runner_allows_order_when_fully_tradable(tmp_path: Path) -> None:
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     await run_strategy(ctx)
 

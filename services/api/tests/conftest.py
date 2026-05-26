@@ -1,14 +1,22 @@
+import json
 import os
-from collections.abc import AsyncIterator, Iterator
+import uuid
+from collections.abc import AsyncIterator, Iterator, Sequence
+from dataclasses import dataclass, field
+from decimal import Decimal
 from typing import Any
 
 import pytest
 from sqlalchemy import event
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["ENVIRONMENT"] = "test"
 os.environ["LOG_JSON"] = "false"
+
+from app.db.models_llm import LlmCallLog, LlmCallStatus
+from app.schemas.budget import TokenUsage
+from app.services.llm.client import LlmCompletionResult, LlmMessage
 
 
 def _enable_sqlite_foreign_keys() -> None:
@@ -75,6 +83,72 @@ async def db_session(initialized_schema: None) -> AsyncIterator[AsyncSession]:
 
     async with session_factory() as session:
         yield session
+
+
+@pytest.fixture()
+def session_maker(initialized_schema: None) -> async_sessionmaker[AsyncSession]:
+    from app.db.session import session_factory
+
+    return session_factory
+
+
+@pytest.fixture
+def noop_judge_llm_client() -> object:
+    """Return a fake JudgeLlmClient that always approves.
+
+    Used by the ten Phase 4/5 runner tests that don't care about the
+    judge's specific verdict — they need the runner to keep running.
+    Phase 6-specific tests construct their own stubs with custom
+    response_content.
+    """
+
+    @dataclass
+    class _Noop:
+        log_id: uuid.UUID = field(default_factory=uuid.uuid4)
+
+        async def complete(
+            self,
+            *,
+            session: AsyncSession,
+            messages: Sequence[LlmMessage],
+            model: str,
+            prompt_version: str | None = None,
+            stage: str | None = None,
+            agent_name: str | None = None,
+        ) -> LlmCompletionResult:
+            session.add(
+                LlmCallLog(
+                    id=self.log_id,
+                    model=model,
+                    prompt_hash="noop",
+                    input_hash="noop",
+                    input_tokens=0,
+                    output_tokens=0,
+                    cached_input_tokens=0,
+                    reasoning_tokens=0,
+                    cost_usd=Decimal("0.00"),
+                    latency_ms=1,
+                    status=LlmCallStatus.success,
+                    prompt_version=prompt_version,
+                    stage=stage,
+                    agent_name=agent_name,
+                )
+            )
+            await session.commit()
+            return LlmCompletionResult(
+                content=json.dumps({
+                    "decision": "approve",
+                    "reasoning_md": "noop",
+                    "size_multiplier": None,
+                }),
+                model=model,
+                usage=TokenUsage(),
+                cost_usd=Decimal("0.00"),
+                latency_ms=1,
+                log_id=self.log_id,
+            )
+
+    return _Noop()
 
 
 class _FakeJob:

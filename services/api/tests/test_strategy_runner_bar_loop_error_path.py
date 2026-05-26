@@ -11,21 +11,12 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy import event, select
-from sqlalchemy import update as sa_update
 from sqlalchemy.engine.interfaces import DBAPIConnection
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.pool import ConnectionPoolEntry
 
-from app.brokers.base import (
-    Bar,
-    OrderRequest,
-    OrderResponse,
-    Position,
-    TradabilityCheck,
-)
+from app.brokers.base import Bar, OrderRequest, OrderResponse, Position, TradabilityCheck
 from app.db.models_strategy_runner import (
-    StrategyLiveOrder,
-    StrategyRiskConfig,
     StrategyRun,
     StrategyRunEvent,
     StrategyRunMode,
@@ -36,12 +27,11 @@ from app.services.strategy_runner import run as run_strategy
 from app.strategies.base import Bars, StrategyParams, StrategyResult, Timeframe
 
 
-class _AlwaysLongStrategy:
-    """Test strategy that always wants to be long. Forces an entry order
-    on the first bar."""
+class _RaisingStrategy:
+    """Strategy whose evaluate() always raises to simulate a bar processing failure."""
 
-    key: str = "always_long"
-    name: str = "Always Long"
+    key: str = "raising_strategy"
+    name: str = "Raising Strategy"
     primary_timeframe: Timeframe = "1min"
     secondary_timeframes: list[Timeframe] = []  # noqa: RUF012
     requires_rth: bool = False
@@ -54,12 +44,7 @@ class _AlwaysLongStrategy:
         params: StrategyParams,
     ) -> StrategyResult:
         del primary_bars, secondary_bars, current_position, params
-        return StrategyResult(
-            target=1,
-            meta={"phase": "force-long"},
-            size_hint=1,
-            stop_pts=2.0,
-        )
+        raise RuntimeError("simulated bar processing failure")
 
 
 def _bar(i: int) -> Bar:
@@ -76,13 +61,11 @@ def _bar(i: int) -> Bar:
     )
 
 
-class _PaperBrokerStub:
+class _FlatBrokerStub:
     mode: str = "paper"
-    placed_orders: list[OrderRequest]
 
     def __init__(self, bars: list[Bar]) -> None:
         self._bars = bars
-        self.placed_orders = []
 
     async def get_positions(self) -> list[Position]:
         return []
@@ -98,13 +81,7 @@ class _PaperBrokerStub:
         )
 
     async def place_order(self, order: OrderRequest) -> OrderResponse:
-        self.placed_orders.append(order)
-        return OrderResponse(
-            broker_order_id=f"stub-{len(self.placed_orders)}",
-            client_order_id=order.client_order_id,
-            status="filled",
-            submitted_at=datetime(2026, 6, 15, 13, 30, tzinfo=UTC),
-        )
+        raise AssertionError("place_order should not be called in this test")
 
     def stream_bars(
         self, tickers: list[str], timeframe: Timeframe
@@ -140,11 +117,11 @@ def _migrate(db_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_runner_submits_order_through_full_gate_chain(
+async def test_runner_marks_errored_when_process_bar_raises(
     tmp_path: Path,
     noop_judge_llm_client: object,
 ) -> None:
-    db_path = tmp_path / "order_path.db"
+    db_path = tmp_path / "bar_loop_error.db"
     _migrate(db_path)
     engine = _build_engine(db_path)
     run_id = uuid.uuid4()
@@ -152,7 +129,7 @@ async def test_runner_submits_order_through_full_gate_chain(
         session.add(
             StrategyRun(
                 id=run_id,
-                strategy_key="always_long",
+                strategy_key="raising_strategy",
                 ticker="SPY",
                 mode=StrategyRunMode.paper.value,
                 status=StrategyRunStatus.pending.value,
@@ -161,10 +138,10 @@ async def test_runner_submits_order_through_full_gate_chain(
         )
         await session.commit()
 
-    broker = _PaperBrokerStub([_bar(i) for i in range(3)])
+    broker = _FlatBrokerStub([_bar(0)])
     ctx = StrategyRunnerContext(
         run_id=run_id,
-        strategy=_AlwaysLongStrategy(),
+        strategy=_RaisingStrategy(),
         ticker="SPY",
         mode="paper",
         params={},
@@ -173,19 +150,14 @@ async def test_runner_submits_order_through_full_gate_chain(
         cancel_event=asyncio.Event(),
         llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
-    await run_strategy(ctx)
 
-    assert len(broker.placed_orders) >= 1
-    assert broker.placed_orders[0].ticker == "SPY"
-    assert broker.placed_orders[0].side == "buy"
-    assert broker.placed_orders[0].quantity == Decimal("1")
+    with pytest.raises(RuntimeError, match="simulated bar processing failure"):
+        await run_strategy(ctx)
 
     async with AsyncSession(engine, expire_on_commit=False) as session:
-        live_orders = (
-            await session.scalars(
-                select(StrategyLiveOrder).where(StrategyLiveOrder.run_id == run_id)
-            )
-        ).all()
+        run_row = await session.scalar(
+            select(StrategyRun).where(StrategyRun.id == run_id)
+        )
         events = (
             await session.scalars(
                 select(StrategyRunEvent).where(StrategyRunEvent.run_id == run_id)
@@ -193,73 +165,13 @@ async def test_runner_submits_order_through_full_gate_chain(
         ).all()
     await engine.dispose()
 
-    assert len(live_orders) >= 1
-    assert live_orders[0].broker_order_id == "stub-1"
-    assert live_orders[0].status == "filled"
+    assert run_row is not None
+    assert run_row.status == StrategyRunStatus.errored.value
 
-    kinds = [e.event_kind for e in events]
-    assert "judge_verdict" in kinds
-    assert "approval_decision" in kinds
-    assert "order_submit" in kinds
-    assert "order_fill" in kinds
-
-
-@pytest.mark.asyncio
-async def test_risk_reject_blocks_order_submission(
-    tmp_path: Path,
-    noop_judge_llm_client: object,
-) -> None:
-    """Set max_position_per_ticker_shares=0 so every buy is rejected.
-    Verify no broker.place_order calls happen and a `risk_reject` event
-    is written."""
-    db_path = tmp_path / "risk_reject.db"
-    _migrate(db_path)
-    engine = _build_engine(db_path)
-
-    async with AsyncSession(engine, expire_on_commit=False) as session:
-        await session.execute(
-            sa_update(StrategyRiskConfig)
-            .where(StrategyRiskConfig.mode == "paper")
-            .values(max_position_per_ticker_shares=0)
-        )
-        await session.commit()
-
-    run_id = uuid.uuid4()
-    async with AsyncSession(engine, expire_on_commit=False) as session:
-        session.add(
-            StrategyRun(
-                id=run_id,
-                strategy_key="always_long",
-                ticker="SPY",
-                mode=StrategyRunMode.paper.value,
-                status=StrategyRunStatus.pending.value,
-                params={},
-            )
-        )
-        await session.commit()
-
-    broker = _PaperBrokerStub([_bar(i) for i in range(3)])
-    ctx = StrategyRunnerContext(
-        run_id=run_id,
-        strategy=_AlwaysLongStrategy(),
-        ticker="SPY",
-        mode="paper",
-        params={},
-        broker=broker,  # type: ignore[arg-type]
-        session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
-        cancel_event=asyncio.Event(),
-        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
+    stopped_events = [e for e in events if e.event_kind == "run_stopped"]
+    assert len(stopped_events) == 1
+    assert stopped_events[0].payload.get("reason") == "bar_processing_failed"
+    assert "simulated bar processing failure" in str(
+        stopped_events[0].payload.get("error", "")
     )
-    await run_strategy(ctx)
-
-    assert len(broker.placed_orders) == 0
-    async with AsyncSession(engine, expire_on_commit=False) as session:
-        events = (
-            await session.scalars(
-                select(StrategyRunEvent).where(StrategyRunEvent.run_id == run_id)
-            )
-        ).all()
-    await engine.dispose()
-    kinds = [e.event_kind for e in events]
-    assert "risk_reject" in kinds
-    assert "order_submit" not in kinds
+    assert stopped_events[0].level == "error"

@@ -101,7 +101,10 @@ async def _migrate_then_seed_run(db_path: Path) -> uuid.UUID:
 
 
 @pytest.mark.asyncio
-async def test_runner_consumes_bars_and_writes_evaluate_events(tmp_path: Path) -> None:
+async def test_runner_consumes_bars_and_writes_evaluate_events(
+    tmp_path: Path,
+    noop_judge_llm_client: object,
+) -> None:
     db_path = tmp_path / "runner_skeleton.db"
     run_id = await _migrate_then_seed_run(db_path)
 
@@ -118,6 +121,7 @@ async def test_runner_consumes_bars_and_writes_evaluate_events(tmp_path: Path) -
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     await run_strategy(ctx)
 
@@ -141,7 +145,10 @@ async def test_runner_consumes_bars_and_writes_evaluate_events(tmp_path: Path) -
 
 
 @pytest.mark.asyncio
-async def test_runner_honors_cancel_event(tmp_path: Path) -> None:
+async def test_runner_honors_cancel_event(
+    tmp_path: Path,
+    noop_judge_llm_client: object,
+) -> None:
     db_path = tmp_path / "runner_cancel.db"
     run_id = await _migrate_then_seed_run(db_path)
 
@@ -159,6 +166,7 @@ async def test_runner_honors_cancel_event(tmp_path: Path) -> None:
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=cancel,
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
 
     async def _cancel_soon() -> None:

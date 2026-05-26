@@ -182,7 +182,10 @@ def _migrate(db_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_macd_rsi_adx_runner_e2e_against_stub_broker(tmp_path: Path) -> None:
+async def test_macd_rsi_adx_runner_e2e_against_stub_broker(
+    tmp_path: Path,
+    noop_judge_llm_client: object,
+) -> None:
     bars = _load_spy_bars()
     if len(bars) < _MIN_FIXTURE_BARS:
         pytest.skip(f"SPY fixture too small ({len(bars)} bars)")
@@ -214,6 +217,7 @@ async def test_macd_rsi_adx_runner_e2e_against_stub_broker(tmp_path: Path) -> No
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     await run_strategy(ctx)
 

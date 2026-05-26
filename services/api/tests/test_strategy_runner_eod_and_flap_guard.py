@@ -181,7 +181,10 @@ def _migrate(db_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_eod_flatten_on_requires_rth_strategy(tmp_path: Path) -> None:
+async def test_eod_flatten_on_requires_rth_strategy(
+    tmp_path: Path,
+    noop_judge_llm_client: object,
+) -> None:
     db_path = tmp_path / "eod.db"
     _migrate(db_path)
     engine = _build_engine(db_path)
@@ -214,6 +217,7 @@ async def test_eod_flatten_on_requires_rth_strategy(tmp_path: Path) -> None:
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     await run_strategy(ctx)
 
@@ -235,6 +239,7 @@ async def test_eod_flatten_on_requires_rth_strategy(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_no_eod_flatten_when_strategy_is_not_requires_rth(
     tmp_path: Path,
+    noop_judge_llm_client: object,
 ) -> None:
     """An overnight-holding strategy must NOT be force-closed by EOD logic."""
     db_path = tmp_path / "no_eod.db"
@@ -268,6 +273,7 @@ async def test_no_eod_flatten_when_strategy_is_not_requires_rth(
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     await run_strategy(ctx)
     sides = [o.side for o in broker.placed_orders]
@@ -279,6 +285,7 @@ async def test_no_eod_flatten_when_strategy_is_not_requires_rth(
 @pytest.mark.asyncio
 async def test_flap_guard_blocks_re_entry_on_exact_same_bar(
     tmp_path: Path,
+    noop_judge_llm_client: object,
 ) -> None:
     """When trail-manager exit fires AND strategy.evaluate returns target=1
     on the same bar, the runner must NOT submit both an exit and an entry.
@@ -348,6 +355,7 @@ async def test_flap_guard_blocks_re_entry_on_exact_same_bar(
         broker=broker,  # type: ignore[arg-type]
         session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
         cancel_event=asyncio.Event(),
+        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
     )
     await run_strategy(ctx)
     sides = [o.side for o in broker.placed_orders]

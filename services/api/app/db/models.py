@@ -38,6 +38,7 @@ from app.db.models_graph import (
     Relation,
     RelationType,
 )
+from app.db.models_judge import JudgeDecisionDb, JudgeVerdictRow
 from app.db.models_llm import LlmCallLog, LlmCallStatus
 from app.db.models_macro import MacroBrief
 from app.db.models_market import (
@@ -110,6 +111,8 @@ __all__ = [
     "HumanReview",
     "Hypothesis",
     "HypothesisStatus",
+    "JudgeDecisionDb",
+    "JudgeVerdictRow",
     "LeakageHoldoutCase",
     "LeakageRun",
     "LlmCallLog",

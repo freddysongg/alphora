@@ -11,21 +11,13 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy import event, select
-from sqlalchemy import update as sa_update
 from sqlalchemy.engine.interfaces import DBAPIConnection
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.pool import ConnectionPoolEntry
 
-from app.brokers.base import (
-    Bar,
-    OrderRequest,
-    OrderResponse,
-    Position,
-    TradabilityCheck,
-)
+from app.brokers.base import Bar, OrderRequest, OrderResponse, Position, TradabilityCheck
 from app.db.models_strategy_runner import (
     StrategyLiveOrder,
-    StrategyRiskConfig,
     StrategyRun,
     StrategyRunEvent,
     StrategyRunMode,
@@ -37,11 +29,10 @@ from app.strategies.base import Bars, StrategyParams, StrategyResult, Timeframe
 
 
 class _AlwaysLongStrategy:
-    """Test strategy that always wants to be long. Forces an entry order
-    on the first bar."""
+    """Always returns target=1 so the runner fires a long entry on the first bar."""
 
-    key: str = "always_long"
-    name: str = "Always Long"
+    key: str = "always_long_submitted"
+    name: str = "Always Long Submitted"
     primary_timeframe: Timeframe = "1min"
     secondary_timeframes: list[Timeframe] = []  # noqa: RUF012
     requires_rth: bool = False
@@ -54,29 +45,26 @@ class _AlwaysLongStrategy:
         params: StrategyParams,
     ) -> StrategyResult:
         del primary_bars, secondary_bars, current_position, params
-        return StrategyResult(
-            target=1,
-            meta={"phase": "force-long"},
-            size_hint=1,
-            stop_pts=2.0,
-        )
+        return StrategyResult(target=1, meta={}, size_hint=5, stop_pts=None)
 
 
 def _bar(i: int) -> Bar:
     return Bar(
         ticker="SPY",
         timeframe="1min",
-        open=Decimal(str(100.0 + i * 0.1)),
-        high=Decimal(str(100.2 + i * 0.1)),
-        low=Decimal(str(99.8 + i * 0.1)),
-        close=Decimal(str(100.0 + i * 0.1)),
+        open=Decimal("100.0"),
+        high=Decimal("100.5"),
+        low=Decimal("99.5"),
+        close=Decimal("100.0"),
         volume=Decimal("1000"),
         vwap=None,
         as_of=datetime(2026, 6, 15, 13, 30, tzinfo=UTC) + timedelta(minutes=i),
     )
 
 
-class _PaperBrokerStub:
+class _SubmittedBrokerStub:
+    """Broker whose place_order always returns status='submitted' (not filled)."""
+
     mode: str = "paper"
     placed_orders: list[OrderRequest]
 
@@ -100,9 +88,9 @@ class _PaperBrokerStub:
     async def place_order(self, order: OrderRequest) -> OrderResponse:
         self.placed_orders.append(order)
         return OrderResponse(
-            broker_order_id=f"stub-{len(self.placed_orders)}",
+            broker_order_id=f"stub-broker-{len(self.placed_orders)}",
             client_order_id=order.client_order_id,
-            status="filled",
+            status="new",
             submitted_at=datetime(2026, 6, 15, 13, 30, tzinfo=UTC),
         )
 
@@ -140,11 +128,15 @@ def _migrate(db_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_runner_submits_order_through_full_gate_chain(
+async def test_position_updated_optimistically_when_market_order_submitted(
     tmp_path: Path,
     noop_judge_llm_client: object,
 ) -> None:
-    db_path = tmp_path / "order_path.db"
+    """A market order that comes back 'submitted' (not yet filled) must still
+    advance ctx.current_position so the next bar doesn't re-enter the same
+    signal. The persisted live-order row must stay status='submitted' with
+    filled_qty=0, and no order_fill event should be emitted."""
+    db_path = tmp_path / "optimistic_submitted.db"
     _migrate(db_path)
     engine = _build_engine(db_path)
     run_id = uuid.uuid4()
@@ -152,7 +144,7 @@ async def test_runner_submits_order_through_full_gate_chain(
         session.add(
             StrategyRun(
                 id=run_id,
-                strategy_key="always_long",
+                strategy_key="always_long_submitted",
                 ticker="SPY",
                 mode=StrategyRunMode.paper.value,
                 status=StrategyRunStatus.pending.value,
@@ -161,7 +153,7 @@ async def test_runner_submits_order_through_full_gate_chain(
         )
         await session.commit()
 
-    broker = _PaperBrokerStub([_bar(i) for i in range(3)])
+    broker = _SubmittedBrokerStub([_bar(0), _bar(1)])
     ctx = StrategyRunnerContext(
         run_id=run_id,
         strategy=_AlwaysLongStrategy(),
@@ -175,10 +167,20 @@ async def test_runner_submits_order_through_full_gate_chain(
     )
     await run_strategy(ctx)
 
-    assert len(broker.placed_orders) >= 1
-    assert broker.placed_orders[0].ticker == "SPY"
-    assert broker.placed_orders[0].side == "buy"
-    assert broker.placed_orders[0].quantity == Decimal("1")
+    assert ctx.current_position == Decimal("5"), (
+        f"expected optimistic position=5, got {ctx.current_position}"
+    )
+    assert len(broker.placed_orders) == 1, (
+        f"expected exactly 1 order (no duplicate on bar 2), got {len(broker.placed_orders)}"
+    )
+    # Trail state must stay None on the optimistic path: there is no confirmed
+    # fill price, so seeding TrailState would produce wrong stop levels.
+    # Phase 6+ stream_order_updates reconciliation will initialize the trail
+    # with the real avg_fill_price once the broker reports it.
+    assert ctx.trail_state is None, (
+        f"trail_state must stay None on optimistic fill (no confirmed fill price); "
+        f"got {ctx.trail_state!r}"
+    )
 
     async with AsyncSession(engine, expire_on_commit=False) as session:
         live_orders = (
@@ -193,73 +195,15 @@ async def test_runner_submits_order_through_full_gate_chain(
         ).all()
     await engine.dispose()
 
-    assert len(live_orders) >= 1
-    assert live_orders[0].broker_order_id == "stub-1"
-    assert live_orders[0].status == "filled"
-
-    kinds = [e.event_kind for e in events]
-    assert "judge_verdict" in kinds
-    assert "approval_decision" in kinds
-    assert "order_submit" in kinds
-    assert "order_fill" in kinds
-
-
-@pytest.mark.asyncio
-async def test_risk_reject_blocks_order_submission(
-    tmp_path: Path,
-    noop_judge_llm_client: object,
-) -> None:
-    """Set max_position_per_ticker_shares=0 so every buy is rejected.
-    Verify no broker.place_order calls happen and a `risk_reject` event
-    is written."""
-    db_path = tmp_path / "risk_reject.db"
-    _migrate(db_path)
-    engine = _build_engine(db_path)
-
-    async with AsyncSession(engine, expire_on_commit=False) as session:
-        await session.execute(
-            sa_update(StrategyRiskConfig)
-            .where(StrategyRiskConfig.mode == "paper")
-            .values(max_position_per_ticker_shares=0)
-        )
-        await session.commit()
-
-    run_id = uuid.uuid4()
-    async with AsyncSession(engine, expire_on_commit=False) as session:
-        session.add(
-            StrategyRun(
-                id=run_id,
-                strategy_key="always_long",
-                ticker="SPY",
-                mode=StrategyRunMode.paper.value,
-                status=StrategyRunStatus.pending.value,
-                params={},
-            )
-        )
-        await session.commit()
-
-    broker = _PaperBrokerStub([_bar(i) for i in range(3)])
-    ctx = StrategyRunnerContext(
-        run_id=run_id,
-        strategy=_AlwaysLongStrategy(),
-        ticker="SPY",
-        mode="paper",
-        params={},
-        broker=broker,  # type: ignore[arg-type]
-        session_maker=lambda: AsyncSession(engine, expire_on_commit=False),
-        cancel_event=asyncio.Event(),
-        llm_client=noop_judge_llm_client,  # type: ignore[arg-type]
+    assert len(live_orders) == 1
+    assert live_orders[0].status == "submitted", (
+        f"live order status should stay 'submitted', got {live_orders[0].status!r}"
     )
-    await run_strategy(ctx)
+    assert live_orders[0].filled_qty == Decimal("0"), (
+        f"filled_qty should be 0 for a submitted order, got {live_orders[0].filled_qty}"
+    )
 
-    assert len(broker.placed_orders) == 0
-    async with AsyncSession(engine, expire_on_commit=False) as session:
-        events = (
-            await session.scalars(
-                select(StrategyRunEvent).where(StrategyRunEvent.run_id == run_id)
-            )
-        ).all()
-    await engine.dispose()
-    kinds = [e.event_kind for e in events]
-    assert "risk_reject" in kinds
-    assert "order_submit" not in kinds
+    fill_events = [e for e in events if e.event_kind == "order_fill"]
+    assert len(fill_events) == 0, (
+        f"no order_fill event should fire for optimistic path, got {fill_events}"
+    )
