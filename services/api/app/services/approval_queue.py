@@ -17,7 +17,7 @@ import asyncio
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Literal
 
@@ -100,9 +100,15 @@ async def request_approval(
             clock=clock,
         )
 
-    raise NotImplementedError(
-        "live approval queue lands in Phase 7 Task 6; "
-        "do not invoke request_approval(mode=live) until that task is merged"
+    expires_at = now + timedelta(seconds=live_expires_after_seconds)
+    return await _handle_live(
+        request,
+        session_maker=session_maker,
+        pending_id=pending_id,
+        now=now,
+        expires_at=expires_at,
+        poll_interval_seconds=poll_interval_seconds,
+        clock=clock,
     )
 
 
@@ -186,6 +192,69 @@ async def _handle_paper(
             pending_approval_id=pending_id,
             reject_reason=row.reject_reason,
         )
+
+
+async def _handle_live(
+    request: ApprovalRequest,
+    *,
+    session_maker: Callable[[], AsyncSession],
+    pending_id: uuid.UUID,
+    now: datetime,
+    expires_at: datetime,
+    poll_interval_seconds: float,
+    clock: Callable[[], datetime],
+) -> ApprovalDecision:
+    async with session_maker() as session:
+        session.add(
+            PendingApprovalRow(
+                id=pending_id,
+                run_id=request.run_id,
+                judge_verdict_id=request.judge_verdict_id,
+                strategy_key=request.strategy_key,
+                ticker=request.ticker,
+                side=request.side,
+                qty=request.qty,
+                estimated_fill_price=request.estimated_fill_price,
+                mode=request.mode,
+                status=PendingApprovalStatus.pending.value,
+                decided_by=None,
+                decided_at=None,
+                reject_reason=None,
+                expires_at=expires_at,
+            )
+        )
+        await session.commit()
+
+    while True:
+        await asyncio.sleep(poll_interval_seconds)
+        current_now = clock()
+        async with session_maker() as session:
+            row = await session.scalar(
+                select(PendingApprovalRow).where(PendingApprovalRow.id == pending_id)
+            )
+            if row is None:
+                raise RuntimeError(
+                    f"pending_approvals row {pending_id} vanished while polling"
+                )
+            if row.status != PendingApprovalStatus.pending.value:
+                return ApprovalDecision(
+                    decision=row.status,  # type: ignore[arg-type]
+                    decided_by=row.decided_by or "human:default",
+                    decided_at=row.decided_at or current_now,
+                    pending_approval_id=pending_id,
+                    reject_reason=row.reject_reason,
+                )
+            if current_now >= expires_at:
+                row.status = PendingApprovalStatus.expired.value
+                row.decided_by = _AUTO_APPROVE_DECIDED_BY
+                row.decided_at = current_now
+                await session.commit()
+                return ApprovalDecision(
+                    decision="expired",
+                    decided_by=_AUTO_APPROVE_DECIDED_BY,
+                    decided_at=current_now,
+                    pending_approval_id=pending_id,
+                )
 
 
 __all__ = [
