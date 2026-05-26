@@ -1,18 +1,34 @@
+"""Broker-adapter exception hierarchy.
+
+Phase 1 follow-up: the runner needs a stable exception type to catch
+when the underlying SDK rejects a request. `BrokerError` is the base;
+`BrokerOrderRejected` covers broker-level rejections (insufficient
+funds, halt, asset not tradable, malformed request); `BrokerTransientError`
+covers network/5xx errors that the caller may retry.
+"""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.brokers.base import OrderRequest
+
+
 class BrokerError(Exception):
-    """Base class for all broker-layer errors."""
+    """Base for all adapter-level errors."""
 
 
-class OrderRejectedError(BrokerError):
-    """The broker accepted the request but rejected the order on validation."""
+class BrokerOrderRejected(BrokerError):  # noqa: N818
+    """Broker refused the request. Not retriable without changes."""
 
-    def __init__(self, message: str, *, broker_order_id: str | None = None) -> None:
-        super().__init__(message)
-        self.broker_order_id = broker_order_id
+    def __init__(self, reason: str, *, request: OrderRequest | None = None) -> None:
+        super().__init__(reason)
+        self.reason = reason
+        self.request = request
 
 
-class TradabilityError(BrokerError):
-    """The ticker is not tradable right now (halted, delisted, unsupported)."""
+class BrokerTransientError(BrokerError):
+    """Transient transport-level failure (network, 5xx). Caller may retry."""
 
-    def __init__(self, message: str, *, ticker: str) -> None:
-        super().__init__(message)
-        self.ticker = ticker
+
+__all__ = ["BrokerError", "BrokerOrderRejected", "BrokerTransientError"]

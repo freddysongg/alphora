@@ -31,10 +31,12 @@ from app.brokers.base import (
     Timeframe,
     TradabilityCheck,
 )
+from app.brokers.errors import BrokerError, BrokerOrderRejected, BrokerTransientError
 from app.config import get_settings
 
 if TYPE_CHECKING:
     from alpaca.data.historical.stock import StockHistoricalDataClient
+    from alpaca.data.live.stock import StockDataStream
     from alpaca.data.models import Quote as AlpacaQuote
     from alpaca.data.models import Trade as AlpacaTrade
     from alpaca.trading.client import TradingClient
@@ -42,6 +44,7 @@ if TYPE_CHECKING:
     from alpaca.trading.models import Order as AlpacaOrder
     from alpaca.trading.models import Position as AlpacaPosition
     from alpaca.trading.models import TradeAccount
+    from alpaca.trading.stream import TradingStream
 
 
 _ALPACA_SIDE_BY_OURS: dict[str, AlpacaOrderSide] = {
@@ -97,6 +100,24 @@ _STATUS_MAP: dict[str, OrderStatus] = {
 
 def _translate_status(raw: str) -> OrderStatus:
     return _STATUS_MAP.get(raw.lower(), "rejected")
+
+
+def _wrap_broker_call(exc: BaseException, *, request: OrderRequest | None = None) -> BrokerError:
+    """Map an alpaca-py / httpx exception onto our BrokerError hierarchy.
+
+    `APIError` from `alpaca.common.exceptions` covers broker-level
+    rejections. `httpx.HTTPError` subclasses cover transport failures.
+    Anything else falls through as a generic BrokerError so the runner
+    has one type to catch.
+    """
+    import httpx
+    from alpaca.common.exceptions import APIError
+
+    if isinstance(exc, APIError):
+        return BrokerOrderRejected(str(exc), request=request)
+    if isinstance(exc, httpx.HTTPError):
+        return BrokerTransientError(str(exc))
+    return BrokerError(str(exc))
 
 
 def _enum_value(raw: object) -> str:
@@ -183,10 +204,42 @@ class AlpacaAdapter:
         data = StockHistoricalDataClient(api_key=key, secret_key=secret)
         return cls(trading_client=trading, data_client=data, mode=settings.alpaca_mode)
 
+    def _stock_data_stream_factory(self) -> StockDataStream:
+        """Construct the underlying StockDataStream. Overridable for tests."""
+        from alpaca.data.live.stock import StockDataStream
+
+        settings = get_settings()
+        if settings.alpaca_api_key is None or settings.alpaca_api_secret is None:
+            raise RuntimeError(
+                "ALPACA_API_KEY and ALPACA_API_SECRET must be set to stream bars"
+            )
+        return StockDataStream(
+            api_key=settings.alpaca_api_key.get_secret_value(),
+            secret_key=settings.alpaca_api_secret.get_secret_value(),
+        )
+
+    def _trading_stream_factory(self) -> TradingStream:
+        """Construct the underlying TradingStream. Overridable for tests."""
+        from alpaca.trading.stream import TradingStream
+
+        settings = get_settings()
+        if settings.alpaca_api_key is None or settings.alpaca_api_secret is None:
+            raise RuntimeError(
+                "ALPACA_API_KEY and ALPACA_API_SECRET must be set to stream order updates"
+            )
+        return TradingStream(
+            api_key=settings.alpaca_api_key.get_secret_value(),
+            secret_key=settings.alpaca_api_secret.get_secret_value(),
+            paper=(self.mode == "paper"),
+        )
+
     # ---- Phase 0 methods (placeholders, implemented in later tasks) ----
 
     async def get_account(self) -> Account:
-        raw = cast("TradeAccount", await asyncio.to_thread(self._trading.get_account))
+        try:
+            raw = cast("TradeAccount", await asyncio.to_thread(self._trading.get_account))
+        except Exception as exc:
+            raise _wrap_broker_call(exc) from exc
         return Account(
             account_id=str(raw.id),
             cash=Decimal(str(raw.cash)),
@@ -198,10 +251,13 @@ class AlpacaAdapter:
     async def get_quote(self, ticker: str) -> Quote:
         quote_req = StockLatestQuoteRequest(symbol_or_symbols=ticker)
         trade_req = StockLatestTradeRequest(symbol_or_symbols=ticker)
-        quote_map, trade_map = await asyncio.gather(
-            asyncio.to_thread(self._data.get_stock_latest_quote, quote_req),
-            asyncio.to_thread(self._data.get_stock_latest_trade, trade_req),
-        )
+        try:
+            quote_map, trade_map = await asyncio.gather(
+                asyncio.to_thread(self._data.get_stock_latest_quote, quote_req),
+                asyncio.to_thread(self._data.get_stock_latest_trade, trade_req),
+            )
+        except Exception as exc:
+            raise _wrap_broker_call(exc) from exc
         raw_quote = cast("AlpacaQuote", quote_map[ticker])
         raw_trade = cast("AlpacaTrade", trade_map[ticker])
         return Quote(
@@ -213,10 +269,13 @@ class AlpacaAdapter:
         )
 
     async def get_positions(self) -> list[Position]:
-        raw_positions = cast(
-            "list[AlpacaPosition]",
-            await asyncio.to_thread(self._trading.get_all_positions),
-        )
+        try:
+            raw_positions = cast(
+                "list[AlpacaPosition]",
+                await asyncio.to_thread(self._trading.get_all_positions),
+            )
+        except Exception as exc:
+            raise _wrap_broker_call(exc) from exc
         return [
             Position(
                 ticker=str(raw.symbol),
@@ -227,7 +286,10 @@ class AlpacaAdapter:
         ]
 
     async def is_tradable(self, ticker: str) -> TradabilityCheck:
-        raw = cast("AlpacaAsset", await asyncio.to_thread(self._trading.get_asset, ticker))
+        try:
+            raw = cast("AlpacaAsset", await asyncio.to_thread(self._trading.get_asset, ticker))
+        except Exception as exc:
+            raise _wrap_broker_call(exc) from exc
         is_tradable = bool(raw.tradable)
         status = str(raw.status)
         reason = None if is_tradable else f"asset status: {status}"
@@ -242,7 +304,10 @@ class AlpacaAdapter:
 
     async def place_order(self, order: OrderRequest) -> OrderResponse:
         alpaca_req = _build_alpaca_order_request(order)
-        raw = cast("AlpacaOrder", await asyncio.to_thread(self._trading.submit_order, alpaca_req))
+        try:
+            raw = cast("AlpacaOrder", await asyncio.to_thread(self._trading.submit_order, alpaca_req))
+        except Exception as exc:
+            raise _wrap_broker_call(exc, request=order) from exc
         return OrderResponse(
             broker_order_id=str(raw.id),
             client_order_id=str(raw.client_order_id) if raw.client_order_id else None,
@@ -251,22 +316,105 @@ class AlpacaAdapter:
         )
 
     async def cancel_order(self, broker_order_id: str) -> None:
-        await asyncio.to_thread(self._trading.cancel_order_by_id, broker_order_id)
+        try:
+            await asyncio.to_thread(self._trading.cancel_order_by_id, broker_order_id)
+        except Exception as exc:
+            raise _wrap_broker_call(exc) from exc
 
     async def list_orders(self, status: OrderStatusFilter = "all") -> list[Order]:
         req = GetOrdersRequest(status=_FILTER_BY_OURS[status])
-        raw_orders = await asyncio.to_thread(self._trading.get_orders, req)
+        try:
+            raw_orders = await asyncio.to_thread(self._trading.get_orders, req)
+        except Exception as exc:
+            raise _wrap_broker_call(exc) from exc
         return [_translate_order(raw) for raw in raw_orders]
 
-    # ---- Streaming methods — deferred to Phase 4 ----
+    # ---- Streaming methods ----
+    # The Protocol declares these as sync `def -> AsyncIterator`, so the
+    # impl must NOT be `async def + yield` (that would be the wrong shape).
+    # Public methods return the iterator produced by a private async-gen helper.
 
-    async def stream_bars(
+    def stream_bars(
         self, tickers: list[str], timeframe: Timeframe
     ) -> AsyncIterator[Bar]:
-        raise NotImplementedError("stream_bars is implemented in Phase 4")
-        # unreachable, but required to satisfy AsyncIterator return type
-        yield
+        return self._stream_bars_impl(tickers, timeframe)
 
-    async def stream_order_updates(self) -> AsyncIterator[Order]:
-        raise NotImplementedError("stream_order_updates is implemented in Phase 4")
-        yield
+    async def _stream_bars_impl(
+        self, tickers: list[str], timeframe: Timeframe
+    ) -> AsyncIterator[Bar]:
+        queue: asyncio.Queue[Bar] = asyncio.Queue(maxsize=1024)
+
+        async def _on_bar(raw_bar) -> None:  # type: ignore[no-untyped-def]
+            bar = Bar(
+                ticker=str(raw_bar.symbol),
+                timeframe=timeframe,
+                open=Decimal(str(raw_bar.open)),
+                high=Decimal(str(raw_bar.high)),
+                low=Decimal(str(raw_bar.low)),
+                close=Decimal(str(raw_bar.close)),
+                volume=Decimal(str(raw_bar.volume)),
+                vwap=Decimal(str(raw_bar.vwap)) if getattr(raw_bar, "vwap", None) else None,
+                as_of=raw_bar.timestamp,
+            )
+            try:
+                queue.put_nowait(bar)
+            except asyncio.QueueFull:
+                try:
+                    queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    pass
+                queue.put_nowait(bar)
+
+        stream = self._stock_data_stream_factory()
+        stream.subscribe_bars(_on_bar, *tickers)
+        # alpaca-py's public `run()` is sync and calls `asyncio.run(_run_forever())`
+        # internally -- starting a nested event loop here would raise. We schedule
+        # the underlying `_run_forever()` coroutine directly. It is a private API
+        # but is the only async-compatible entry point alpaca-py exposes today.
+        run_task: asyncio.Task[None] = asyncio.create_task(stream._run_forever())
+
+        try:
+            while True:
+                bar = await queue.get()
+                yield bar
+        finally:
+            run_task.cancel()
+            try:
+                await stream.close()
+            except Exception:
+                pass
+
+    def stream_order_updates(self) -> AsyncIterator[Order]:
+        return self._stream_order_updates_impl()
+
+    async def _stream_order_updates_impl(self) -> AsyncIterator[Order]:
+        queue: asyncio.Queue[Order] = asyncio.Queue(maxsize=1024)
+
+        async def _on_event(raw_event) -> None:  # type: ignore[no-untyped-def]
+            raw_order = getattr(raw_event, "order", raw_event)
+            order = _translate_order(raw_order)
+            try:
+                queue.put_nowait(order)
+            except asyncio.QueueFull:
+                try:
+                    queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    pass
+                queue.put_nowait(order)
+
+        stream = self._trading_stream_factory()
+        stream.subscribe_trade_updates(_on_event)
+        # See _stream_bars_impl for the alpaca-py sync `run()` rationale -- we
+        # await the underlying `_run_forever()` coroutine instead.
+        run_task: asyncio.Task[None] = asyncio.create_task(stream._run_forever())  # type: ignore[no-untyped-call]
+
+        try:
+            while True:
+                order = await queue.get()
+                yield order
+        finally:
+            run_task.cancel()
+            try:
+                await stream.close()
+            except Exception:
+                pass
