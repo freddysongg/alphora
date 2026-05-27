@@ -3,7 +3,8 @@ FROM python:3.12-slim-bookworm AS base
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    NUMBA_CACHE_DIR=/srv/.numba_cache
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential libpq-dev curl \
@@ -43,6 +44,7 @@ RUN pip install --no-deps -e .
 
 RUN groupadd --system --gid 1001 alphora \
     && useradd --system --uid 1001 --gid alphora alphora \
+    && mkdir -p /srv/.numba_cache \
     && chown -R alphora:alphora /srv
 
 USER alphora
