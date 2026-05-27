@@ -105,6 +105,26 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
+  # Stopgap until Phase 8 CLI. ONE runner per service instance, configured
+  # via STRATEGY_KEY / STRATEGY_TICKER / STRATEGY_MODE. Default-disabled via
+  # STRATEGY_RUNNER_ENABLED=false; user flips the gate per deploy.
+  # restart: "no" because a stopped runner should NOT auto-restart in a loop.
+  strategy-runner:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    environment:
+      <<: *api-env
+    command: ["python", "-m", "app.workers.strategy_runner_service"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
   paper-scheduler:
     build:
       context: ./services/api
