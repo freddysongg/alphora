@@ -60,7 +60,7 @@ def test_live_mode_without_openai_key_refuses(
     monkeypatch.setenv("STRATEGY_KEY", "macd_rsi_adx")
     monkeypatch.setenv("STRATEGY_TICKER", "SPY")
     monkeypatch.setenv("STRATEGY_MODE", "live")
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "")
     get_settings.cache_clear()
 
     with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):

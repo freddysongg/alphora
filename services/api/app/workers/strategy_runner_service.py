@@ -50,7 +50,7 @@ from app.services.strategy_runner import run as runner_run
 from app.services.strategy_runner_spawn import spawn_contexts_from_watchlist
 from app.strategies import STRATEGY_REGISTRY
 
-_RUNNER_WATCHLIST_PREFIX: Literal["runner-"] = "runner-"
+_RUNNER_WATCHLIST_PREFIX = "runner-"
 
 _logger = get_logger(__name__)
 
@@ -147,21 +147,21 @@ async def _run() -> None:
             f"expected exactly 1 spawned context for ticker={ticker}, "
             f"got {len(contexts)}"
         )
-    ctx = contexts[0]
+    runner_context = contexts[0]
 
     _logger.info(
         "strategy_runner_service_started",
-        run_id=str(ctx.run_id),
+        run_id=str(runner_context.run_id),
         strategy_key=strategy.key,
         ticker=ticker,
         mode=mode,
     )
     try:
-        await runner_run(ctx)
+        await runner_run(runner_context)
     finally:
         _logger.info(
             "strategy_runner_service_stopped",
-            run_id=str(ctx.run_id),
+            run_id=str(runner_context.run_id),
         )
 
 
