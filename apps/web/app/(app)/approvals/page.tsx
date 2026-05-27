@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import type { ReactElement } from "react";
 import Link from "next/link";
 
-import { CapsLabel, StatusDot } from "@/components/ui";
-import type { StatusKind } from "@/components/ui";
+import { CapsLabel, StatusPill } from "@/components/ui";
+import type { StatusPillStatus } from "@/components/ui";
 import { listApprovals } from "@/lib/approvals/api";
 import type { Approval } from "@/lib/approvals/api";
 import { formatDateTime } from "@/lib/format/date-time";
@@ -16,11 +16,11 @@ export const dynamic = "force-dynamic";
 
 type ApprovalStatus = Approval["status"];
 
-const statusToKind: Record<ApprovalStatus, StatusKind> = {
+const statusToKind: Record<ApprovalStatus, StatusPillStatus> = {
   pending: "pending",
   approved: "succeeded",
   rejected: "failed",
-  expired: "stale",
+  expired: "cancelled",
 };
 
 interface LoadResult {
@@ -127,7 +127,7 @@ export default async function ApprovalsPage(): Promise<ReactElement> {
                   className="h-10 border-b border-line/60 transition-colors duration-150 hover:bg-surface-2"
                 >
                   <td className="px-3 text-fg">
-                    <StatusDot
+                    <StatusPill
                       status={statusToKind[row.status]}
                       label={row.status}
                     />

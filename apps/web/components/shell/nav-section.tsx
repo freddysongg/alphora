@@ -1,22 +1,33 @@
 import type { ReactElement } from "react";
 import { NavItem } from "./nav-item";
 import type { NavSectionConfig } from "@/lib/nav";
+import { cn } from "@/lib/cn";
 
 export interface NavSectionProps {
   section: NavSectionConfig;
+  isCollapsed: boolean;
 }
 
 const labelClasses =
-  "text-[11px] tracking-[0.14em] font-medium text-fg-muted px-4 pt-6 pb-2";
+  "font-mono text-[10px] uppercase tracking-[0.14em] font-medium text-fg-subtle px-4 pt-4 pb-1.5";
 
 export function NavSection(props: NavSectionProps): ReactElement {
-  const { section } = props;
+  const { section, isCollapsed } = props;
   return (
     <div>
-      <div className={labelClasses}>{section.label}</div>
-      <div className="flex flex-col">
+      {!isCollapsed ? (
+        <div className={labelClasses}>{section.label}</div>
+      ) : (
+        <div className="pt-3" aria-hidden="true" />
+      )}
+      <div
+        className={cn(
+          "flex flex-col",
+          isCollapsed ? "items-center px-1 gap-1" : "px-2 gap-0.5",
+        )}
+      >
         {section.items.map((item) => (
-          <NavItem key={item.href} item={item} />
+          <NavItem key={item.href} item={item} isCollapsed={isCollapsed} />
         ))}
       </div>
     </div>

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import {
-  StatusDot,
+  StatusPill,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -62,10 +62,7 @@ export function ProviderMatrix(props: ProviderMatrixProps): ReactElement {
     setRail({
       title: `${selected.provider} · ${selected.tool}`,
       body: (
-        <ProviderCellRail
-          provider={selected.provider}
-          tool={selected.tool}
-        />
+        <ProviderCellRail provider={selected.provider} tool={selected.tool} />
       ),
     });
   }, [selected, setRail]);
@@ -124,7 +121,9 @@ export function ProviderMatrix(props: ProviderMatrixProps): ReactElement {
                       </td>
                     );
                   }
-                  const statusKind = providerCheckStatusToStatusKind(cell.status);
+                  const pillStatus = providerCheckStatusToStatusKind(
+                    cell.status,
+                  );
                   return (
                     <td
                       key={tool}
@@ -139,10 +138,9 @@ export function ProviderMatrix(props: ProviderMatrixProps): ReactElement {
                             className="inline-flex"
                             aria-label={`${provider} ${tool} ${cell.status}`}
                           >
-                            <StatusDot
-                              status={statusKind}
+                            <StatusPill
+                              status={pillStatus}
                               label={cell.status}
-                              className="[&>span:last-child]:sr-only"
                             />
                           </span>
                         </TooltipTrigger>

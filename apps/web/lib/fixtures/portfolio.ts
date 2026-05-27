@@ -1,4 +1,4 @@
-import type { StatusKind } from "@/components/ui/status-dot";
+import type { StatusPillStatus } from "@/components/ui";
 
 export interface PortfolioPosition {
   ticker: string;
@@ -115,15 +115,15 @@ export interface OrderRow {
   status: OrderStatus;
 }
 
-const orderStatusToDot: Record<OrderStatus, StatusKind> = {
+const orderStatusToPill: Record<OrderStatus, StatusPillStatus> = {
   filled: "succeeded",
   pending: "pending",
-  cancelled: "stale",
+  cancelled: "cancelled",
   rejected: "failed",
 };
 
-export function getOrderStatusDot(status: OrderStatus): StatusKind {
-  return orderStatusToDot[status];
+export function getOrderStatusDot(status: OrderStatus): StatusPillStatus {
+  return orderStatusToPill[status];
 }
 
 export const sampleOrders: readonly OrderRow[] = [

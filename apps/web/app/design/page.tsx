@@ -36,7 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
   Sparkline,
-  StatusDot,
+  StatusPill,
   Tabs,
   TabsContent,
   TabsList,
@@ -53,7 +53,7 @@ import type {
   CommandItem,
   LogLine,
   MetricTile,
-  StatusKind,
+  StatusPillStatus,
 } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { colorTokens } from "@/lib/tokens";
@@ -81,19 +81,23 @@ const colorEntries: ColorEntry[] = [
 ];
 
 const buttonVariants: ButtonVariant[] = [
-  "default",
   "primary",
+  "secondary",
+  "tertiary",
+  "default",
   "ghost",
+  "link",
   "destructive",
 ];
 const buttonSizes: ButtonSize[] = ["default", "sm"];
 
-const statuses: StatusKind[] = [
-  "live",
+const statuses: StatusPillStatus[] = [
   "pending",
+  "running",
   "succeeded",
   "failed",
-  "stale",
+  "cancelled",
+  "paused",
 ];
 
 const badgeVariants: BadgeVariant[] = ["buy", "hold", "sell", "none"];
@@ -130,7 +134,7 @@ interface RunRow {
   tokens: number;
   durationSeconds: number;
   rating: BadgeVariant;
-  status: StatusKind;
+  status: StatusPillStatus;
 }
 
 const runRows: RunRow[] = [
@@ -168,7 +172,7 @@ const runRows: RunRow[] = [
     tokens: 28911,
     durationSeconds: 833,
     rating: "buy",
-    status: "live",
+    status: "running",
   },
   {
     id: "run-meta-05",
@@ -209,26 +213,74 @@ const runRows: RunRow[] = [
 ];
 
 const sampleLogs: LogLine[] = [
-  { ts: "12:01:04.118", level: "info", message: "starting TradingAgentsGraph run sb-aLPQ00ucncCYFz" },
-  { ts: "12:01:04.214", level: "info", message: "loading provider yfinance for AAPL" },
-  { ts: "12:01:04.321", level: "info", message: "fetched 252 bars of OHLCV data" },
+  {
+    ts: "12:01:04.118",
+    level: "info",
+    message: "starting TradingAgentsGraph run sb-aLPQ00ucncCYFz",
+  },
+  {
+    ts: "12:01:04.214",
+    level: "info",
+    message: "loading provider yfinance for AAPL",
+  },
+  {
+    ts: "12:01:04.321",
+    level: "info",
+    message: "fetched 252 bars of OHLCV data",
+  },
   { ts: "12:01:04.451", level: "info", message: "analyst.market.start" },
-  { ts: "12:01:05.022", level: "warn", message: "rate limit approaching for finnhub (87/100)" },
+  {
+    ts: "12:01:05.022",
+    level: "warn",
+    message: "rate limit approaching for finnhub (87/100)",
+  },
   { ts: "12:01:05.612", level: "info", message: "analyst.news.start" },
   { ts: "12:01:06.214", level: "info", message: "analyst.fundamentals.start" },
   { ts: "12:01:07.118", level: "info", message: "analyst.social.start" },
-  { ts: "12:01:08.221", level: "info", message: "researcher.bull.opening_stance complete" },
-  { ts: "12:01:09.412", level: "info", message: "researcher.bear.opening_stance complete" },
+  {
+    ts: "12:01:08.221",
+    level: "info",
+    message: "researcher.bull.opening_stance complete",
+  },
+  {
+    ts: "12:01:09.412",
+    level: "info",
+    message: "researcher.bear.opening_stance complete",
+  },
   { ts: "12:01:10.118", level: "info", message: "debate.round.1.start" },
-  { ts: "12:01:14.622", level: "warn", message: "tool_call timeout near limit (28s/30s)" },
-  { ts: "12:01:15.001", level: "info", message: "debate.round.1.end winner=bull" },
-  { ts: "12:01:16.214", level: "err", message: "provider polygon returned 5xx; falling back to yfinance" },
+  {
+    ts: "12:01:14.622",
+    level: "warn",
+    message: "tool_call timeout near limit (28s/30s)",
+  },
+  {
+    ts: "12:01:15.001",
+    level: "info",
+    message: "debate.round.1.end winner=bull",
+  },
+  {
+    ts: "12:01:16.214",
+    level: "err",
+    message: "provider polygon returned 5xx; falling back to yfinance",
+  },
   { ts: "12:01:17.318", level: "info", message: "debate.round.2.start" },
-  { ts: "12:01:21.514", level: "info", message: "debate.round.2.end winner=bull" },
+  {
+    ts: "12:01:21.514",
+    level: "info",
+    message: "debate.round.2.end winner=bull",
+  },
   { ts: "12:01:22.612", level: "info", message: "risk_manager.evaluating" },
   { ts: "12:01:23.812", level: "info", message: "trader.composing_signal" },
-  { ts: "12:01:24.913", level: "info", message: "final_decision rating=BUY confidence=0.71" },
-  { ts: "12:01:25.118", level: "info", message: "run_completed wall_clock=12.4m" },
+  {
+    ts: "12:01:24.913",
+    level: "info",
+    message: "final_decision rating=BUY confidence=0.71",
+  },
+  {
+    ts: "12:01:25.118",
+    level: "info",
+    message: "run_completed wall_clock=12.4m",
+  },
 ];
 
 const sampleConfigSnippet = `# TradingAgents run configuration
@@ -247,18 +299,52 @@ state, decision = graph.propagate("AAPL", "2026-05-16")
 print(decision)`;
 
 const activityBuckets = [
-  0, 1, 0, 2, 1, 3, 4, 6, 8, 12, 9, 7,
-  5, 6, 4, 3, 2, 2, 1, 1, 0, 0, 1, 0,
+  0, 1, 0, 2, 1, 3, 4, 6, 8, 12, 9, 7, 5, 6, 4, 3, 2, 2, 1, 1, 0, 0, 1, 0,
 ];
 
 const commandItems: CommandItem[] = [
-  { id: "ticker-aapl", label: "AAPL — Apple Inc", hint: "ticker", section: "tickers" },
-  { id: "ticker-msft", label: "MSFT — Microsoft Corp", hint: "ticker", section: "tickers" },
-  { id: "ticker-nvda", label: "NVDA — NVIDIA Corp", hint: "ticker", section: "tickers" },
-  { id: "run-1", label: "sb-aLPQ00ucncCYFz", hint: "AAPL · 12:01", section: "runs" },
-  { id: "run-2", label: "sb-bMSF11vdocDZGa", hint: "MSFT · 11:48", section: "runs" },
-  { id: "report-1", label: "Q1 Earnings Recap", hint: "report", section: "reports" },
-  { id: "settings-api", label: "API Keys", hint: "settings", section: "settings" },
+  {
+    id: "ticker-aapl",
+    label: "AAPL — Apple Inc",
+    hint: "ticker",
+    section: "tickers",
+  },
+  {
+    id: "ticker-msft",
+    label: "MSFT — Microsoft Corp",
+    hint: "ticker",
+    section: "tickers",
+  },
+  {
+    id: "ticker-nvda",
+    label: "NVDA — NVIDIA Corp",
+    hint: "ticker",
+    section: "tickers",
+  },
+  {
+    id: "run-1",
+    label: "sb-aLPQ00ucncCYFz",
+    hint: "AAPL · 12:01",
+    section: "runs",
+  },
+  {
+    id: "run-2",
+    label: "sb-bMSF11vdocDZGa",
+    hint: "MSFT · 11:48",
+    section: "runs",
+  },
+  {
+    id: "report-1",
+    label: "Q1 Earnings Recap",
+    hint: "report",
+    section: "reports",
+  },
+  {
+    id: "settings-api",
+    label: "API Keys",
+    hint: "settings",
+    section: "settings",
+  },
 ];
 
 interface SectionProps {
@@ -298,15 +384,13 @@ const runColumns: ColumnDef<RunRow, unknown>[] = [
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => <StatusDot status={row.original.status} />,
+    cell: ({ row }) => <StatusPill status={row.original.status} />,
   },
   {
     accessorKey: "tokens",
     header: "Tokens",
     meta: { numeric: true },
-    cell: ({ row }) => (
-      <span>{row.original.tokens.toLocaleString()}</span>
-    ),
+    cell: ({ row }) => <span>{row.original.tokens.toLocaleString()}</span>,
   },
   {
     accessorKey: "durationSeconds",
@@ -352,11 +436,15 @@ export default function DesignSystemPage(): ReactElement {
           </h1>
           <p className="text-sm text-fg-muted">
             Cosmic-lilac instrument-panel primitives. Press{" "}
-            <span className="font-mono text-fg">⌘K</span> for the command palette.
+            <span className="font-mono text-fg">⌘K</span> for the command
+            palette.
           </p>
         </header>
 
-        <Section title="Colors" description="Token swatches, mapped to Tailwind utilities.">
+        <Section
+          title="Colors"
+          description="Token swatches, mapped to Tailwind utilities."
+        >
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
             {colorEntries.map(([name, hex]) => (
               <div
@@ -379,7 +467,10 @@ export default function DesignSystemPage(): ReactElement {
           </div>
         </Section>
 
-        <Section title="Typography" description="Geist sans and Geist mono across the scale.">
+        <Section
+          title="Typography"
+          description="Geist sans and Geist mono across the scale."
+        >
           <div className="flex flex-col gap-3">
             <span className="text-2xl font-medium tracking-[-0.03em] text-fg">
               Page Title — 22px
@@ -387,7 +478,9 @@ export default function DesignSystemPage(): ReactElement {
             <span className="text-lg text-fg">Card Title — 17px</span>
             <span className="text-base text-fg">Body Emphasis — 15.5px</span>
             <span className="text-sm text-fg">Body — 14px</span>
-            <span className="text-xs text-fg-muted">Helper / Timestamp — 12px</span>
+            <span className="text-xs text-fg-muted">
+              Helper / Timestamp — 12px
+            </span>
             <CapsLabel>Section Caps — 11px tracked</CapsLabel>
             <span className="font-mono text-sm tabular-nums text-fg">
               182.47 -1.42 (-0.77%) — Geist Mono Tabular
@@ -395,7 +488,10 @@ export default function DesignSystemPage(): ReactElement {
           </div>
         </Section>
 
-        <Section title="Buttons" description="Variant × size matrix with press scale.">
+        <Section
+          title="Buttons"
+          description="Variant × size matrix with press scale."
+        >
           <div className="space-y-4">
             {buttonSizes.map((size) => (
               <div key={size} className="flex flex-wrap items-center gap-3">
@@ -413,7 +509,10 @@ export default function DesignSystemPage(): ReactElement {
           </div>
         </Section>
 
-        <Section title="Inputs & Selects" description="Form primitives with focus and disabled states.">
+        <Section
+          title="Inputs & Selects"
+          description="Form primitives with focus and disabled states."
+        >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="flex flex-col gap-2">
               <CapsLabel>Default</CapsLabel>
@@ -435,7 +534,9 @@ export default function DesignSystemPage(): ReactElement {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="openai">OpenAI · gpt-4o</SelectItem>
-                  <SelectItem value="anthropic">Anthropic · claude-opus</SelectItem>
+                  <SelectItem value="anthropic">
+                    Anthropic · claude-opus
+                  </SelectItem>
                   <SelectItem value="google">Google · gemini-2.5</SelectItem>
                   <SelectItem value="deepseek">DeepSeek · v3</SelectItem>
                 </SelectContent>
@@ -444,15 +545,18 @@ export default function DesignSystemPage(): ReactElement {
           </div>
         </Section>
 
-        <Section title="Status Dots" description="All five status semantics.">
-          <div className="flex flex-wrap items-center gap-6">
+        <Section title="Status Pills" description="All six status semantics.">
+          <div className="flex flex-wrap items-center gap-3">
             {statuses.map((status) => (
-              <StatusDot key={status} status={status} />
+              <StatusPill key={status} status={status} />
             ))}
           </div>
         </Section>
 
-        <Section title="Badges" description="Rating chips for research-run rows.">
+        <Section
+          title="Badges"
+          description="Rating chips for research-run rows."
+        >
           <div className="flex flex-wrap items-center gap-3">
             {badgeVariants.map((variant) => (
               <Badge key={variant} variant={variant} />
@@ -491,7 +595,7 @@ export default function DesignSystemPage(): ReactElement {
               <CardContent>
                 <div className="flex items-center justify-between">
                   <HexPill value="sb-dNVD33xfqFBIc" />
-                  <StatusDot status="live" />
+                  <StatusPill status="running" />
                 </div>
                 <div className="mt-2 font-mono text-xs text-fg-muted">
                   NVDA · 12m 38s wall clock
@@ -501,7 +605,10 @@ export default function DesignSystemPage(): ReactElement {
           </div>
         </Section>
 
-        <Section title="Tabs" description="Animated lilac underline via layoutId spring.">
+        <Section
+          title="Tabs"
+          description="Animated lilac underline via layoutId spring."
+        >
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList>
               <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -544,7 +651,10 @@ export default function DesignSystemPage(): ReactElement {
           </Tabs>
         </Section>
 
-        <Section title="Data Table" description="Sortable rows with mono numerics and a selected-row rail.">
+        <Section
+          title="Data Table"
+          description="Sortable rows with mono numerics and a selected-row rail."
+        >
           <div className="rounded-xl border border-line bg-surface overflow-hidden">
             <DataTable
               data={runRows}
@@ -556,11 +666,17 @@ export default function DesignSystemPage(): ReactElement {
           </div>
         </Section>
 
-        <Section title="Log Viewer" description="Bg-canvas, three columns, follow toggle.">
+        <Section
+          title="Log Viewer"
+          description="Bg-canvas, three columns, follow toggle."
+        >
           <LogViewer lines={sampleLogs} />
         </Section>
 
-        <Section title="Code Block" description="Lilac top border, traffic lights, optional copy.">
+        <Section
+          title="Code Block"
+          description="Lilac top border, traffic lights, optional copy."
+        >
           <CodeBlock lang="python">{sampleConfigSnippet}</CodeBlock>
         </Section>
 
@@ -568,14 +684,24 @@ export default function DesignSystemPage(): ReactElement {
           <MetricQuadrant tiles={metricTiles} />
         </Section>
 
-        <Section title="Sparkline" description="Inline trend, no animation by default.">
+        <Section
+          title="Sparkline"
+          description="Inline trend, no animation by default."
+        >
           <div className="flex items-center gap-6">
             <Sparkline data={sampleSparkline} />
-            <Sparkline data={sampleSparkline.slice().reverse()} width={180} height={48} />
+            <Sparkline
+              data={sampleSparkline.slice().reverse()}
+              width={180}
+              height={48}
+            />
           </div>
         </Section>
 
-        <Section title="Activity Strip" description="24-hour bucket histogram, lilac bars.">
+        <Section
+          title="Activity Strip"
+          description="24-hour bucket histogram, lilac bars."
+        >
           <div className="rounded-md border border-line bg-surface px-3 py-3 inline-block">
             <ActivityStrip
               buckets={activityBuckets}
@@ -584,7 +710,10 @@ export default function DesignSystemPage(): ReactElement {
           </div>
         </Section>
 
-        <Section title="Command Palette" description="⌘K opens; sections for tickers, runs, reports, settings.">
+        <Section
+          title="Command Palette"
+          description="⌘K opens; sections for tickers, runs, reports, settings."
+        >
           <div className="flex flex-wrap items-center gap-3">
             <Button
               variant="default"
@@ -602,7 +731,10 @@ export default function DesignSystemPage(): ReactElement {
           </div>
         </Section>
 
-        <Section title="Dialog" description="Centered overlay for run-config / order tickets.">
+        <Section
+          title="Dialog"
+          description="Centered overlay for run-config / order tickets."
+        >
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="primary">Open dialog</Button>
@@ -634,7 +766,10 @@ export default function DesignSystemPage(): ReactElement {
           </Dialog>
         </Section>
 
-        <Section title="Tooltips" description="400ms delay, mono content, no glow.">
+        <Section
+          title="Tooltips"
+          description="400ms delay, mono content, no glow."
+        >
           <div className="flex flex-wrap items-center gap-4">
             <Tooltip>
               <TooltipTrigger asChild>
@@ -651,7 +786,10 @@ export default function DesignSystemPage(): ReactElement {
           </div>
         </Section>
 
-        <Section title="Detail Rail" description="360px right rail, sticky, slide-in.">
+        <Section
+          title="Detail Rail"
+          description="360px right rail, sticky, slide-in."
+        >
           <div className="flex flex-wrap items-center gap-3">
             <Button variant="default" onClick={() => setIsRailOpen(true)}>
               Open rail
@@ -685,7 +823,7 @@ export default function DesignSystemPage(): ReactElement {
                   </div>
                   <div className="flex flex-col gap-1">
                     <CapsLabel>Status</CapsLabel>
-                    <StatusDot status="succeeded" />
+                    <StatusPill status="succeeded" />
                   </div>
                   <div className="flex flex-col gap-1">
                     <CapsLabel>Rating</CapsLabel>
@@ -697,7 +835,10 @@ export default function DesignSystemPage(): ReactElement {
           </div>
         </Section>
 
-        <Section title="Hold Button" description="Press-and-hold 1.2s to confirm.">
+        <Section
+          title="Hold Button"
+          description="Press-and-hold 1.2s to confirm."
+        >
           <div className="flex flex-wrap items-center gap-4">
             <HoldButton
               label="Run TradingAgents"

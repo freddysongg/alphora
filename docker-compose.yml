@@ -45,6 +45,8 @@ services:
     build:
       context: ./services/api
       dockerfile: Dockerfile
+    env_file:
+      - .env
     environment:
       <<: *api-env
     command: ["alembic", "upgrade", "head"]
@@ -57,6 +59,8 @@ services:
     build:
       context: ./services/api
       dockerfile: Dockerfile
+    env_file:
+      - .env
     environment:
       <<: *api-env
     ports:
@@ -79,6 +83,8 @@ services:
     build:
       context: ./services/api
       dockerfile: Dockerfile
+    env_file:
+      - .env
     environment:
       <<: *api-env
     command: ["python", "-m", "app.workers.worker"]
@@ -129,6 +135,8 @@ services:
     build:
       context: ./services/api
       dockerfile: Dockerfile
+    env_file:
+      - .env
     environment:
       <<: *api-env
     command: ["alphora-paper-scheduler"]

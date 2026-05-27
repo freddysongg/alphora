@@ -3,7 +3,7 @@
 import type { ReactElement } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { DataTable, StatusDot } from "@/components/ui";
+import { DataTable, StatusPill } from "@/components/ui";
 import type { components } from "@/lib/api";
 import { formatDateTime } from "@/lib/format/date-time";
 import { orderStatusToStatusKind } from "@/lib/paper/order-status";
@@ -62,7 +62,7 @@ const columns: ColumnDef<PaperOrderPublic, unknown>[] = [
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => (
-      <StatusDot status={orderStatusToStatusKind(row.original.status)} />
+      <StatusPill status={orderStatusToStatusKind(row.original.status)} />
     ),
   },
 ];

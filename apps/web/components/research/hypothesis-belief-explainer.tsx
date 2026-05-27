@@ -82,22 +82,22 @@ export function HypothesisBeliefExplainer(
         <CardTitle>BELIEF ENGINE</CardTitle>
       </CardHeader>
       <CardContent>
-        <ul className="flex flex-col gap-6">
+        <ul className="flex flex-col">
           {bundles.map((bundle) => (
             <li
               key={bundle.hypothesis.id}
-              className="flex flex-col gap-3 border-t border-line/60 pt-4 first:border-t-0 first:pt-0"
+              className="border-t border-line/40 first:border-t-0 py-5 flex flex-col gap-4"
             >
-              <header className="flex items-center gap-3">
-                <CapsLabel className="text-fg-subtle w-24 shrink-0">
+              <header className="flex items-start gap-4">
+                <CapsLabel className="text-fg-subtle w-24 shrink-0 mt-0.5">
                   {bundle.hypothesis.state}
                 </CapsLabel>
-                <p className="flex-1 min-w-0 text-sm text-fg">
+                <p className="flex-1 min-w-0 text-sm text-fg leading-relaxed">
                   {bundle.hypothesis.claim_text}
                 </p>
-                <HexPill value={bundle.hypothesis.id} />
+                <HexPill value={bundle.hypothesis.id} className="shrink-0" />
                 <span
-                  className={`font-mono tabular-nums text-base ${beliefTone(
+                  className={`font-mono tabular-nums text-base shrink-0 ${beliefTone(
                     bundle.hypothesis.belief,
                   )}`}
                 >

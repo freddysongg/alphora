@@ -1,4 +1,6 @@
 import asyncio
+from types import TracebackType
+from typing import Any
 from uuid import UUID
 
 import httpx
@@ -185,3 +187,45 @@ async def _load_strategy(run_id: UUID) -> str:
             select(ResearchRun.strategy).where(ResearchRun.id == run_id)
         )
         return result.scalar_one()
+
+
+def mark_run_failed_on_job_failure(
+    job: Any,
+    _connection: Any,
+    exc_type: type[BaseException],
+    exc_value: BaseException,
+    _traceback: TracebackType,
+) -> None:
+    """RQ on_failure callback: mark the run failed when the worker dies.
+
+    Without this, JobTimeoutException (and other unhandled exceptions in the
+    worker process) leave research_runs.status frozen at 'running' because
+    the orchestrator's own try/except runs inside the dying event loop.
+    """
+    args = getattr(job, "args", None) or ()
+    if not args:
+        _logger.warning("rq_on_failure_missing_run_id_hex", job_id=getattr(job, "id", None))
+        return
+    try:
+        run_id = UUID(args[0])
+    except (ValueError, TypeError) as parse_exc:
+        _logger.warning(
+            "rq_on_failure_invalid_run_id_hex",
+            job_id=getattr(job, "id", None),
+            error=str(parse_exc),
+        )
+        return
+    reason = f"worker job failed: {exc_type.__name__}: {exc_value}"
+    try:
+        asyncio.run(_mark_run_failed(run_id=run_id, reason=reason))
+    except Exception as cleanup_exc:
+        _logger.exception(
+            "rq_on_failure_mark_failed_failed",
+            run_id=str(run_id),
+            error=str(cleanup_exc),
+        )
+
+
+async def _mark_run_failed(*, run_id: UUID, reason: str) -> None:
+    orchestrator = RunOrchestrator(session_factory=session_factory)
+    await orchestrator.fail(run_id, reason)

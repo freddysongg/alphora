@@ -423,3 +423,115 @@ async def test_insert_or_get_evidence_backfills_source_id_on_legacy_hit(
     assert was_inserted is False
     assert evidence.id == legacy_id
     assert evidence.source_id is not None
+
+
+async def test_insert_or_replace_evidence_returns_existing_on_hash_match(
+    populated_session: AsyncSession,
+) -> None:
+    from app.services.ingestion._persist import insert_or_replace_evidence
+
+    async with populated_session.begin():
+        first, was_inserted_first = await insert_or_replace_evidence(
+            session=populated_session,
+            source="polymarket_events",
+            document_id="events|1|abc",
+            raw_url=None,
+            content_hash="a" * 64,
+            structured={"v": 1},
+        )
+
+    async with populated_session.begin():
+        second, was_inserted_second = await insert_or_replace_evidence(
+            session=populated_session,
+            source="polymarket_events",
+            document_id="events|1|abc",
+            raw_url=None,
+            content_hash="a" * 64,
+            structured={"v": 1},
+        )
+
+    assert was_inserted_first is True
+    assert was_inserted_second is False
+    assert first.id == second.id
+
+
+async def test_insert_or_replace_evidence_upgrades_in_place_on_hash_change(
+    populated_session: AsyncSession,
+) -> None:
+    from sqlalchemy import func, select
+
+    from app.db.models_graph import Evidence, EvidenceChunk
+    from app.services.ingestion._chunkers import ChunkDraft
+    from app.services.ingestion._persist import (
+        insert_chunks,
+        insert_or_replace_evidence,
+    )
+
+    async with populated_session.begin():
+        first, _ = await insert_or_replace_evidence(
+            session=populated_session,
+            source="polymarket_events",
+            document_id="events|1|abc",
+            raw_url=None,
+            content_hash="b" * 64,
+            structured={"snapshot": "old"},
+        )
+        await insert_chunks(
+            session=populated_session,
+            evidence_id=first.id,
+            drafts=[
+                ChunkDraft(
+                    chunk_index=0,
+                    text="old chunk 0",
+                    start_offset=0,
+                    end_offset=11,
+                    attributes={},
+                    content_hash="c" * 64,
+                ),
+                ChunkDraft(
+                    chunk_index=1,
+                    text="old chunk 1",
+                    start_offset=12,
+                    end_offset=23,
+                    attributes={},
+                    content_hash="d" * 64,
+                ),
+            ],
+        )
+        first_id = first.id
+
+    async with populated_session.begin():
+        second, was_inserted = await insert_or_replace_evidence(
+            session=populated_session,
+            source="polymarket_events",
+            document_id="events|1|abc",
+            raw_url=None,
+            content_hash="e" * 64,
+            structured={"snapshot": "new"},
+        )
+
+    assert second.id == first_id
+    assert was_inserted is True
+    assert second.content_hash == "e" * 64
+    assert second.structured == {"snapshot": "new"}
+
+    chunk_count = (
+        await populated_session.execute(
+            select(func.count(EvidenceChunk.id)).where(
+                EvidenceChunk.evidence_id == first_id
+            )
+        )
+    ).scalar_one()
+    assert chunk_count == 0
+
+    row = (
+        (
+            await populated_session.execute(
+                select(Evidence).where(Evidence.id == first_id)
+            )
+        )
+        .scalars()
+        .one()
+    )
+    assert row.content_hash == "e" * 64
+    assert row.structured == {"snapshot": "new"}
