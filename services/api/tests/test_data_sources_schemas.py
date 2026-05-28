@@ -30,6 +30,11 @@ def test_test_pull_request_validates_ticker_charset() -> None:
         DataSourceTestPullRequest(ticker="not a ticker")
 
 
+def test_test_pull_request_rejects_invalid_lookback() -> None:
+    with pytest.raises(ValidationError):
+        DataSourceTestPullRequest(ticker="AAPL", lookback_days=45)
+
+
 def test_entry_public_round_trip() -> None:
     entry = DataSourceEntryPublic.model_validate(
         {

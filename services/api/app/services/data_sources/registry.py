@@ -9,9 +9,8 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Literal
 
-Scope = Literal["ticker", "macro"]
+from app.schemas.data_sources import DataSourceScope
 
 
 @dataclass(frozen=True)
@@ -20,7 +19,7 @@ class DataSourceEntry:
     provider: str
     label: str
     caption: str
-    scope: Scope
+    scope: DataSourceScope
     default_lookback_days: int | None
     api_key_env: str | None
     preview_columns: tuple[str, ...]
@@ -233,7 +232,6 @@ def iter_entries() -> Iterator[DataSourceEntry]:
 __all__ = [
     "DATA_SOURCE_REGISTRY",
     "DataSourceEntry",
-    "Scope",
     "get_entry",
     "iter_entries",
 ]
