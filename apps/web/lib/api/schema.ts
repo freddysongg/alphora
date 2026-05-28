@@ -38,6 +38,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Approvals */
+        get: operations["list_approvals_api_approvals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/approvals/{approval_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Approval */
+        get: operations["get_approval_api_approvals__approval_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/approvals/{approval_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve */
+        post: operations["approve_api_approvals__approval_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/approvals/{approval_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject */
+        post: operations["reject_api_approvals__approval_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/research-runs": {
         parameters: {
             query?: never;
@@ -605,6 +673,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/data-sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Data Sources */
+        get: operations["list_data_sources_api_data_sources_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-sources/{source_key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Data Source */
+        patch: operations["patch_data_source_api_data_sources__source_key__patch"];
+        trace?: never;
+    };
+    "/api/data-sources/{source_key}/test-pull": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test Pull Data Source */
+        post: operations["test_pull_data_source_api_data_sources__source_key__test_pull_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/providers": {
         parameters: {
             query?: never;
@@ -687,6 +806,23 @@ export interface paths {
         post?: never;
         /** Remove Watchlist Member */
         delete: operations["remove_watchlist_member_api_watchlists__watchlist_id__members__ticker__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/watchlists/{watchlist_id}/rebuild-research": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rebuild Research Watchlist */
+        post: operations["rebuild_research_watchlist_api_watchlists__watchlist_id__rebuild_research_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -867,6 +1003,11 @@ export interface components {
              * @default false
              */
             has_alpha_vantage_key: boolean;
+        };
+        /** ApprovalRejectPayload */
+        ApprovalRejectPayload: {
+            /** Reject Reason */
+            reject_reason?: string | null;
         };
         /** BeliefInputBreakdown */
         BeliefInputBreakdown: {
@@ -1159,7 +1300,7 @@ export interface components {
         };
         /** CreateResearchRunsRequest */
         CreateResearchRunsRequest: {
-            /** @default tradingagents */
+            /** @default funnel_research */
             strategy: components["schemas"]["StrategyEnum"];
             /**
              * Trade Date
@@ -1179,6 +1320,39 @@ export interface components {
              * @default 3
              */
             debate_depth: number;
+        };
+        /** DataSourceEntryPublic */
+        DataSourceEntryPublic: {
+            /** Key */
+            key: string;
+            /** Provider */
+            provider: string;
+            /** Label */
+            label: string;
+            /** Caption */
+            caption: string;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "ticker" | "macro";
+            /** Default Lookback Days */
+            default_lookback_days: number | null;
+            /** Api Key Env */
+            api_key_env: string | null;
+            /**
+             * Api Key Status
+             * @enum {string}
+             */
+            api_key_status: "configured" | "missing" | "n/a";
+            /** Preview Columns */
+            preview_columns: string[];
+            settings: components["schemas"]["DataSourceSettingsPublic"];
+        };
+        /** DataSourceList */
+        DataSourceList: {
+            /** Sources */
+            sources: components["schemas"]["DataSourceEntryPublic"][];
         };
         /** DataSourcePublic */
         DataSourcePublic: {
@@ -1211,6 +1385,56 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** DataSourceSettingsPublic */
+        DataSourceSettingsPublic: {
+            /** Enabled */
+            enabled: boolean;
+            /** Lookback Days */
+            lookback_days: number | null;
+            /** Notes */
+            notes: string | null;
+            /** Updated At */
+            updated_at: string | null;
+        };
+        /** DataSourceSettingsUpdate */
+        DataSourceSettingsUpdate: {
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Lookback Days */
+            lookback_days?: number | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /** DataSourceTestPullRequest */
+        DataSourceTestPullRequest: {
+            /** Ticker */
+            ticker?: string | null;
+            /** Lookback Days */
+            lookback_days?: number | null;
+        };
+        /** DataSourceTestPullResponse */
+        DataSourceTestPullResponse: {
+            /** Source Key */
+            source_key: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "error";
+            /** Latency Ms */
+            latency_ms: number;
+            /** Count */
+            count: number;
+            /** As Of */
+            as_of: string | null;
+            /** Preview */
+            preview: {
+                [key: string]: unknown;
+            }[];
+            /** Raw */
+            raw: string | null;
+            error: components["schemas"]["TestPullError"] | null;
         };
         /**
          * EntityTypeEnum
@@ -1642,6 +1866,36 @@ export interface components {
          * @enum {string}
          */
         JudgeStatus: "not_run" | "passed" | "flagged";
+        /**
+         * JudgeVerdictSummary
+         * @description Embedded inside PendingApprovalDetail when a verdict link exists.
+         */
+        JudgeVerdictSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Decision */
+            decision: string;
+            /** Size Multiplier */
+            size_multiplier: number | null;
+            /** Reasoning Md */
+            reasoning_md: string;
+            /** Context Payload */
+            context_payload: {
+                [key: string]: unknown;
+            };
+            /** Llm Model */
+            llm_model: string | null;
+            /** Prompt Version */
+            prompt_version: string | null;
+            /**
+             * Bar Ts
+             * Format: date-time
+             */
+            bar_ts: string;
+        };
         /** LeakageHoldoutCaseInput */
         LeakageHoldoutCaseInput: {
             /** Case Name */
@@ -2017,6 +2271,115 @@ export interface components {
             closed_at: string | null;
         };
         /**
+         * PendingApprovalDetail
+         * @description Detail view. Embeds the linked judge verdict when present.
+         */
+        PendingApprovalDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Judge Verdict Id */
+            judge_verdict_id: string | null;
+            /** Strategy Key */
+            strategy_key: string;
+            /** Ticker */
+            ticker: string;
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "buy" | "sell";
+            /** Qty */
+            qty: string;
+            /** Estimated Fill Price */
+            estimated_fill_price: string;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "paper" | "live";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "approved" | "rejected" | "expired";
+            /** Decided By */
+            decided_by: string | null;
+            /** Decided At */
+            decided_at: string | null;
+            /** Reject Reason */
+            reject_reason: string | null;
+            /** Expires At */
+            expires_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            judge_verdict: components["schemas"]["JudgeVerdictSummary"] | null;
+        };
+        /**
+         * PendingApprovalPublic
+         * @description List-view projection. Excludes the verdict context payload.
+         */
+        PendingApprovalPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Judge Verdict Id */
+            judge_verdict_id: string | null;
+            /** Strategy Key */
+            strategy_key: string;
+            /** Ticker */
+            ticker: string;
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "buy" | "sell";
+            /** Qty */
+            qty: string;
+            /** Estimated Fill Price */
+            estimated_fill_price: string;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "paper" | "live";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "approved" | "rejected" | "expired";
+            /** Decided By */
+            decided_by: string | null;
+            /** Decided At */
+            decided_at: string | null;
+            /** Reject Reason */
+            reject_reason: string | null;
+            /** Expires At */
+            expires_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
          * PerturbationKindEnum
          * @enum {string}
          */
@@ -2207,6 +2570,34 @@ export interface components {
          * @enum {string}
          */
         RelationTypeEnum: "employs" | "holds_role_at" | "supplies" | "competes_with" | "regulated_by" | "traded_by" | "voted_on" | "sponsored" | "affects" | "belongs_to_sector" | "located_in" | "mentioned_in" | "catalyst_for" | "derives_from_theme" | "subsidiary_of" | "supports_hypothesis" | "contradicts_hypothesis" | "validates_if_beat" | "falsifies_if_miss";
+        /** ResearchRebuildRequest */
+        ResearchRebuildRequest: {
+            /**
+             * Evidence Window Hours
+             * @default 24
+             */
+            evidence_window_hours: number;
+            /**
+             * Min Belief
+             * @default 0.6
+             */
+            min_belief: number;
+            /**
+             * Max Tickers
+             * @default 25
+             */
+            max_tickers: number;
+        };
+        /** ResearchRebuildResponse */
+        ResearchRebuildResponse: {
+            /**
+             * Watchlist Id
+             * Format: uuid
+             */
+            watchlist_id: string;
+            /** Count */
+            count: number;
+        };
         /** ResearchRunDetail */
         ResearchRunDetail: {
             /**
@@ -2612,6 +3003,13 @@ export interface components {
          * @enum {string}
          */
         StrategyEnum: "tradingagents" | "funnel_research";
+        /** TestPullError */
+        TestPullError: {
+            /** Code */
+            code: string;
+            /** Detail */
+            detail: string;
+        };
         /** Theme */
         Theme: {
             /** Name */
@@ -2668,6 +3066,17 @@ export interface components {
         WatchlistCreate: {
             /** Name */
             name: string;
+            /**
+             * Source
+             * @default manual
+             * @enum {string}
+             */
+            source: "manual" | "research";
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
         };
         /** WatchlistDetail */
         WatchlistDetail: {
@@ -2678,6 +3087,15 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "manual" | "research";
+            /** Is Active */
+            is_active: boolean;
+            /** Last Built At */
+            last_built_at: string | null;
             /**
              * Created At
              * Format: date-time
@@ -2724,6 +3142,15 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "manual" | "research";
+            /** Is Active */
+            is_active: boolean;
+            /** Last Built At */
+            last_built_at: string | null;
             /**
              * Created At
              * Format: date-time
@@ -2784,6 +3211,139 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotReadyResponse"];
+                };
+            };
+        };
+    };
+    list_approvals_api_approvals_get: {
+        parameters: {
+            query?: {
+                status?: ("pending" | "approved" | "rejected" | "expired") | null;
+                mode?: ("paper" | "live") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingApprovalPublic"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_approval_api_approvals__approval_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingApprovalDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_api_approvals__approval_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Human-Token"?: string | null;
+            };
+            path: {
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingApprovalPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_api_approvals__approval_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Human-Token"?: string | null;
+            };
+            path: {
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ApprovalRejectPayload"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingApprovalPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -3836,6 +4396,96 @@ export interface operations {
             };
         };
     };
+    list_data_sources_api_data_sources_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataSourceList"];
+                };
+            };
+        };
+    };
+    patch_data_source_api_data_sources__source_key__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DataSourceSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataSourceEntryPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_pull_data_source_api_data_sources__source_key__test_pull_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DataSourceTestPullRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataSourceTestPullResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_provider_settings_api_settings_providers_get: {
         parameters: {
             query?: never;
@@ -4026,6 +4676,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rebuild_research_watchlist_api_watchlists__watchlist_id__rebuild_research_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                watchlist_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResearchRebuildRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchRebuildResponse"];
+                };
             };
             /** @description Validation Error */
             422: {
