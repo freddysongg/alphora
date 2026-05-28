@@ -7,6 +7,7 @@ from app.db.models_backtest import (
 )
 from app.db.models_company import CompanyThesis
 from app.db.models_data_health import ProviderCheck, ProviderCheckStatus
+from app.db.models_data_sources import DataSourceSettings  # noqa: F401
 from app.db.models_evals import (
     BriefKind,
     CounterfactualGateRun,
@@ -98,6 +99,7 @@ __all__ = [
     "CounterfactualGateRun",
     "CounterfactualPerturbation",
     "DataSource",
+    "DataSourceSettings",
     "Entity",
     "EntityMerge",
     "EntityResolutionDecisionKind",
