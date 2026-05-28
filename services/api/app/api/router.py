@@ -4,6 +4,7 @@ from app.api.routes import (
     approvals,
     company_theses,
     data_health,
+    data_sources,
     evals,
     events,
     graph,
@@ -50,6 +51,9 @@ api_router.include_router(screeners.router, prefix="/screeners", tags=["screener
 api_router.include_router(paper.router, prefix="/paper", tags=["paper"])
 api_router.include_router(
     data_health.router, prefix="/data-health", tags=["data-health"]
+)
+api_router.include_router(
+    data_sources.router, prefix="/data-sources", tags=["data-sources"]
 )
 api_router.include_router(settings.router, prefix="/settings", tags=["settings"])
 api_router.include_router(
