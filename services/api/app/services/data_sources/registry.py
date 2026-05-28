@@ -174,7 +174,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceEntry, ...] = (
         scope="macro",
         default_lookback_days=None,
         api_key_env=None,
-        preview_columns=("meeting_date", "target_rate", "probability"),
+        preview_columns=("meeting_date", "target_low_bps", "target_high_bps", "probability"),
     ),
     DataSourceEntry(
         key="kalshi_markets",
@@ -194,7 +194,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceEntry, ...] = (
         scope="macro",
         default_lookback_days=None,
         api_key_env=None,
-        preview_columns=("slug", "title", "category", "end_date"),
+        preview_columns=("slug", "title", "category", "active"),
     ),
     DataSourceEntry(
         key="polymarket_price_history",
@@ -204,7 +204,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceEntry, ...] = (
         scope="macro",
         default_lookback_days=30,
         api_key_env=None,
-        preview_columns=("t", "p"),
+        preview_columns=("timestamp_s", "probability"),
     ),
     DataSourceEntry(
         key="congress_bills",
@@ -214,7 +214,7 @@ DATA_SOURCE_REGISTRY: tuple[DataSourceEntry, ...] = (
         scope="macro",
         default_lookback_days=30,
         api_key_env="congress_api_key",
-        preview_columns=("congress", "number", "title", "introduced_date"),
+        preview_columns=("congress", "number", "title", "updateDate"),
     ),
 )
 
