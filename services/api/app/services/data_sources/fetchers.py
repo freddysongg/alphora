@@ -82,7 +82,12 @@ def _truncate_raw(raw: object) -> str:
     blob = json.dumps(raw, default=str)
     if len(blob.encode()) <= MAX_RAW_BYTES:
         return blob
-    return blob.encode()[:MAX_RAW_BYTES].decode(errors="replace")
+    return json.dumps(
+        {
+            "truncated": True,
+            "approximate_byte_size": len(blob.encode()),
+        }
+    )
 
 
 def _iso(value: datetime | date | None) -> str | None:
@@ -451,9 +456,9 @@ async def fetch_congress_bills(*, client: httpx.AsyncClient) -> TestPullPayload:
     return TestPullPayload(rows=rows, raw=raw, as_of=as_of)
 
 
-TickerFetcher = Callable[..., Awaitable[TestPullPayload]]
+FetcherFn = Callable[..., Awaitable[TestPullPayload]]
 
-TICKER_FETCHERS: dict[str, TickerFetcher] = {
+TICKER_FETCHERS: dict[str, FetcherFn] = {
     "finnhub_insider_transactions": fetch_finnhub_insider_transactions,
     "finnhub_news": fetch_finnhub_news,
     "finnhub_peers": fetch_finnhub_peers,
@@ -466,7 +471,7 @@ TICKER_FETCHERS: dict[str, TickerFetcher] = {
     "gdelt": fetch_gdelt,
 }
 
-MACRO_FETCHERS: dict[str, TickerFetcher] = {
+MACRO_FETCHERS: dict[str, FetcherFn] = {
     "fred_observations": fetch_fred_observations,
     "fed_press": fetch_fed_press,
     "cme_fedwatch": fetch_cme_fedwatch,
@@ -482,8 +487,8 @@ __all__ = [
     "MAX_PREVIEW_ROWS",
     "MAX_RAW_BYTES",
     "TICKER_FETCHERS",
+    "FetcherFn",
     "TestPullPayload",
-    "TickerFetcher",
     "fetch_cme_fedwatch",
     "fetch_congress_bills",
     "fetch_fed_press",

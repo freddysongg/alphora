@@ -186,3 +186,16 @@ async def test_polymarket_events_projects_correct_columns(
         }
     ]
     assert payload.as_of is None
+
+
+def test_truncate_raw_returns_valid_json_placeholder_when_oversized() -> None:
+    import json
+
+    from app.services.data_sources.fetchers import MAX_RAW_BYTES, _truncate_raw
+
+    payload = ["x" * 1000 for _ in range(500)]
+    raw = _truncate_raw(payload)
+    parsed = json.loads(raw)
+    assert parsed.get("truncated") is True
+    assert isinstance(parsed.get("approximate_byte_size"), int)
+    assert len(raw.encode()) <= MAX_RAW_BYTES
