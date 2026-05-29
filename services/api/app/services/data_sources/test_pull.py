@@ -186,7 +186,6 @@ class TestPullOrchestrator:
                 raw=None,
                 error=TestPullError(code=type(exc).__name__, detail=str(exc)),
             )
-            await self._cache.set(cache_key, response)
             return response
 
         latency_ms = int((time.perf_counter() - started_at) * 1000)

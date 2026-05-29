@@ -95,11 +95,12 @@ async def patch_data_source(
     if row is None:
         row = DataSourceSettings(source_key=source_key)
         session.add(row)
+    fields_set = payload.model_fields_set
     if payload.enabled is not None:
         row.enabled = payload.enabled
-    if payload.lookback_days is not None:
+    if "lookback_days" in fields_set:
         row.lookback_days = payload.lookback_days
-    if payload.notes is not None:
+    if "notes" in fields_set:
         row.notes = payload.notes
     await session.commit()
     await session.refresh(row)

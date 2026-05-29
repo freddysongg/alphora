@@ -94,26 +94,6 @@ vi.mock("next/link", () => ({
 
 vi.mock("@/lib/data-health/test-pull-client", () => {
   return {
-    groupForProviderSerialization: (
-      sources: ReadonlyArray<{ readonly provider: string }>,
-    ): ReadonlyArray<{
-      readonly provider: string;
-      readonly sources: ReadonlyArray<unknown>;
-    }> => {
-      const groups = new Map<string, unknown[]>();
-      for (const s of sources) {
-        const existing = groups.get(s.provider);
-        if (existing === undefined) {
-          groups.set(s.provider, [s]);
-        } else {
-          existing.push(s);
-        }
-      }
-      return Array.from(groups.entries()).map(([provider, list]) => ({
-        provider,
-        sources: list,
-      }));
-    },
     pullOne: vi.fn().mockResolvedValue({
       sourceKey: "finnhub_news",
       response: {
@@ -128,7 +108,6 @@ vi.mock("@/lib/data-health/test-pull-client", () => {
       },
       errorDetail: null,
     }),
-    pullAll: vi.fn(),
   };
 });
 
@@ -163,7 +142,9 @@ describe("SourcesWorkspace", () => {
     render(<SourcesWorkspace initialSources={[FINNHUB_NEWS]} />);
     const tickerInput = screen.getByLabelText(/ticker/i);
     fireEvent.change(tickerInput, { target: { value: "AAPL" } });
-    const [firstPullButton] = screen.getAllByRole("button", { name: /^pull$/i });
+    const [firstPullButton] = screen.getAllByRole("button", {
+      name: /^pull$/i,
+    });
     if (firstPullButton === undefined) {
       throw new Error("expected at least one Pull button");
     }

@@ -87,6 +87,31 @@ async def test_orchestrator_cache_hit_avoids_second_fetch(
     assert call_count == 1
 
 
+@pytest.mark.asyncio
+async def test_orchestrator_does_not_cache_error_responses(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    call_count = 0
+
+    async def failing_fetch(
+        *, client: httpx.AsyncClient, ticker: str, lookback_days: int
+    ) -> TestPullPayload:
+        nonlocal call_count
+        call_count += 1
+        raise RuntimeError("upstream down")
+
+    monkeypatch.setattr(
+        "app.services.data_sources.fetchers.fetch_finnhub_news", failing_fetch
+    )
+    orchestrator = TestPullOrchestrator(cache=InMemoryTestPullCache())
+    async with httpx.AsyncClient() as client:
+        first = await orchestrator.run("finnhub_news", "AAPL", 30, client)
+        second = await orchestrator.run("finnhub_news", "AAPL", 30, client)
+    assert first.status == "error"
+    assert second.status == "error"
+    assert call_count == 2
+
+
 def test_cache_key_round_trip() -> None:
     key = TestPullCacheKey(source_key="finnhub_news", ticker="AAPL", lookback_days=30)
     assert key.cache_str() == "data_sources:test_pull:finnhub_news:AAPL:30"

@@ -29,6 +29,31 @@ async def test_patch_persists_settings(initialized_schema: None) -> None:
 
 
 @pytest.mark.asyncio
+async def test_patch_can_clear_notes(initialized_schema: None) -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        seeded = await client.patch(
+            "/api/data-sources/finnhub_news", json={"notes": "temporary"}
+        )
+        assert seeded.json()["settings"]["notes"] == "temporary"
+
+        cleared = await client.patch(
+            "/api/data-sources/finnhub_news", json={"notes": None}
+        )
+        assert cleared.status_code == 200
+        assert cleared.json()["settings"]["notes"] is None
+
+        again = await client.get("/api/data-sources")
+        finnhub_news = next(
+            entry
+            for entry in again.json()["sources"]
+            if entry["key"] == "finnhub_news"
+        )
+        assert finnhub_news["settings"]["notes"] is None
+
+
+@pytest.mark.asyncio
 async def test_patch_unknown_source_returns_404(initialized_schema: None) -> None:
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
