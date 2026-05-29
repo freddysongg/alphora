@@ -2,7 +2,7 @@ from datetime import date
 from typing import Any
 
 import httpx
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from app.config import get_settings
 from app.services.source_clients._http import HttpRequestConfig, request
@@ -55,6 +55,13 @@ class SecRecentSubmission(BaseModel):
     form: str
     primary_document: str
     primary_doc_description: str | None
+
+    @field_validator("report_date", mode="before")
+    @classmethod
+    def _blank_report_date_to_none(cls, raw: object) -> object:
+        if isinstance(raw, str) and raw.strip() == "":
+            return None
+        return raw
 
 
 class SecSubmissionsResponse(BaseModel):

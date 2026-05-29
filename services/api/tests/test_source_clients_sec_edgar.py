@@ -203,6 +203,39 @@ async def test_fetch_company_tickers_403_does_not_retry() -> None:
     assert route.call_count == 1
 
 
+@respx.mock
+async def test_fetch_submissions_coerces_blank_report_date_to_none() -> None:
+    from app.services.source_clients.sec_edgar import fetch_submissions
+
+    respx.get("https://data.sec.gov/submissions/CIK0000320193.json").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "cik": "0000320193",
+                "name": "Apple Inc.",
+                "sic": None,
+                "tickers": [],
+                "filings": {
+                    "recent": {
+                        "accessionNumber": ["a", "b"],
+                        "filingDate": ["2024-01-01", "2024-02-01"],
+                        "reportDate": ["", "2023-12-01"],
+                        "form": ["8-K", "10-Q"],
+                        "primaryDocument": ["a.htm", "b.htm"],
+                        "primaryDocDescription": [None, None],
+                    }
+                },
+            },
+        )
+    )
+
+    async with httpx.AsyncClient() as client:
+        result, _ = await fetch_submissions(client=client, cik="320193")
+
+    assert result.recent[0].report_date is None
+    assert result.recent[1].report_date == date(2023, 12, 1)
+
+
 def test_sec_edgar_module_exposes_lazy_rate_limiter() -> None:
     from app.services.source_clients import sec_edgar
     from app.services.source_clients._rate_limit import LocalTokenBucket
