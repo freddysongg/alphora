@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import type { ReactElement } from "react";
-import { CapsLabel } from "@/components/ui";
 import { getServerApi, isApiError } from "@/lib/api";
 import type { components } from "@/lib/api";
 import { ProviderMatrix } from "./provider-matrix";
@@ -44,12 +43,10 @@ async function loadProviderMatrix(): Promise<FetchResult> {
 
 export default async function DataHealthPage(): Promise<ReactElement> {
   const { matrix, errorDetail } = await loadProviderMatrix();
-  const hasEntries = matrix.providers.length > 0 && matrix.tools.length > 0;
+  const hasEntries =
+    matrix.providers.length > 0 && matrix.tools.length > 0;
   return (
-    <div className="max-w-[1400px] mx-auto px-6 py-8">
-      <header className="pb-6">
-        <CapsLabel as="h1">DATA HEALTH</CapsLabel>
-      </header>
+    <>
       {errorDetail !== null ? (
         <div
           role="alert"
@@ -65,6 +62,6 @@ export default async function DataHealthPage(): Promise<ReactElement> {
           No data health entries yet.
         </div>
       )}
-    </div>
+    </>
   );
 }
