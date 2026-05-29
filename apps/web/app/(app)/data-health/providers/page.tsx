@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import type { ReactElement } from "react";
 import { getServerApi, isApiError } from "@/lib/api";
 import type { components } from "@/lib/api";
-import { ProviderMatrix } from "./provider-matrix";
+import { buildProviderOverview } from "@/lib/data-health/overview";
+import type { DataSourceList } from "@/lib/data-health/types";
+import { ProviderOverviewTable } from "./provider-overview";
 
 export const metadata: Metadata = {
   title: "Data Health · Alphora",
@@ -18,33 +20,41 @@ const emptyMatrix: ProviderMatrixResponse = {
   cells: [],
 };
 
-interface FetchResult {
+const emptySources: DataSourceList = { sources: [] };
+
+interface OverviewData {
+  sources: DataSourceList;
   matrix: ProviderMatrixResponse;
   errorDetail: string | null;
 }
 
-async function loadProviderMatrix(): Promise<FetchResult> {
+async function loadOverviewData(): Promise<OverviewData> {
   try {
-    const { data } = await getServerApi().GET("/api/data-health", {
-      cache: "force-cache",
-      next: { tags: ["data-health"] },
-    });
-    if (data === undefined) {
-      return { matrix: emptyMatrix, errorDetail: null };
-    }
-    return { matrix: data, errorDetail: null };
+    const api = getServerApi();
+    const [sourcesResult, matrixResult] = await Promise.all([
+      api.GET("/api/data-sources", { cache: "no-store" }),
+      api.GET("/api/data-health", { cache: "no-store" }),
+    ]);
+    return {
+      sources: sourcesResult.data ?? emptySources,
+      matrix: matrixResult.data ?? emptyMatrix,
+      errorDetail: null,
+    };
   } catch (caught) {
     if (isApiError(caught)) {
-      return { matrix: emptyMatrix, errorDetail: caught.detail };
+      return {
+        sources: emptySources,
+        matrix: emptyMatrix,
+        errorDetail: caught.detail,
+      };
     }
     throw caught;
   }
 }
 
 export default async function DataHealthPage(): Promise<ReactElement> {
-  const { matrix, errorDetail } = await loadProviderMatrix();
-  const hasEntries =
-    matrix.providers.length > 0 && matrix.tools.length > 0;
+  const { sources, matrix, errorDetail } = await loadOverviewData();
+  const overview = buildProviderOverview(sources.sources, matrix);
   return (
     <>
       {errorDetail !== null ? (
@@ -55,11 +65,11 @@ export default async function DataHealthPage(): Promise<ReactElement> {
           Failed to load data health: {errorDetail}
         </div>
       ) : null}
-      {hasEntries ? (
-        <ProviderMatrix matrix={matrix} />
+      {overview.rows.length > 0 ? (
+        <ProviderOverviewTable overview={overview} />
       ) : (
         <div className="rounded-md border border-line bg-surface px-6 py-12 text-center text-sm text-fg-muted">
-          No data health entries yet.
+          No providers configured yet.
         </div>
       )}
     </>
