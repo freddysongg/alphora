@@ -42,12 +42,14 @@ function pillLabel(state: PillState): string {
 export function StatusStrip(props: StatusStripProps): ReactElement {
   return (
     <div
-      className="sticky top-[64px] z-10 flex flex-wrap gap-2 border-y border-line bg-panel px-2 py-2"
+      className="flex flex-wrap gap-2 border-y border-line bg-panel px-2 py-2"
       role="status"
       aria-label="Data source pulls"
     >
       {props.enabledSources.map((source) => {
-        const state = props.results.get(source.key) ?? { kind: "idle" as const };
+        const state = props.results.get(source.key) ?? {
+          kind: "idle" as const,
+        };
         return (
           <div
             key={source.key}
