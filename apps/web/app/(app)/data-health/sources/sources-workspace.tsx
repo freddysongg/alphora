@@ -49,9 +49,7 @@ function buildPillStates(
   return out;
 }
 
-export function SourcesWorkspace(
-  props: SourcesWorkspaceProps,
-): ReactElement {
+export function SourcesWorkspace(props: SourcesWorkspaceProps): ReactElement {
   const [sources, setSources] = useState<ReadonlyArray<DataSourceEntry>>(
     props.initialSources,
   );
@@ -125,7 +123,11 @@ export function SourcesWorkspace(
       ticker: entry.scope === "ticker" ? ticker : null,
       lookback_days: entry.settings.lookback_days ?? null,
     };
-    const result = await pullOne(entry.key, body, abortControllerRef.current.signal);
+    const result = await pullOne(
+      entry.key,
+      body,
+      abortControllerRef.current.signal,
+    );
     recordResult(entry.key, result.response, result.errorDetail);
   }
 
@@ -169,8 +171,8 @@ export function SourcesWorkspace(
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3 flex-wrap">
-        <label className="flex flex-col text-xs text-fg-muted">
+      <div className="flex items-end gap-3 flex-wrap">
+        <label className="flex flex-col gap-1 text-xs text-fg-muted">
           Ticker
           <Input
             value={ticker}
@@ -198,10 +200,7 @@ export function SourcesWorkspace(
           {enabledCount} enabled · {disabledCount} disabled
         </span>
       </div>
-      <StatusStrip
-        enabledSources={enabledTickerSources}
-        results={pillStates}
-      />
+      <StatusStrip enabledSources={enabledTickerSources} results={pillStates} />
       <div className="flex flex-col gap-4">
         {providerGroups.map((group) => (
           <section
