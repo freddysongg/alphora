@@ -1780,19 +1780,21 @@ def _config(
 @app.command("pull-bars")
 def pull_bars(
     ticker: list[str] = typer.Option(None, "--ticker"),
-    from_date: datetime_date := typer.Option(..., "--from-date"),  # see note
-    to_date: datetime_date := typer.Option(..., "--to-date"),
+    from_date: str = typer.Option(..., "--from-date"),
+    to_date: str = typer.Option(..., "--to-date"),
     root: Path = typer.Option(Path("data/ml"), "--root"),
 ) -> None:
     """Fetch and cache raw 5-minute bars for the universe to parquet."""
     universe = resolve_universe(ticker or None)
     paths = PathConfig(root=root)
+    start = date.fromisoformat(from_date)
+    end = date.fromisoformat(to_date)
 
     async def _run() -> None:
         async with httpx.AsyncClient(timeout=30.0) as client:
             for symbol in universe:
                 frame = await fetch_bars_for_ticker(
-                    client=client, ticker=symbol, from_date=from_date, to_date=to_date
+                    client=client, ticker=symbol, from_date=start, to_date=end
                 )
                 write_parquet(frame, paths.raw_bars_path(symbol))
                 logger.info("pulled_bars", ticker=symbol, rows=int(len(frame)))
@@ -1825,17 +1827,6 @@ def build_dataset(
 
 __all__ = ["app"]
 ```
-
-> **Note for the implementer:** the `pull-bars` signature above shows intent but uses
-> invalid walrus syntax in defaults — write the date options the same plain way as
-> `build-dataset` (accept `str`, parse with `date.fromisoformat`). Corrected `pull-bars`
-> options:
-> ```python
-> from_date: str = typer.Option(..., "--from-date"),
-> to_date: str = typer.Option(..., "--to-date"),
-> ```
-> and inside `_run`, parse once: `start = date.fromisoformat(from_date)`,
-> `end = date.fromisoformat(to_date)`, passing those to `fetch_bars_for_ticker`.
 
 - [ ] **Step 4: Run test to verify it passes**
 
