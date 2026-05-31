@@ -3,10 +3,17 @@ from __future__ import annotations
 import calendar
 from datetime import date
 
+import httpx
 import pandas as pd  # type: ignore[import-untyped]
+import structlog
 
 from app.services.market_clock import RTH_CLOSE_ET_MIN, RTH_OPEN_ET_MIN, to_et
-from app.services.source_clients.polygon import PolygonAggregatesResponse
+from app.services.source_clients.polygon import (
+    PolygonAggregatesResponse,
+    fetch_polygon_aggregates,
+)
+
+logger = structlog.get_logger(__name__)
 
 _COLUMNS = ["open", "high", "low", "close", "volume"]
 
@@ -71,4 +78,51 @@ def tag_rth(frame: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-__all__ = ["bars_response_to_frame", "month_windows", "tag_rth"]
+async def fetch_bars_for_ticker(
+    *,
+    client: httpx.AsyncClient,
+    ticker: str,
+    from_date: date,
+    to_date: date,
+    adjusted: bool = True,
+) -> pd.DataFrame:
+    """Fetch all 5-minute bars for `ticker` over [from_date, to_date], RTH-tagged.
+
+    Iterates month windows so each request stays under Polygon's default row
+    cap, concatenates the parsed frames, deduplicates, and tags RTH. Windows
+    that return no rows are skipped. The shared Polygon rate limiter inside
+    `fetch_polygon_aggregates` paces the requests.
+    """
+    frames: list[pd.DataFrame] = []
+    for window_start, window_end in month_windows(from_date, to_date):
+        response, _ = await fetch_polygon_aggregates(
+            client=client,
+            ticker=ticker,
+            multiplier=5,
+            timespan="minute",
+            from_date=window_start,
+            to_date=window_end,
+            adjusted=adjusted,
+        )
+        window_frame = bars_response_to_frame(response)
+        if not window_frame.empty:
+            frames.append(window_frame)
+    if not frames:
+        logger.warning("no_bars_fetched", ticker=ticker)
+        empty = bars_response_to_frame(
+            PolygonAggregatesResponse(
+                ticker=ticker,
+                query_count=0,
+                results_count=0,
+                adjusted=adjusted,
+                status="OK",
+                results=[],
+            )
+        )
+        return tag_rth(empty)
+    combined = pd.concat(frames)
+    combined = combined[~combined.index.duplicated(keep="last")].sort_index()
+    return tag_rth(combined)
+
+
+__all__ = ["bars_response_to_frame", "fetch_bars_for_ticker", "month_windows", "tag_rth"]
