@@ -8,6 +8,12 @@ import pandas as pd  # type: ignore[import-untyped]
 
 from app.indicators import atr
 from app.ml.config import EtlConfig, FeatureConfig
+from app.ml.features.context_join import (
+    ContextBundle,
+    build_context_features,
+    context_feature_columns,
+    context_normalize_columns,
+)
 from app.ml.features.normalize import normalize_columns
 from app.ml.features.price import build_price_features
 from app.ml.features.session import build_session_features
@@ -46,10 +52,31 @@ def feature_columns(config: FeatureConfig) -> list[str]:
     return cols
 
 
+def all_feature_columns(config: EtlConfig) -> list[str]:
+    """Spine feature columns, plus context columns when context is enabled."""
+    cols = feature_columns(config.features)
+    if config.context is not None:
+        cols = cols + context_feature_columns(config.context)
+    return cols
+
+
 def build_ticker_dataset(
-    ticker: str, bars: pd.DataFrame, config: EtlConfig
+    ticker: str,
+    bars: pd.DataFrame,
+    config: EtlConfig,
+    context: ContextBundle | None = None,
 ) -> pd.DataFrame:
-    """Build a labeled, feature-complete dataset for one ticker (RTH bars only)."""
+    """Build a labeled, feature-complete dataset for one ticker (RTH bars only).
+
+    When `config.context` is set, `context` must be supplied; its normalized
+    columns are appended to the spine features and included in the NaN-drop gate.
+    """
+    if config.context is not None and context is None:
+        raise ValueError(
+            "config.context is set but no context bundle was provided to "
+            "build_ticker_dataset"
+        )
+
     rth = bars[bars["is_rth"]] if config.rth_only else bars
     rth = rth.sort_index()
 
@@ -67,11 +94,22 @@ def build_ticker_dataset(
         min_periods=config.features.normalize_min_periods,
     )
 
+    if config.context is not None and context is not None:
+        context_features = build_context_features(rth.index, context, config.context)
+        context_features = normalize_columns(
+            context_features,
+            context_normalize_columns(config.context),
+            window=config.context.normalize_window,
+            min_periods=config.context.normalize_min_periods,
+        )
+        features = pd.concat([features, context_features], axis=1)
+
     combined = pd.concat([features, labels], axis=1)
     combined.insert(0, "ticker", ticker)
-    combined = combined[feature_columns(config.features) + _META_COLUMNS]
+    model_columns = all_feature_columns(config)
+    combined = combined[model_columns + _META_COLUMNS]
 
-    feature_only = combined[feature_columns(config.features)]
+    feature_only = combined[model_columns]
     combined = combined[
         feature_only.notna().all(axis=1) & combined["barrier_label"].notna()
     ]
@@ -98,10 +136,11 @@ def assemble_dataset(
 ) -> Path:
     """Concatenate per-ticker datasets, write dataset.parquet + manifest + spec."""
     frames = [frame for frame in per_ticker.values() if not frame.empty]
+    model_columns = all_feature_columns(config)
     dataset = (
         pd.concat(frames, ignore_index=True)
         if frames
-        else pd.DataFrame(columns=feature_columns(config.features) + _META_COLUMNS)
+        else pd.DataFrame(columns=model_columns + _META_COLUMNS)
     )
     out_dir = config.paths.dataset_dir(run_id)
     write_parquet(dataset, out_dir / "dataset.parquet")
@@ -121,11 +160,20 @@ def assemble_dataset(
         "total_rows": len(dataset),
         "label_balance": {str(k): int(v) for k, v in label_balance.items()},
     }
+    if config.context is not None:
+        manifest["context"] = {
+            "fred_series": list(config.context.fred_series),
+            "news_count_windows_days": list(config.context.news_count_windows_days),
+            "insider_net_window_days": config.context.insider_net_window_days,
+        }
     write_json(manifest, out_dir / "manifest.json")
 
+    normalized = list(_NORMALIZE_COLUMNS)
+    if config.context is not None:
+        normalized += context_normalize_columns(config.context)
     spec: dict[str, Any] = {
-        "features": feature_columns(config.features),
-        "normalized": list(_NORMALIZE_COLUMNS),
+        "features": model_columns,
+        "normalized": normalized,
         "label": "barrier_label",
     }
     write_json(spec, out_dir / "feature_spec.json")
@@ -133,6 +181,7 @@ def assemble_dataset(
 
 
 __all__ = [
+    "all_feature_columns",
     "assemble_dataset",
     "build_ticker_dataset",
     "feature_columns",

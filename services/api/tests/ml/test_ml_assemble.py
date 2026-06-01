@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd  # type: ignore[import-untyped]
+import pytest
 
 from app.ml.assemble import build_ticker_dataset, feature_columns
-from app.ml.config import EtlConfig, FeatureConfig
+from app.ml.config import ContextConfig, EtlConfig, FeatureConfig
+from app.ml.features.context_join import ContextBundle, context_feature_columns
 
 
 def _bars(n: int) -> pd.DataFrame:
@@ -53,3 +55,87 @@ def test_feature_columns_excludes_label_and_meta() -> None:
     for forbidden in ("barrier_label", "touch_type", "label_return", "ticker",
                       "label_end_ts", "atr_at_entry", "is_rth"):
         assert forbidden not in cols
+
+
+def _context_bundle(bars: pd.DataFrame) -> ContextBundle:
+    start = bars.index[0]
+    insider = pd.DataFrame(
+        {
+            "available_ts": [start - pd.Timedelta(days=2)],
+            "change": [1000],
+        }
+    )
+    news = pd.DataFrame(
+        {"published_ts": [start - pd.Timedelta(hours=3), start + pd.Timedelta(hours=1)]}
+    )
+    recommendation = pd.DataFrame(
+        {"available_ts": [start - pd.Timedelta(days=5)], "net_score": [0.4]}
+    )
+    fred = {
+        series_id: pd.DataFrame(
+            {
+                "available_ts": [
+                    start - pd.Timedelta(days=3),
+                    start - pd.Timedelta(days=2),
+                ],
+                "value": [4.2, 4.3],
+            }
+        )
+        for series_id in ("DGS10", "VIXCLS", "T10Y2Y")
+    }
+    return ContextBundle(
+        insider=insider, news=news, recommendation=recommendation, fred=fred
+    )
+
+
+def test_build_ticker_dataset_appends_context_columns() -> None:
+    bars = _bars(220)
+    cfg = EtlConfig(
+        tickers=("AAPL",),
+        from_date=bars.index[0].date(),
+        to_date=bars.index[-1].date(),
+        context=ContextConfig(),
+    )
+    frame = build_ticker_dataset("AAPL", bars, cfg, context=_context_bundle(bars))
+    for col in context_feature_columns(ContextConfig()):
+        assert col in frame.columns
+        assert frame[col].notna().all()
+    assert frame["barrier_label"].notna().all()
+
+
+def test_build_ticker_dataset_context_is_deterministic() -> None:
+    bars = _bars(220)
+    cfg = EtlConfig(
+        tickers=("AAPL",),
+        from_date=bars.index[0].date(),
+        to_date=bars.index[-1].date(),
+        context=ContextConfig(),
+    )
+    bundle = _context_bundle(bars)
+    a = build_ticker_dataset("AAPL", bars, cfg, context=bundle)
+    b = build_ticker_dataset("AAPL", bars, cfg, context=bundle)
+    pd.testing.assert_frame_equal(a, b)
+
+
+def test_build_ticker_dataset_without_context_has_no_context_columns() -> None:
+    bars = _bars(220)
+    cfg = EtlConfig(
+        tickers=("AAPL",),
+        from_date=bars.index[0].date(),
+        to_date=bars.index[-1].date(),
+    )
+    frame = build_ticker_dataset("AAPL", bars, cfg)
+    for col in context_feature_columns(ContextConfig()):
+        assert col not in frame.columns
+
+
+def test_build_ticker_dataset_context_config_without_bundle_raises() -> None:
+    bars = _bars(220)
+    cfg = EtlConfig(
+        tickers=("AAPL",),
+        from_date=bars.index[0].date(),
+        to_date=bars.index[-1].date(),
+        context=ContextConfig(),
+    )
+    with pytest.raises(ValueError, match="context"):
+        build_ticker_dataset("AAPL", bars, cfg)
