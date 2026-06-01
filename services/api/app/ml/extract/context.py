@@ -37,8 +37,12 @@ def available_utc(day: date, lag_days: int) -> pd.Timestamp:
     so with ``lag_days >= 1`` it can never appear on a bar during ``day`` itself
     (whose intraday publish time is unknown). This is the single point-in-time
     lag convention shared by insider filings, recommendations, and FRED.
+
+    The lag is a calendar offset, not a fixed 24h span: on a DST fall-back day a
+    24h delta would resolve to 23:00 ET of the prior evening, one hour before the
+    intended midnight, which could leak the value onto an extended-hours bar.
     """
-    return (pd.Timestamp(day, tz=_ET) + pd.Timedelta(days=lag_days)).tz_convert(_UTC)
+    return (pd.Timestamp(day, tz=_ET) + pd.DateOffset(days=lag_days)).tz_convert(_UTC)
 
 
 def _to_utc(value: object) -> pd.Timestamp:

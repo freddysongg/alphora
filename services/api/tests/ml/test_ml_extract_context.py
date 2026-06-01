@@ -35,6 +35,11 @@ def test_available_utc_lags_into_next_et_midnight() -> None:
     assert ts == pd.Timestamp("2026-05-16 00:00", tz="America/New_York").tz_convert("UTC")
 
 
+def test_available_utc_lands_on_et_midnight_across_dst_fall_back() -> None:
+    ts = available_utc(date(2025, 11, 2), 1)
+    assert ts == pd.Timestamp("2025-11-03 00:00", tz="America/New_York").tz_convert("UTC")
+
+
 def test_insider_events_to_frame_lags_and_sorts() -> None:
     response = FinnhubInsiderTransactionsResponse(
         symbol="AAPL",
