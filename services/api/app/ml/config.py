@@ -36,6 +36,20 @@ class FeatureConfig:
 
 
 @dataclass(frozen=True)
+class ContextConfig:
+    insider_net_window_days: int = 30
+    insider_recency_cap_days: float = 252.0
+    insider_lag_days: int = 1
+    news_count_windows_days: tuple[int, ...] = (1, 5, 20)
+    recommendation_lag_days: int = 0
+    fred_series: tuple[str, ...] = ("DGS10", "VIXCLS", "T10Y2Y")
+    fred_lag_days: int = 1
+    fred_history_days: int = 365
+    normalize_window: int = 100
+    normalize_min_periods: int = 30
+
+
+@dataclass(frozen=True)
 class PathConfig:
     root: Path = _DEFAULT_ROOT
 
@@ -53,6 +67,13 @@ class PathConfig:
     def dataset_dir(self, run_id: str) -> Path:
         return self.datasets_root / run_id
 
+    @property
+    def context_dir(self) -> Path:
+        return self.root / "context"
+
+    def context_path(self, source: str, key: str) -> Path:
+        return self.context_dir / source / f"{key}.parquet"
+
 
 @dataclass(frozen=True)
 class EtlConfig:
@@ -63,11 +84,13 @@ class EtlConfig:
     barrier: BarrierConfig = field(default_factory=BarrierConfig)
     features: FeatureConfig = field(default_factory=FeatureConfig)
     paths: PathConfig = field(default_factory=PathConfig)
+    context: ContextConfig | None = None
 
 
 __all__ = [
     "AmbiguousResolution",
     "BarrierConfig",
+    "ContextConfig",
     "EtlConfig",
     "FeatureConfig",
     "PathConfig",
