@@ -23,10 +23,13 @@ def label_triple_barrier(
     For each entry bar t with finite ATR, scan strictly-later bars within the
     same ET session, capped at t + horizon_bars. The first barrier touched
     wins: upper (close_t + pt_mult*ATR) -> label 1; lower
-    (close_t - sl_mult*ATR) -> label 0; neither by the cap -> vertical, label 0.
-    A single bar straddling both barriers is resolved by
-    `config.ambiguous_bar_resolution`. Rows whose ATR is NaN or which have no
-    in-session future bar are left unlabeled (NaN).
+    (close_t - sl_mult*ATR) -> label 0. If no barrier is touched but the full
+    horizon_bars window was observable within the session, the vertical barrier
+    applies -> label 0. A single bar straddling both barriers is resolved by
+    `config.ambiguous_bar_resolution`. Rows whose ATR is NaN, or whose full
+    horizon cannot be observed within the same ET session (the last
+    horizon_bars bars of each session, or a window truncated by end of data),
+    are left unlabeled (NaN) and dropped during assembly.
     """
     closes = bars["close"].to_numpy(dtype="float64")
     highs = bars["high"].to_numpy(dtype="float64")
@@ -46,11 +49,14 @@ def label_triple_barrier(
             continue
         upper = closes[i] + config.pt_mult * atr_i
         lower = closes[i] - config.sl_mult * atr_i
-        last_j = min(i + config.horizon_bars, n - 1)
+        full_horizon_end = i + config.horizon_bars
+        last_j = min(full_horizon_end, n - 1)
+        session_truncated = False
         resolved = False
         for j in range(i + 1, last_j + 1):
             if session_days[j] != session_days[i]:
                 last_j = j - 1
+                session_truncated = True
                 break
             hit_upper = highs[j] >= upper
             hit_lower = lows[j] <= lower
@@ -77,7 +83,7 @@ def label_triple_barrier(
                 break
         if resolved:
             continue
-        if last_j > i:
+        if not session_truncated and last_j == full_horizon_end:
             labels[i], touch_types[i] = 0.0, "vertical"
             label_returns[i] = closes[last_j] / closes[i] - 1.0
             label_end[i] = bars.index[last_j]
