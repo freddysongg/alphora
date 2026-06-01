@@ -1,17 +1,25 @@
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 
+import httpx
 import pandas as pd  # type: ignore[import-untyped]
+import pytest
+import respx
 
-from app.ml.config import ContextConfig
+from app.config import get_settings
+from app.ml.config import ContextConfig, PathConfig
 from app.ml.extract.context import (
     available_utc,
     fred_observations_to_frame,
     insider_events_to_frame,
     news_events_to_frame,
+    pull_context_for_ticker,
+    pull_fred,
     recommendation_events_to_frame,
 )
+from app.ml.storage import read_parquet
 from app.services.source_clients.finnhub import (
     FinnhubInsiderTransaction,
     FinnhubInsiderTransactionsResponse,
@@ -107,3 +115,109 @@ def test_fred_observations_to_frame_skips_missing_and_lags() -> None:
     assert frame["available_ts"].iloc[0] == (
         pd.Timestamp("2026-05-02 00:00", tz="America/New_York").tz_convert("UTC")
     )
+
+
+@pytest.fixture()
+def _finnhub_fred_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FINNHUB_API_KEY", "finnhub-test-key")
+    monkeypatch.setenv("FRED_API_KEY", "fred-test-key")
+    get_settings.cache_clear()
+
+
+@respx.mock
+async def test_pull_context_for_ticker_writes_three_sources(
+    tmp_path: Path, _finnhub_fred_keys: None
+) -> None:
+    respx.get("https://finnhub.io/api/v1/stock/insider-transactions").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "symbol": "AAPL",
+                "data": [
+                    {
+                        "name": "Tim Cook", "share": 1000, "change": -500,
+                        "filingDate": "2026-05-15", "transactionDate": "2026-05-13",
+                        "transactionCode": "S", "transactionPrice": 195.5,
+                    }
+                ],
+            },
+        )
+    )
+    respx.get("https://finnhub.io/api/v1/company-news").mock(
+        return_value=httpx.Response(
+            200,
+            json=[
+                {
+                    "id": 1, "category": "company", "headline": "h", "source": "s",
+                    "url": "https://example.com/1", "datetime": 1778850000,
+                }
+            ],
+        )
+    )
+    respx.get("https://finnhub.io/api/v1/stock/recommendation").mock(
+        return_value=httpx.Response(
+            200,
+            json=[
+                {
+                    "symbol": "AAPL", "period": "2026-05-01", "buy": 20, "hold": 5,
+                    "sell": 2, "strongBuy": 10, "strongSell": 1,
+                }
+            ],
+        )
+    )
+
+    paths = PathConfig(root=tmp_path)
+    async with httpx.AsyncClient() as client:
+        await pull_context_for_ticker(
+            client=client,
+            ticker="AAPL",
+            from_date=date(2026, 5, 1),
+            to_date=date(2026, 5, 20),
+            config=ContextConfig(),
+            paths=paths,
+        )
+
+    insider = read_parquet(paths.context_path("insider", "AAPL"))
+    news = read_parquet(paths.context_path("news", "AAPL"))
+    recommendation = read_parquet(paths.context_path("recommendation", "AAPL"))
+    assert insider["change"].tolist() == [-500]
+    assert list(news.columns) == ["published_ts"]
+    assert len(news) == 1
+    assert abs(recommendation["net_score"].iloc[0] - (10 + 20 - 2 - 1) / 38) < 1e-9
+
+
+@respx.mock
+async def test_pull_fred_writes_one_parquet_per_series(
+    tmp_path: Path, _finnhub_fred_keys: None
+) -> None:
+    respx.get("https://api.stlouisfed.org/fred/series/observations").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "observation_start": "2025-05-01",
+                "observation_end": "2026-05-20",
+                "count": 2,
+                "observations": [
+                    {"date": "2026-05-01", "value": "4.25",
+                     "realtime_start": "2026-05-02", "realtime_end": "2026-12-31"},
+                    {"date": "2026-05-02", "value": ".",
+                     "realtime_start": "2026-05-03", "realtime_end": "2026-12-31"},
+                ],
+            },
+        )
+    )
+
+    paths = PathConfig(root=tmp_path)
+    config = ContextConfig(fred_series=("DGS10",))
+    async with httpx.AsyncClient() as client:
+        written = await pull_fred(
+            client=client,
+            from_date=date(2026, 5, 1),
+            to_date=date(2026, 5, 20),
+            config=config,
+            paths=paths,
+        )
+
+    assert written == [paths.context_path("fred", "DGS10")]
+    frame = read_parquet(paths.context_path("fred", "DGS10"))
+    assert frame["value"].tolist() == [4.25]
