@@ -29,6 +29,7 @@ alphora-worker = "app.workers.worker:main"
 alphora-paper-scheduler = "app.workers.paper_scheduler:main"
 alphora-lifecycle-scheduler = "app.workers.lifecycle_scheduler:main"
 alphora-trade = "app.cli.main:app"
+alphora-etl = "app.ml.cli:app"
 
 [project.optional-dependencies]
 dev = [
@@ -40,6 +41,9 @@ dev = [
   "aiosqlite>=0.20.0",
   "respx>=0.21.1",
   "fakeredis>=2.25.0",
+]
+ml = [
+  "pyarrow>=17.0.0",
 ]
 
 [build-system]
